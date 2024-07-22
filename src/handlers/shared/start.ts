@@ -76,7 +76,7 @@ export async function start(context: Context, issue: Context["payload"]["issue"]
 
   if (isUnassigned) {
     await addCommentToIssue(context, "```diff\n! You were previously unassigned from this task. You cannot reassign yourself\n```");
-    throw new Error(`Too many assigned issues, you have reached your max limit of ${maxConcurrentTasks} issues.`);
+    throw new Error(`This user was unassigned from this task previously. Cannot auto assign`);
   }
 
   const duration: number = calculateDurations(labels).shift() ?? 0;
