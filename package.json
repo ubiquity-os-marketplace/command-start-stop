@@ -2,7 +2,7 @@
   "name": "@ubiquibot/command-start-stop",
   "version": "1.0.0",
   "description": "Enables the assignment and graceful unassignment of tasks to contributors.",
-  "main": "build/index.ts",
+  "main": "src/worker.ts",
   "author": "Ubiquity DAO",
   "license": "MIT",
   "engines": {
@@ -29,8 +29,6 @@
     "open-source"
   ],
   "dependencies": {
-    "@actions/core": "^1.10.1",
-    "@actions/github": "^6.0.0",
     "@octokit/rest": "^20.0.2",
     "@octokit/webhooks": "^13.1.0",
     "@sinclair/typebox": "^0.32.5",
