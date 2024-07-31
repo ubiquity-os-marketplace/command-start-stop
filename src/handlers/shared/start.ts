@@ -1,4 +1,4 @@
-import { Context, ISSUE_TYPE, Label } from "../../types";
+import { Assignee, Context, ISSUE_TYPE, Label } from "../../types";
 import { isParentIssue, getAvailableOpenedPullRequests, getAssignedIssues, addAssignees, addCommentToIssue } from "../../utils/issue";
 import { calculateDurations } from "../../utils/shared";
 import { checkTaskStale } from "./check-task-stale";
@@ -45,20 +45,27 @@ export async function start(context: Context, issue: Context["payload"]["issue"]
   // check for max and enforce max
 
   if (assignedIssues.length - openedPullRequests.length >= maxConcurrentTasks) {
-    await addCommentToIssue(context, "```diff\n! Too many assigned issues, you have reached your max limit.\n```");
+    const log = logger.error("Too many assigned issues, you have reached your max limit", {
+      assignedIssues: assignedIssues.length,
+      openedPullRequests: openedPullRequests.length,
+      maxConcurrentTasks,
+    });
+    await addCommentToIssue(context, log?.logMessage.diff as string);
     throw new Error(`Too many assigned issues, you have reached your max limit of ${maxConcurrentTasks} issues.`);
   }
 
   // is it assignable?
 
   if (issue.state === ISSUE_TYPE.CLOSED) {
-    await addCommentToIssue(context, "```diff\n! The issue is closed. Please choose another unassigned task.\n```");
+    const log = logger.error("This issue is closed, please choose another.", { issueNumber: issue.number });
+    await addCommentToIssue(context, log?.logMessage.diff as string);
     throw new Error("Issue is closed");
   }
 
   const assignees = (issue?.assignees ?? []).filter(Boolean);
   if (assignees.length !== 0) {
-    await addCommentToIssue(context, "```diff\n! The issue is already assigned. Please choose another unassigned task.\n```");
+    const log = logger.error("The issue is already assigned. Please choose another unassigned task.", { issueNumber: issue.number });
+    await addCommentToIssue(context, log?.logMessage.diff as string);
     throw new Error("Issue is already assigned");
   }
 
@@ -68,7 +75,8 @@ export async function start(context: Context, issue: Context["payload"]["issue"]
   const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
 
   if (!priceLabel) {
-    await addCommentToIssue(context, "```diff\n! No price label is set to calculate the duration.\n```");
+    const log = logger.error("No price label is set to calculate the duration", { issueNumber: issue.number });
+    await addCommentToIssue(context, log?.logMessage.diff as string);
     throw new Error("No price label is set to calculate the duration");
   }
 
@@ -81,7 +89,7 @@ export async function start(context: Context, issue: Context["payload"]["issue"]
   const metadata = structuredMetadata.create("Assignment", logMessage);
 
   // add assignee
-  if (!assignees.map((i) => i?.login).includes(login)) {
+  if (!assignees.map((i: Partial<Assignee>) => i?.login).includes(login)) {
     await addAssignees(context, issue.number, [login]);
   }
 

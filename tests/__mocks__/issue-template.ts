@@ -1,4 +1,5 @@
 export default {
+  assignees: [],
   assignee: {
     login: "",
     avatar_url: "",

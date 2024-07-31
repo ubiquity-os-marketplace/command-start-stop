@@ -1,10 +1,19 @@
 import { Value } from "@sinclair/typebox/value";
 import { startStopTask } from "./plugin";
 import { Env, startStopSchema, startStopSettingsValidator } from "./types";
+import manifest from "../manifest.json";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     try {
+      if (request.method === "GET") {
+        const url = new URL(request.url);
+        if (url.pathname === "/manifest.json") {
+          return new Response(JSON.stringify(manifest), {
+            headers: { "content-type": "application/json" },
+          });
+        }
+      }
       if (request.method !== "POST") {
         return new Response(JSON.stringify({ error: `Only POST requests are supported.` }), {
           status: 405,

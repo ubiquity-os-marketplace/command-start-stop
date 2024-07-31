@@ -13,14 +13,14 @@ export class User extends Super {
   }
 
   async getWalletByUserId(userId: number, issueNumber: number) {
-    const { data, error } = await this.supabase.from("users").select("wallets(*)").eq("id", userId).single() as { data: { wallets: Wallet }, error: unknown };
+    const { data, error } = (await this.supabase.from("users").select("wallets(*)").eq("id", userId).single()) as { data: { wallets: Wallet }; error: unknown };
     if ((error && !data) || !data.wallets?.address) {
       this.context.logger.error("No wallet address found", { userId, issueNumber });
       if (this.context.config.miscellaneous.startRequiresWallet) {
         await addCommentToIssue(this.context, "```diff\n! Please set your wallet address with the /wallet command first and try again.\n```");
         throw new Error("No wallet address found");
       } else {
-        await addCommentToIssue(this.context, "```diff\n# Please set your wallet address with the /wallet command in order to receive a task reward.\n```");
+        await addCommentToIssue(this.context, "```diff\n# Please set your wallet address with the /wallet command in order to be eligible for rewards.\n```");
       }
     } else {
       this.context.logger.info("Successfully fetched wallet", { userId, address: data.wallets?.address });

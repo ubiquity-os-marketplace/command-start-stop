@@ -17,7 +17,7 @@ jobs:
 
       - name: Enable corepack
         run: corepack enable
-        
+
       - uses: actions/checkout@v4
       - uses: cloudflare/wrangler-action@v3
         with:

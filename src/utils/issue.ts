@@ -1,6 +1,6 @@
 import { Context } from "../types/context";
-import { Issue, ISSUE_TYPE } from "../types/payload";
-import { getLinkedPullRequests } from "./get-linked-prs";
+import { Issue, ISSUE_TYPE, PullRequest, Review } from "../types/payload";
+import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
@@ -19,7 +19,7 @@ export async function getAssignedIssues(context: Context, username: string): Pro
         state: ISSUE_TYPE.OPEN,
         per_page: 100,
       },
-      ({ data: issues }) => issues.filter((issue) => !issue.pull_request && issue.assignee && issue.assignee.login === username)
+      ({ data: issues }) => issues.filter((issue: Issue) => !issue.pull_request && issue.assignee && issue.assignee.login === username)
     );
   } catch (err: unknown) {
     context.logger.error("Fetching assigned issues failed!", { error: err as Error });
@@ -40,20 +40,20 @@ export async function addCommentToIssue(context: Context, message: string | null
       issue_number: issueNumber,
       body: comment,
     });
-  } catch (e: unknown) {
-    context.logger.error("Adding a comment failed!", { error: e as Error });
+  } catch (err: unknown) {
+    context.logger.error("Adding a comment failed!", { error: err as Error });
   }
 }
 
-// Pull requests
+// Pull Requests
 
-export async function closePullRequest(context: Context, pullNumber: number) {
-  const { repository } = context.payload;
+export async function closePullRequest(context: Context, results: GetLinkedResults) {
+  const { payload } = context;
   try {
     await context.octokit.rest.pulls.update({
-      owner: repository.owner.login,
-      repo: repository.name,
-      pull_number: pullNumber,
+      owner: payload.repository.owner.login,
+      repo: payload.repository.name,
+      pull_number: results.number,
       state: "closed",
     });
   } catch (err: unknown) {
@@ -61,10 +61,11 @@ export async function closePullRequest(context: Context, pullNumber: number) {
   }
 }
 
-export async function closePullRequestForAnIssue(context: Context, issueNumber: number, repository: Context["payload"]["repository"]) {
-  const logger = context.logger;
+export async function closePullRequestForAnIssue(context: Context, issueNumber: number, repository: Context["payload"]["repository"], author: string) {
+  const { logger } = context;
   if (!issueNumber) {
-    throw logger.error("Issue is not defined");
+    logger.error("Issue is not defined");
+    return;
   }
 
   const linkedPullRequests = await getLinkedPullRequests(context, {
@@ -77,12 +78,36 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
     return logger.info(`No linked pull requests to close`);
   }
 
-  logger.info(`Opened prs`, { message: JSON.stringify(linkedPullRequests) });
+  logger.info(`Opened prs`, { author, linkedPullRequests });
   let comment = "```diff\n# These linked pull requests are closed: ";
-  for (let i = 0; i < linkedPullRequests.length; i++) {
-    await closePullRequest(context, linkedPullRequests[i].number);
-    comment += ` ${linkedPullRequests[i].href} `;
+
+  let isClosed = false;
+
+  for (const pr of linkedPullRequests) {
+    /**
+     * If the PR author is not the same as the issue author, skip the PR
+     * If the PR organization is not the same as the issue organization, skip the PR
+     *
+     * Same organization and author, close the PR
+     */
+    if (pr.author !== author || pr.organization !== repository.owner.login) {
+      continue;
+    } else {
+      const isLinked = issueLinkedViaPrBody(pr.body, issueNumber);
+      if (!isLinked) {
+        logger.info(`Issue is not linked to the PR`, { issueNumber, prNumber: pr.number });
+        continue;
+      }
+      await closePullRequest(context, pr);
+      comment += ` ${pr.href} `;
+      isClosed = true;
+    }
   }
+
+  if (!isClosed) {
+    return logger.info(`No PRs were closed`);
+  }
+
   await addCommentToIssue(context, comment);
   return logger.info(comment);
 }
@@ -106,12 +131,12 @@ export async function getAllPullRequests(context: Context, state: "open" | "clos
   const payload = context.payload;
 
   try {
-    return await context.octokit.paginate(context.octokit.rest.pulls.list, {
+    return (await context.octokit.paginate(context.octokit.rest.pulls.list, {
       owner: payload.repository.owner.login,
       repo: payload.repository.name,
       state,
       per_page: 100,
-    });
+    })) as PullRequest[];
   } catch (err: unknown) {
     context.logger.error("Fetching all pull requests failed!", { error: err as Error });
     return [];
@@ -125,7 +150,7 @@ export async function getAllPullRequestReviews(context: Context, pullNumber: num
   const repo = payload.repository.name;
 
   try {
-    return await context.octokit.paginate(context.octokit.rest.pulls.listReviews, {
+    return (await context.octokit.paginate(context.octokit.rest.pulls.listReviews, {
       owner,
       repo,
       pull_number: pullNumber,
@@ -133,7 +158,7 @@ export async function getAllPullRequestReviews(context: Context, pullNumber: num
       mediaType: {
         format,
       },
-    });
+    })) as Review[];
   } catch (err: unknown) {
     context.logger.error("Fetching all pull request reviews failed!", { error: err as Error });
     return [];
@@ -168,4 +193,45 @@ export async function getAvailableOpenedPullRequests(context: Context, username:
 async function getOpenedPullRequests(context: Context, username: string): Promise<ReturnType<typeof getAllPullRequests>> {
   const prs = await getAllPullRequests(context, "open");
   return prs.filter((pr) => !pr.draft && (pr.user?.login === username || !username));
+}
+
+/**
+ * Extracts the task id from the PR body. The format is:
+ * `Resolves #123`
+ * `Fixes https://github.com/.../issues/123`
+ * `Closes #123`
+ * `Depends on #123`
+ * `Related to #123`
+ */
+export function issueLinkedViaPrBody(prBody: string | null, issueNumber: number): boolean {
+  if (!prBody) {
+    return false;
+  }
+  const regex = // eslint-disable-next-line no-useless-escape
+    /(?:Resolves|Fixes|Closes|Depends on|Related to) #(\d+)|https:\/\/(?:www\.)?github.com\/([^\/]+)\/([^\/]+)\/(issue|issues)\/(\d+)|#(\d+)/gi;
+
+  const containsHtmlComment = /<!-*[\s\S]*?-*>/g;
+  prBody = prBody?.replace(containsHtmlComment, ""); // Remove HTML comments
+
+  const matches = prBody?.match(regex);
+
+  if (!matches) {
+    return false;
+  }
+
+  let issueId;
+
+  matches.map((match) => {
+    if (match.startsWith("http")) {
+      // Extract the issue number from the URL
+      const urlParts = match.split("/");
+      issueId = urlParts[urlParts.length - 1];
+    } else {
+      // Extract the issue number directly from the hashtag
+      const hashtagParts = match.split("#");
+      issueId = hashtagParts[hashtagParts.length - 1]; // The issue number follows the '#'
+    }
+  });
+
+  return issueId === issueNumber.toString();
 }

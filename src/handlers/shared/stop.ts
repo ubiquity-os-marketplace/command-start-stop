@@ -1,4 +1,4 @@
-import { Context } from "../../types";
+import { Assignee, Context } from "../../types";
 import { addCommentToIssue, closePullRequestForAnIssue } from "../../utils/issue";
 
 export async function stop(context: Context, issue: Context["payload"]["issue"], sender: Context["payload"]["sender"], repo: Context["payload"]["repository"]) {
@@ -7,23 +7,17 @@ export async function stop(context: Context, issue: Context["payload"]["issue"],
 
   // is there an assignee?
   const assignees = issue.assignees ?? [];
-  if (assignees.length == 0) {
-    logger.error("No assignees found for issue", { issueNumber });
-    await addCommentToIssue(context, "````diff\n! You are not assigned to this task.\n````");
-    return { output: "No assignees found for this task" };
-  }
-
   // should unassign?
-  const shouldUnassign = assignees[0]?.login.toLowerCase() == sender.login.toLowerCase();
+  const userToUnassign = assignees.find((assignee: Partial<Assignee>) => assignee?.login?.toLowerCase() === sender.login.toLowerCase());
 
-  if (!shouldUnassign) {
-    logger.error("You are not assigned to this task", { issueNumber, user: sender.login });
+  if (!userToUnassign) {
+    const log = logger.error("You are not assigned to this task", { issueNumber, user: sender.login });
+    await addCommentToIssue(context, log?.logMessage.diff as string);
     return { output: "You are not assigned to this task" };
   }
 
   // close PR
-
-  await closePullRequestForAnIssue(context, issueNumber, repo);
+  await closePullRequestForAnIssue(context, issueNumber, repo, userToUnassign.login);
 
   const {
     name,
@@ -39,11 +33,11 @@ export async function stop(context: Context, issue: Context["payload"]["issue"],
     assignees: [sender.login],
   });
 
-  logger.info("You have been unassigned from the task", {
+  const unassignedLog = logger.info("You have been unassigned from the task", {
     issueNumber,
     user: sender.login,
   });
 
-  addCommentToIssue(context, "```diff\n+ You have been unassigned from this task.\n````").catch(logger.error);
+  await addCommentToIssue(context, unassignedLog?.logMessage.diff as string);
   return { output: "Task unassigned successfully" };
 }

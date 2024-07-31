@@ -14,7 +14,6 @@ export interface PluginInputs<T extends SupportedEventsU = SupportedEventsU, TU 
 const ONE_DAY = 24 * 60 * 60 * 1000;
 
 export const startStopSchema = T.Object({
-  isEnabled: T.Boolean({ default: true }),
   timers: T.Object(
     {
       reviewDelayTolerance: T.Number(),

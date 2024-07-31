@@ -18,5 +18,5 @@ export interface Context<T extends SupportedEventsU = SupportedEventsU, TU exten
   adapters: ReturnType<typeof createAdapters>;
   config: StartStopSettings;
   env: Env;
-  logger: Logs
+  logger: Logs;
 }
