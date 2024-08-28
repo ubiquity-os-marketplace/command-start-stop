@@ -19,7 +19,7 @@ export async function generateAssignmentComment(context: Context, issueCreatedAt
 
   return {
     daysElapsedSinceTaskCreation: Math.floor((startTime - new Date(issueCreatedAt).getTime()) / 1000 / 60 / 60 / 24),
-    deadline,
+    deadline: duration > 0 ? deadline : null,
     registeredWallet:
       (await context.adapters.supabase.user.getWalletByUserId(senderId, issueNumber)) ||
       "Register your wallet address using the following slash command: `/wallet 0x0000...0000`",

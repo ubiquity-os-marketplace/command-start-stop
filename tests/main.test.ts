@@ -18,13 +18,6 @@ type Sender = Context["payload"]["sender"];
 const octokit = jest.requireActual("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
 
-const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_KEY;
-
-if (!url || !key) {
-  throw new Error("Supabase URL and Key are required");
-}
-
 beforeAll(() => {
   server.listen();
 });
@@ -50,6 +43,23 @@ describe("User start/stop", () => {
     const { output } = await userStartStop(context as unknown as Context);
 
     expect(output).toEqual("Task assigned successfully");
+  });
+
+  test("User can start an issue with teammates", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Sender;
+
+    const context = createContext(issue, sender, "/start @user2");
+
+    context.adapters = createAdapters(getSupabase(), context as unknown as Context);
+
+    const { output } = await userStartStop(context as unknown as Context);
+
+    expect(output).toEqual("Task assigned successfully");
+
+    const issue2 = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    expect(issue2.assignees).toHaveLength(2);
+    expect(issue2.assignees).toEqual(expect.arrayContaining(["ubiquity", "user2"]));
   });
 
   test("User can stop an issue", async () => {
@@ -93,9 +103,7 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
-    const output = await userStartStop(context as unknown as Context);
-
-    expect(output).toEqual({ output: "You are not assigned to this task" });
+    await expect(userStartStop(context as unknown as Context)).rejects.toThrow("```diff\n! You are not assigned to this task\n```");
   });
 
   test("User can't stop an issue without assignees", async () => {
@@ -103,12 +111,9 @@ describe("User start/stop", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Sender;
 
     const context = createContext(issue, sender, "/stop");
-
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
-    const output = await userStartStop(context as unknown as Context);
-
-    expect(output).toEqual({ output: "You are not assigned to this task" });
+    await expect(userStartStop(context as unknown as Context)).rejects.toThrow("```diff\n! You are not assigned to this task\n```");
   });
 
   test("User can't start an issue that's already assigned", async () => {
@@ -119,7 +124,7 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
-    const err = "Issue is already assigned";
+    const err = "```diff\n! This issue is already assigned. Please choose another unassigned task.\n```";
 
     try {
       await userStartStop(context as unknown as Context);
@@ -179,40 +184,6 @@ describe("User start/stop", () => {
     } catch (error) {
       if (error instanceof Error) {
         expect(error.message).toEqual("Issue is closed");
-      }
-    }
-  });
-
-  test("User can't start if command is disabled", async () => {
-    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Sender;
-
-    const context = createContext(issue, sender, "/start");
-
-    context.adapters = createAdapters(getSupabase(), context as unknown as Context);
-
-    try {
-      await userStartStop(context as unknown as Context);
-    } catch (error) {
-      if (error instanceof Error) {
-        expect(error.message).toEqual("The '/start' command is disabled for this repository.");
-      }
-    }
-  });
-
-  test("User can't stop if command is disabled", async () => {
-    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Sender;
-
-    const context = createContext(issue, sender, "/stop");
-
-    context.adapters = createAdapters(getSupabase(), context as unknown as Context);
-
-    try {
-      await userStartStop(context as unknown as Context);
-    } catch (error) {
-      if (error instanceof Error) {
-        expect(error.message).toEqual("The '/stop' command is disabled for this repository.");
       }
     }
   });
@@ -416,7 +387,6 @@ async function setupTests() {
     },
     body: "Pull request body",
     owner: "ubiquity",
-
     repo: "test-repo",
     state: "open",
     closed_at: null,
@@ -524,7 +494,7 @@ async function setupTests() {
   });
 }
 
-function createContext(issue: Record<string, unknown>, sender: Record<string, unknown>, body = "/start") {
+function createContext(issue: Record<string, unknown>, sender: Record<string, unknown>, body = "/start"): Context {
   return {
     adapters: {} as ReturnType<typeof createAdapters>,
     payload: {
@@ -532,29 +502,22 @@ function createContext(issue: Record<string, unknown>, sender: Record<string, un
       sender: sender as unknown as Context["payload"]["sender"],
       repository: db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["repository"],
       comment: { body } as unknown as Context["payload"]["comment"],
-      action: "created" as string,
+      action: "created",
       installation: { id: 1 } as unknown as Context["payload"]["installation"],
       organization: { login: "ubiquity" } as unknown as Context["payload"]["organization"],
     },
     logger: new Logs("debug"),
     config: {
-      timers: {
-        reviewDelayTolerance: 86000,
-        taskStaleTimeoutDuration: 2580000,
-      },
-      miscellaneous: {
-        maxConcurrentTasks: 3,
-      },
-      labels: {
-        time: ["Time: 1h", "Time: <4 hours", "Time: <1 Day", "Time: <3 Days", "Time: <1 Week"],
-        priority: ["Priority: 1 (Normal)", "Priority: 2 (High)", "Priority: 3 (Critical)"],
-      },
+      reviewDelayTolerance: "3 Days",
+      taskStaleTimeoutDuration: "30 Days",
+      maxConcurrentTasks: 3,
+      startRequiresWallet: false,
     },
     octokit: new octokit.Octokit(),
     eventName: "issue_comment.created" as SupportedEventsU,
     env: {
-      SUPABASE_KEY: key,
-      SUPABASE_URL: url,
+      SUPABASE_KEY: "key",
+      SUPABASE_URL: "url",
     },
   };
 }

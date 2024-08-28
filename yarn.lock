@@ -2787,7 +2787,7 @@ __metadata:
     "@types/jest": "npm:29.5.12"
     "@types/ms": "npm:^0.7.34"
     "@types/node": "npm:20.14.5"
-    "@ubiquity-dao/ubiquibot-logger": "npm:^1.3.0"
+    "@ubiquity-dao/ubiquibot-logger": "npm:^1.3.1"
     cspell: "npm:8.9.0"
     dotenv: "npm:^16.4.4"
     eslint: "npm:9.5.0"
@@ -2813,10 +2813,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@ubiquity-dao/ubiquibot-logger@npm:^1.3.0":
-  version: 1.3.0
-  resolution: "@ubiquity-dao/ubiquibot-logger@npm:1.3.0"
-  checksum: 10c0/9150b4a633c4f49b9a5d87dce8ada521ca1a98b4cb5129209abf8bfb0a99e2a035cf42705792b453081d9476931167c5cc352be7fc70ece8e94d2cfba9a00408
+"@ubiquity-dao/ubiquibot-logger@npm:^1.3.1":
+  version: 1.3.1
+  resolution: "@ubiquity-dao/ubiquibot-logger@npm:1.3.1"
+  checksum: 10c0/b6a4f2171e70126c12f1f7c0f18fe670597bf31e9c0dc19ecfe442a9118401c799a35be32e1d4785f23d0e9c1c6c0be2548769b958a5ed198d849f11520d0c57
   languageName: node
   linkType: hard
 

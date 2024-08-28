@@ -36,12 +36,10 @@ To configure your Ubiquibot to run this plugin, add the following to the `.ubiqu
   command: "\/start|\/stop"
   example: "/start" # or "/stop"
   with:
-    timers:
-      reviewDelayTolerance: 86000
-      taskStaleTimeoutDuration: 2580000
-    miscellaneous:
-      maxConcurrentTasks: 3
-      startRequiresWallet: true # default is true
+    reviewDelayTolerance: "3 Days"
+    taskStaleTimeoutDuration: "30 Days"
+    maxConcurrentTasks: 3
+    startRequiresWallet: true # default is true
 ```
 
 # Testing
