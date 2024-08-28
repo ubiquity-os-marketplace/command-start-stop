@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/ubiquibot/command-start-stop/compare/v1.0.0...v1.1.0) (2024-08-28)
+
+
+### Features
+
+* added worker deploy / delete capabilities ([ee5479d](https://github.com/ubiquibot/command-start-stop/commit/ee5479ddb4357b37a7aa1933ba08752ade4fdd06))
+* custom message for private issues without plan ([4342e5f](https://github.com/ubiquibot/command-start-stop/commit/4342e5f24abcfa10cb3e261c7db4130e54d20361))
+
+
+### Bug Fixes
+
+* hide deadline if no time label ([28ee060](https://github.com/ubiquibot/command-start-stop/commit/28ee0609d8d206799f39365e0b515137f73fa28f))
+* startRequiresWallet default true ([7ee8bc3](https://github.com/ubiquibot/command-start-stop/commit/7ee8bc362db89bdbbb11f94bdc7d4b40633575a8))
+
 ## 1.0.0 (2024-07-25)
 
 
