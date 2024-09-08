@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1](https://github.com/ubiquibot/command-start-stop/compare/v1.1.0...v1.1.1) (2024-09-08)
+
+
+### Bug Fixes
+
+* fixed /stop formatting ([43244a9](https://github.com/ubiquibot/command-start-stop/commit/43244a92e663e5700816b4ed23de4d9e66b676e3))
+* skipping deadline self assign post if no deadline ([ebf98c4](https://github.com/ubiquibot/command-start-stop/commit/ebf98c455278fc8ea21d442ae37bd6d6d6f4f81e))
+* the messages are displayed on catch errors ([c79b63f](https://github.com/ubiquibot/command-start-stop/commit/c79b63fa8224012d90c36de488c6c1fed6e5ba77))
+
 ## [1.1.0](https://github.com/ubiquibot/command-start-stop/compare/v1.0.0...v1.1.0) (2024-08-28)
 
 
