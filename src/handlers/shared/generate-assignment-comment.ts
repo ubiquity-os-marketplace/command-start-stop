@@ -1,6 +1,7 @@
-import { Context } from "../../types/context";
+import { Context } from "../../types";
+import { calculateDurations } from "../../utils/shared";
 
-const options: Intl.DateTimeFormatOptions = {
+export const options: Intl.DateTimeFormatOptions = {
   weekday: "short",
   month: "short",
   day: "numeric",
@@ -10,16 +11,23 @@ const options: Intl.DateTimeFormatOptions = {
   timeZoneName: "short",
 };
 
-export async function generateAssignmentComment(context: Context, issueCreatedAt: string, issueNumber: number, senderId: number, duration: number) {
+export function getDeadline(issue: Context["payload"]["issue"]): string | null {
+  if (!issue?.labels) {
+    throw new Error("No labels are set.");
+  }
   const startTime = new Date().getTime();
-  let endTime: null | Date = null;
-  let deadline: null | string = null;
-  endTime = new Date(startTime + duration * 1000);
-  deadline = endTime.toLocaleString("en-US", options);
+  const duration: number = calculateDurations(issue.labels).shift() ?? 0;
+  if (!duration) return null;
+  const endTime = new Date(startTime + duration * 1000);
+  return endTime.toLocaleString("en-US", options);
+}
+
+export async function generateAssignmentComment(context: Context, issueCreatedAt: string, issueNumber: number, senderId: number, deadline: string | null) {
+  const startTime = new Date().getTime();
 
   return {
     daysElapsedSinceTaskCreation: Math.floor((startTime - new Date(issueCreatedAt).getTime()) / 1000 / 60 / 60 / 24),
-    deadline: duration > 0 ? deadline : null,
+    deadline: deadline ?? null,
     registeredWallet:
       (await context.adapters.supabase.user.getWalletByUserId(senderId, issueNumber)) ||
       "Register your wallet address using the following slash command: `/wallet 0x0000...0000`",

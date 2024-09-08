@@ -47,14 +47,6 @@ export const handlers = [
   http.get("https://api.github.com/repos/:owner/:repo/pulls", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) =>
     HttpResponse.json(db.pull.findMany({ where: { owner: { equals: owner }, repo: { equals: repo } } }))
   ),
-  // list reviews for a pull request
-  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number/reviews", ({ params: { owner, repo, pull_number: pullNumber } }) =>
-    HttpResponse.json(
-      db.review.findMany({
-        where: { owner: { equals: owner as string }, repo: { equals: repo as string }, pull_number: { equals: Number(pullNumber) } },
-      })
-    )
-  ),
   // list events for an issue timeline
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/timeline", () => HttpResponse.json(db.event.getAll())),
   // update a pull request
@@ -96,13 +88,7 @@ export const handlers = [
   // get commit hash
   http.get("https://api.github.com/repos/:owner/:repo/commits", () => HttpResponse.json({ sha: "commitHash" })),
   // list all pull request reviews
-  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number/reviews", ({ params: { owner, repo, pull_number: pullNumber } }) =>
-    HttpResponse.json(
-      db.review.findMany({
-        where: { owner: { equals: owner as string }, repo: { equals: repo as string }, pull_number: { equals: Number(pullNumber) } },
-      })
-    )
-  ),
+  http.get("https://api.github.com/repos/:owner/:repo/pulls/:pull_number/reviews", () => HttpResponse.json(db.review.getAll())),
   // remove assignee from an issue
   http.delete("https://api.github.com/repos/:owner/:repo/issues/:issue_number/assignees", ({ params: { owner, repo, issue_number: issueNumber } }) =>
     HttpResponse.json({ owner, repo, issueNumber })
@@ -120,4 +106,14 @@ export const handlers = [
       })
     )
   ),
+  // get user
+  http.get("https://api.github.com/users/:username", ({ params: { username } }) => {
+    const user = db.users.findFirst({ where: { login: { equals: username as string } } });
+    if (!user) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    return HttpResponse.json(user);
+  }),
+  // get comments for an issue
+  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", () => HttpResponse.json(db.comments.getAll())),
 ];

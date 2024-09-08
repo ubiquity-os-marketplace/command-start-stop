@@ -17,10 +17,10 @@ export class User extends Super {
     if ((error && !data) || !data.wallets?.address) {
       this.context.logger.error("No wallet address found", { userId, issueNumber });
       if (this.context.config.startRequiresWallet) {
-        await addCommentToIssue(this.context, "```diff\n! Please set your wallet address with the /wallet command first and try again.\n```");
+        await addCommentToIssue(this.context, this.context.config.emptyWalletText);
         throw new Error("No wallet address found");
       } else {
-        await addCommentToIssue(this.context, "```diff\n# Please set your wallet address with the /wallet command in order to be eligible for rewards.\n```");
+        await addCommentToIssue(this.context, this.context.config.emptyWalletText);
       }
     } else {
       this.context.logger.info("Successfully fetched wallet", { userId, address: data.wallets?.address });
