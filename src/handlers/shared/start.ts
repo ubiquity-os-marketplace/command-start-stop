@@ -152,7 +152,6 @@ async function handleTaskLimitChecks(username: string, context: Context, logger:
       openedPullRequests: openedPullRequests.length,
       limit,
     });
-
     return false;
   }
 

@@ -212,25 +212,25 @@ describe("User start/stop", () => {
     await expect(userStartStop(context)).rejects.toThrow("user2 you were previously unassigned from this task. You cannot be reassigned.");
   });
 
-  test("Should throw if no BOT_USER_ID is set", async () => {
+  test("Should throw if no APP_ID is set", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", undefined);
 
     const env = { ...context.env };
-    Reflect.deleteProperty(env, "BOT_USER_ID");
+    Reflect.deleteProperty(env, "APP_ID");
     if (!envConfigValidator.test(env)) {
       const errorDetails: string[] = [];
       for (const error of envConfigValidator.errors(env)) {
         errorDetails.push(`${error.path}: ${error.message}`);
       }
 
-      expect(errorDetails).toContain("/BOT_USER_ID: Required property");
+      expect(errorDetails).toContain("/APP_ID: Required property");
     }
   });
 
-  test("Should throw if BOT_USER_ID is not a number", async () => {
+  test("Should throw if APP_ID is not a number", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
@@ -243,7 +243,7 @@ describe("User start/stop", () => {
         errorDetails.push(`${error.path}: ${error.message}`);
       }
 
-      expect(errorDetails).toContain("Invalid BOT_USER_ID");
+      expect(errorDetails).toContain("Invalid APP_ID");
     }
   });
 });
@@ -608,7 +608,7 @@ function createContext(
     env: {
       SUPABASE_KEY: "key",
       SUPABASE_URL: "url",
-      BOT_USER_ID: appId as unknown as number,
+      APP_ID: appId as unknown as number,
     },
   };
 }
