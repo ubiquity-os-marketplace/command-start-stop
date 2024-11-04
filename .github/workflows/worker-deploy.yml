@@ -8,6 +8,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
+    environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
     steps:
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,17 +36,17 @@ jobs:
         id: wrangler_deploy
         uses: cloudflare/wrangler-action@v3
         with:
-          wranglerVersion: "3.57.0"
+          wranglerVersion: "3.79.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           secrets: |
             SUPABASE_URL
             SUPABASE_KEY
-            APP_ID
+            BOT_USER_ID
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          APP_ID: ${{ secrets.APP_ID }}
+          BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
 
       - name: Write Deployment URL to Summary
         run: |

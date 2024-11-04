@@ -1,12 +1,12 @@
 import ms from "ms";
-import { Label } from "../types";
+import { Context } from "../types";
 
-export function calculateDurations(labels: Label[]): number[] {
+export function calculateDurations(labels: Context<"issue_comment.created">["payload"]["issue"]["labels"]): number[] {
   // from shortest to longest
   const durations: number[] = [];
 
-  labels.forEach((label: Label) => {
-    const matches = label.name.match(/<(\d+)\s*(\w+)/);
+  labels.forEach((label) => {
+    const matches = label?.name.match(/<(\d+)\s*(\w+)/);
     if (matches && matches.length >= 3) {
       const number = parseInt(matches[1]);
       const unit = matches[2];

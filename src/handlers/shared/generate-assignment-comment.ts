@@ -11,12 +11,12 @@ export const options: Intl.DateTimeFormatOptions = {
   timeZoneName: "short",
 };
 
-export function getDeadline(issue: Context["payload"]["issue"]): string | null {
-  if (!issue?.labels) {
+export function getDeadline(labels: Context<"issue_comment.created">["payload"]["issue"]["labels"] | undefined | null): string | null {
+  if (!labels?.length) {
     throw new Error("No labels are set.");
   }
   const startTime = new Date().getTime();
-  const duration: number = calculateDurations(issue.labels).shift() ?? 0;
+  const duration: number = calculateDurations(labels).shift() ?? 0;
   if (!duration) return null;
   const endTime = new Date(startTime + duration * 1000);
   return endTime.toLocaleString("en-US", options);
@@ -30,12 +30,16 @@ export async function generateAssignmentComment(context: Context, issueCreatedAt
     deadline: deadline ?? null,
     registeredWallet:
       (await context.adapters.supabase.user.getWalletByUserId(senderId, issueNumber)) ||
-      "Register your wallet address using the following slash command: `/wallet 0x0000...0000`",
-    tips: `<h6>Tips:</h6>
-    <ul>
-    <li>Use <code>/wallet 0x0000...0000</code> if you want to update your registered payment wallet address.</li>
-    <li>Be sure to open a draft pull request as soon as possible to communicate updates on your progress.</li>
-    <li>Be sure to provide timely updates to us when requested, or you will be automatically unassigned from the task.</li>
-    <ul>`,
+      `
+
+> [!WARNING]
+> Register your wallet to be eligible for rewards.
+
+`,
+    tips: `
+> [!TIP]
+> - Use <code>/wallet 0x0000...0000</code> if you want to update your registered payment wallet address.
+> - Be sure to open a draft pull request as soon as possible to communicate updates on your progress.
+> - Be sure to provide timely updates to us when requested, or you will be automatically unassigned from the task.`,
   };
 }

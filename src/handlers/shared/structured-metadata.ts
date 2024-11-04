@@ -1,4 +1,4 @@
-import { LogReturn } from "@ubiquity-dao/ubiquibot-logger";
+import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 
 function createStructuredMetadata(className: string, logReturn: LogReturn | null) {
   let logMessage, metadata;

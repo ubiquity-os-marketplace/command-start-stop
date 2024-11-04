@@ -2,11 +2,11 @@ import { Type as T } from "@sinclair/typebox";
 import { StaticDecode } from "@sinclair/typebox";
 import { StandardValidator } from "typebox-validators";
 
-const ERROR_MSG = "Invalid APP_ID";
+const ERROR_MSG = "Invalid BOT_USER_ID";
 export const envSchema = T.Object({
   SUPABASE_URL: T.String(),
   SUPABASE_KEY: T.String(),
-  APP_ID: T.Transform(T.Union([T.String(), T.Number()], { examples: 123456 }))
+  BOT_USER_ID: T.Transform(T.Union([T.String(), T.Number()], { examples: 123456 }))
     .Decode((value) => {
       if (typeof value === "string" && !isNaN(Number(value))) {
         return Number(value);

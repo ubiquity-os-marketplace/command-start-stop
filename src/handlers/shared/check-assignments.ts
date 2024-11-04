@@ -2,6 +2,9 @@ import { Context } from "../../types";
 import { getOwnerRepoFromHtmlUrl } from "../../utils/issue";
 
 async function getUserStopComments(context: Context, username: string): Promise<number> {
+  if (!("issue" in context.payload)) {
+    throw new Error("The context does not contain an issue.");
+  }
   const { payload, octokit, logger } = context;
   const { number, html_url } = payload.issue;
   const { owner, repo } = getOwnerRepoFromHtmlUrl(html_url);
@@ -21,7 +24,7 @@ async function getUserStopComments(context: Context, username: string): Promise<
 
 export async function hasUserBeenUnassigned(context: Context, username: string): Promise<boolean> {
   const {
-    env: { APP_ID },
+    env: { BOT_USER_ID },
   } = context;
   const events = await getAssignmentEvents(context);
   const userAssignments = events.filter((event) => event.assignee === username);
@@ -33,9 +36,9 @@ export async function hasUserBeenUnassigned(context: Context, username: string):
   const unassignedEvents = userAssignments.filter((event) => event.event === "unassigned");
   // all bot unassignments (/stop, disqualification,  etc)
   // TODO: task-xp-guard: will also prevent future assignments so we need to add a comment tracker we can use here
-  const botUnassigned = unassignedEvents.filter((event) => event.actorId === APP_ID);
+  const botUnassigned = unassignedEvents.filter((event) => event.actorId === BOT_USER_ID);
   // UI assignment
-  const adminUnassigned = unassignedEvents.filter((event) => event.actor !== username && event.actorId !== APP_ID);
+  const adminUnassigned = unassignedEvents.filter((event) => event.actor !== username && event.actorId !== BOT_USER_ID);
   // UI assignment
   const userUnassigned = unassignedEvents.filter((event) => event.actor === username);
   const userStopComments = await getUserStopComments(context, username);
@@ -52,6 +55,9 @@ export async function hasUserBeenUnassigned(context: Context, username: string):
 }
 
 async function getAssignmentEvents(context: Context) {
+  if (!("issue" in context.payload)) {
+    throw new Error("The context does not contain an issue.");
+  }
   const { repository, issue } = context.payload;
   try {
     const data = await context.octokit.paginate(context.octokit.issues.listEventsForTimeline, {

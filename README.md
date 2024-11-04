@@ -1,4 +1,4 @@
-# `@ubiquibot/command-start-stop`
+# `@ubiquity-os/command-start-stop`
 
 This plugin allows a hunter to begin a task as well as gracefully stop a task without incurring a negative impact on the hunter's XP or karma.
 
@@ -24,9 +24,9 @@ To stop a task, a hunter should use the `/stop` command. This will unassign them
 
 ### [Configuration](./src/types/plugin-input.ts)
 
-#### Note: The command name is `"start"` when configuring your `.ubiquibot-config.yml` file.
+#### Note: The command name is `"start"` when configuring your `.ubiquity-os.config.yml` file.
 
-To configure your Ubiquibot to run this plugin, add the following to the `.ubiquibot-config.yml` file in your organization configuration repository.
+To configure your Ubiquibot to run this plugin, add the following to the `.ubiquity-os.config.yml` file in your organization configuration repository.
 
 ```yml
 - plugin: http://localhost:4000 # or the URL where the plugin is hosted
@@ -38,9 +38,12 @@ To configure your Ubiquibot to run this plugin, add the following to the `.ubiqu
   with:
     reviewDelayTolerance: "3 Days"
     taskStaleTimeoutDuration: "30 Days"
-    maxConcurrentTasks: 3
+    maxConcurrentTasks: # Default concurrent task limits per role.
+      member: 5
+      contributor: 3
     startRequiresWallet: true # default is true
     emptyWalletText: "Please set your wallet address with the /wallet command first and try again."
+    rolesWithReviewAuthority: ["MEMBER", "OWNER"]
 ```
 
 # Testing

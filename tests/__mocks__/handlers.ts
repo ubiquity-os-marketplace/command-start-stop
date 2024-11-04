@@ -14,6 +14,15 @@ export const handlers = [
     }
     return HttpResponse.json(item);
   }),
+  //get member
+  http.get("https://api.github.com/orgs/:org/memberships/:username", ({ params: { username } }) => {
+    const user = db.users.findFirst({ where: { login: { equals: username as string } } });
+    if (user) {
+      return HttpResponse.json({ role: user.role });
+    } else {
+      return HttpResponse.json({ role: "collaborator" });
+    }
+  }),
   // get issue
   http.get("https://api.github.com/repos/:owner/:repo/issues", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) =>
     HttpResponse.json(db.issue.findMany({ where: { owner: { equals: owner }, repo: { equals: repo } } }))
@@ -34,15 +43,13 @@ export const handlers = [
     HttpResponse.json({ owner, repo, issueNumber })
   ),
   // get commit
-  http.get("https://api.github.com/repos/:owner/:repo/commits/:ref", () => {
-    const res = {
+  http.get("https://api.github.com/repos/:owner/:repo/commits/:ref", () =>
+    HttpResponse.json({
       data: {
         sha: "commitHash",
       },
-    };
-
-    return HttpResponse.json(res);
-  }),
+    })
+  ),
   // list pull requests
   http.get("https://api.github.com/repos/:owner/:repo/pulls", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) =>
     HttpResponse.json(db.pull.findMany({ where: { owner: { equals: owner }, repo: { equals: repo } } }))
@@ -93,10 +100,15 @@ export const handlers = [
   http.delete("https://api.github.com/repos/:owner/:repo/issues/:issue_number/assignees", ({ params: { owner, repo, issue_number: issueNumber } }) =>
     HttpResponse.json({ owner, repo, issueNumber })
   ),
-  // search issues
-  http.get("https://api.github.com/search/issues", () => {
-    const issues = [db.issue.findFirst({ where: { number: { equals: 1 } } })];
-    return HttpResponse.json({ items: issues });
+  http.get("https://api.github.com/search/issues", ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    const query = params.get("q");
+    const hasAssignee = query?.includes("assignee");
+    if (hasAssignee) {
+      return HttpResponse.json(db.issue.getAll());
+    } else {
+      return HttpResponse.json(db.pull.getAll());
+    }
   }),
   // get issue by number
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number", ({ params: { owner, repo, issue_number: issueNumber } }) =>

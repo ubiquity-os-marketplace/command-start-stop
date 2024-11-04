@@ -16,3 +16,4 @@ cypress/screenshots
 script.ts
 .wrangler
 test-dashboard.md
+*.env.json

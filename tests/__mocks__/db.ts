@@ -7,6 +7,7 @@ export const db = factory({
   users: {
     id: primaryKey(Number),
     login: String,
+    role: String,
   },
   issue: {
     id: primaryKey(Number),

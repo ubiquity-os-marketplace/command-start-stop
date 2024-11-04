@@ -1,31 +1,49 @@
+import { RestEndpointMethodTypes } from "@octokit/rest";
+import { Endpoints } from "@octokit/types";
 import ms from "ms";
 import { Context } from "../types/context";
-import { Issue, GitHubIssueSearch, Review } from "../types/payload";
+import { GitHubIssueSearch, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
+import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
   return body.match(parentPattern);
 }
 
-export async function getAssignedIssues(context: Context, username: string): Promise<Issue[]> {
-  const { payload } = context;
+export async function getAssignedIssues(context: Context, username: string) {
+  const payload = context.payload;
 
   try {
-    return (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
-      q: `is:issue is:open assignee:${username} org:${payload.repository.owner.login}`,
-    })) as Issue[];
-  } catch (err: unknown) {
-    throw new Error(context.logger.error("Fetching assigned issues failed!", { error: err as Error }).logMessage.raw);
+    return await context.octokit
+      .paginate(context.octokit.rest.search.issuesAndPullRequests, {
+        q: `org:${payload.repository.owner.login} assignee:${username} is:open is:issue`,
+        per_page: 100,
+        order: "desc",
+        sort: "created",
+      })
+      .then((issues) =>
+        issues.filter((issue) => {
+          return issue.state === "open" && (issue.assignee?.login === username || issue.assignees?.some((assignee) => assignee.login === username));
+        })
+      );
+  } catch (err) {
+    context.logger.info("Will try re-fetching assigned issues...", { error: err as Error });
+    return getAssignedIssuesFallback(context, username);
   }
 }
 
 export async function addCommentToIssue(context: Context, message: string | null) {
-  const { payload, logger } = context;
   if (!message) {
-    logger.error("Message is not defined");
+    context.logger.error("Message is not defined");
     return;
   }
+
+  if (!("issue" in context.payload)) {
+    context.logger.error("Cannot post without a referenced issue.");
+    return;
+  }
+  const { payload } = context;
 
   try {
     await context.octokit.rest.issues.createComment({
@@ -106,7 +124,6 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
     return logger.info(`No PRs were closed`);
   }
 
-  await addCommentToIssue(context, comment);
   return logger.info(comment);
 }
 
@@ -128,9 +145,7 @@ async function confirmMultiAssignment(context: Context, issueNumber: number, use
   });
 
   if (!assignees?.length) {
-    throw new Error(
-      logger.error("We detected that this task was not assigned to anyone. Please report this to the maintainers.", { issueNumber, usernames }).logMessage.raw
-    );
+    throw logger.error("We detected that this task was not assigned to anyone. Please report this to the maintainers.", { issueNumber, usernames });
   }
 
   if (isPrivate && assignees?.length <= 1) {
@@ -158,31 +173,54 @@ export async function addAssignees(context: Context, issueNo: number, assignees:
   await confirmMultiAssignment(context, issueNo, assignees);
 }
 
-export async function getAllPullRequests(context: Context, state: "open" | "closed" | "all" = "open", username: string) {
+async function getAllPullRequests(context: Context, state: Endpoints["GET /repos/{owner}/{repo}/pulls"]["parameters"]["state"] = "open", username: string) {
   const { payload } = context;
+  const query: RestEndpointMethodTypes["search"]["issuesAndPullRequests"]["parameters"] = {
+    q: `org:${payload.repository.owner.login} author:${username} state:${state}`,
+    per_page: 100,
+    order: "desc",
+    sort: "created",
+  };
 
   try {
-    return (await context.octokit.paginate(context.octokit.search.issuesAndPullRequests, {
-      q: `org:${payload.repository.owner.login} author:${username} state:${state}`,
-      per_page: 100,
-      order: "desc",
-      sort: "created",
-    })) as GitHubIssueSearch["items"];
+    return (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, query)) as GitHubIssueSearch["items"];
   } catch (err: unknown) {
-    throw new Error(context.logger.error("Fetching all pull requests failed!", { error: err as Error }).logMessage.raw);
+    throw new Error(context.logger.error("Fetching all pull requests failed!", { error: err as Error, query }).logMessage.raw);
+  }
+}
+
+export async function getAllPullRequestsWithRetry(
+  context: Context,
+  state: Endpoints["GET /repos/{owner}/{repo}/pulls"]["parameters"]["state"],
+  username: string
+) {
+  try {
+    return await getAllPullRequests(context, state, username);
+  } catch (error) {
+    context.logger.info("Will retry re-fetching all pull requests...", { error: error as Error });
+    return getAllPullRequestsFallback(context, state, username);
   }
 }
 
 export async function getAllPullRequestReviews(context: Context, pullNumber: number, owner: string, repo: string) {
+  const {
+    config: { rolesWithReviewAuthority },
+  } = context;
   try {
-    return (await context.octokit.paginate(context.octokit.pulls.listReviews, {
-      owner,
-      repo,
-      pull_number: pullNumber,
-      per_page: 100,
-    })) as Review[];
-  } catch (err: unknown) {
-    throw new Error(context.logger.error("Fetching all pull request reviews failed!", { error: err as Error }).logMessage.raw);
+    return (
+      await context.octokit.paginate(context.octokit.rest.pulls.listReviews, {
+        owner,
+        repo,
+        pull_number: pullNumber,
+        per_page: 100,
+      })
+    ).filter((review) => rolesWithReviewAuthority.includes(review.author_association)) as Review[];
+  } catch (err) {
+    if (err && typeof err === "object" && "status" in err && err.status === 404) {
+      return [];
+    } else {
+      throw new Error(context.logger.error("Fetching all pull request reviews failed!", { error: err as Error }).logMessage.raw);
+    }
   }
 }
 
@@ -201,11 +239,12 @@ export async function getAvailableOpenedPullRequests(context: Context, username:
   const { reviewDelayTolerance } = context.config;
   if (!reviewDelayTolerance) return [];
 
-  const openedPullRequests = await getOpenedPullRequests(context, username);
-  const result = [] as typeof openedPullRequests;
+  const openedPullRequests = await getOpenedPullRequestsForUser(context, username);
+  const result: (typeof openedPullRequests)[number][] = [];
 
-  for (let i = 0; i < openedPullRequests.length; i++) {
+  for (let i = 0; openedPullRequests && i < openedPullRequests.length; i++) {
     const openedPullRequest = openedPullRequests[i];
+    if (!openedPullRequest) continue;
     const { owner, repo } = getOwnerRepoFromHtmlUrl(openedPullRequest.html_url);
     const reviews = await getAllPullRequestReviews(context, openedPullRequest.number, owner, repo);
 
@@ -233,9 +272,8 @@ export function getTimeValue(timeString: string): number {
   return timeValue;
 }
 
-async function getOpenedPullRequests(context: Context, username: string): Promise<ReturnType<typeof getAllPullRequests>> {
-  const prs = await getAllPullRequests(context, "open", username);
-  return prs.filter((pr) => pr.pull_request && pr.state === "open");
+async function getOpenedPullRequestsForUser(context: Context, username: string): Promise<ReturnType<typeof getAllPullRequestsWithRetry>> {
+  return getAllPullRequestsWithRetry(context, "open", username);
 }
 
 /**

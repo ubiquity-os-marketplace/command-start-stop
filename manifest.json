@@ -1,7 +1,13 @@
 {
   "name": "Start | Stop",
   "description": "Assign or un-assign yourself from an issue.",
-  "ubiquity:listeners": ["issue_comment.created", "issues.assigned"],
+  "ubiquity:listeners": [
+    "issue_comment.created",
+    "issues.assigned",
+    "issues.unassigned",
+    "pull_request.opened",
+    "pull_request.edited"
+  ],
   "commands": {
     "start": {
       "ubiquity:example": "/start",
@@ -11,5 +17,59 @@
       "ubiquity:example": "/stop",
       "description": "Unassign yourself from the issue."
     }
+  },
+  "configuration": {
+    "default": {},
+    "type": "object",
+    "properties": {
+      "reviewDelayTolerance": {
+        "default": "1 Day",
+        "type": "string"
+      },
+      "taskStaleTimeoutDuration": {
+        "default": "30 Days",
+        "type": "string"
+      },
+      "startRequiresWallet": {
+        "default": true,
+        "type": "boolean"
+      },
+      "maxConcurrentTasks": {
+        "default": {
+          "member": 10,
+          "contributor": 2
+        },
+        "type": "object",
+        "patternProperties": {
+          "^(.*)$": {
+            "type": "integer"
+          }
+        }
+      },
+      "emptyWalletText": {
+        "default": "Please set your wallet address with the /wallet command first and try again.",
+        "type": "string"
+      },
+      "rolesWithReviewAuthority": {
+        "default": [
+          "COLLABORATOR",
+          "OWNER",
+          "MEMBER",
+          "ADMIN"
+        ],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "required": [
+      "reviewDelayTolerance",
+      "taskStaleTimeoutDuration",
+      "startRequiresWallet",
+      "maxConcurrentTasks",
+      "emptyWalletText",
+      "rolesWithReviewAuthority"
+    ]
   }
 }
