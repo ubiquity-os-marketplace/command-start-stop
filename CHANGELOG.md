@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.2.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.1.1...v1.2.0) (2024-11-04)
+
+
+### Features
+
+* added admin infinity in decode ([84d4641](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/84d464180badf5ef78443123b81a2b27c44b3e99))
+* added validator endpoint ([58b457e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/58b457e5078eba5c2fdc241209781a19c1be3861))
+* closing user pull-requests when unassigned ([210d943](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/210d943615aaf0a531b63516a893138c15ec7343))
+* enforce collaborator-only label restriction ([413c844](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/413c8442170e4ff8455256dc590d02f81f82a608))
+* pull edit handler ([188d00e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/188d00eb7486fe920c0d800d6d50dd7536818f25))
+* pull edit handler ([30959ec](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/30959ec39e4e7567a1d4a8df35900dfb0ca410c7))
+* schema generation ([5999073](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/59990739868c2f5a4fb02ce55d3d25b635a36e34))
+* **tests:** add collaborator tests for issue assignment ([c5e58f5](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/c5e58f5f24ef96d3a8ba4b7f0d54c34f6a3744a7))
+
+
+### Bug Fixes
+
+* add fallback methods for fetching issues/PRs ([16ba3a8](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/16ba3a84835b5fc74d882fb4f0f5902491eec57a))
+* add rolesWithReviewAuth to config ([9180717](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/9180717d3789da49b43aaf3b68ad78ccd1f3e926))
+* change checks for invalid env to get more details ([cc6ccfa](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/cc6ccfac4da89e727bf16f68cd047884399e91d1))
+* cleanup merge ([a4df1b9](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/a4df1b99f2839f81dd0fea8334e15265458678ff))
+* collaborator check with try catch ([32a4457](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/32a4457e1cbf3597fd9142fa3440cb6233e35998))
+* fixed tip display and removed bold ([32082db](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/32082db649a70afb6a4d671a7214985708858330))
+* **issue:** handle 404 status in fetch pull request reviews ([82064c5](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/82064c543782138221213a80455e68ba110f625c))
+* register warning message change ([8868146](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8868146912b878614467b153b4568becd6e157b2))
+* register warning message change ([8dd8463](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8dd84638b69cc8d2fabf8d5572dfa5155d995d08))
+* removed duplicate error messages ([da03c15](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/da03c1504ecc03ebfa7f7cecf51f36b832046470))
+* removed duplicate error messages ([3f61f14](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/3f61f149c2998d69b6181ad580b40a27e5dfae85))
+* **tests:** update error message for collaborators assignment ([4a954be](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/4a954bee3021c6bb4f32271b0ae382ee9bf4b2bd))
+* update octokit method namespace ([3d760e3](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/3d760e37911f24c4d61601bc74960d742396b36b))
+* using graphql to fetch prs ([c49982b](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/c49982b9b1415d46d0c97739c55046553d8ac2f0))
+
 ## [1.1.1](https://github.com/ubiquibot/command-start-stop/compare/v1.1.0...v1.1.1) (2024-09-08)
 
 
