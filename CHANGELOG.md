@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.2.0...v1.3.0) (2024-11-08)
+
+
+### Features
+
+* requiredLabelsToStart config ([5326f20](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/5326f20dbbe3e1a849487bc1d62572ce534fa0da))
+
+
+### Bug Fixes
+
+* convert AssignedIssueScope to enum ([986261a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/986261acf7c62ed8f474ea4842fae4acbfe4a92f))
+* handle search API private repo ([d8fead7](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/d8fead76df4723c8f387ffbae9314324481eb3a3))
+* process review comments ([8fcedd9](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8fcedd9cc4ba3860a50b6835d8b8345cbc27e9f1))
+* renamed checkIssues to assignedIssueScope ([87e7b16](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/87e7b16f334f7dec5a1ee34f01b9611b1e120ace))
+* undo changes in manifest ([3827d28](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/3827d28303a1d36e7668809194f6c9963c2a3140))
+
 ## [1.2.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.1.1...v1.2.0) (2024-11-04)
 
 
