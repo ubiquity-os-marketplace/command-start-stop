@@ -42,8 +42,10 @@ To configure your Ubiquibot to run this plugin, add the following to the `.ubiqu
       member: 5
       contributor: 3
     startRequiresWallet: true # default is true
+    assignedIssueScope: "org" # or "org" or "network". Default is org
     emptyWalletText: "Please set your wallet address with the /wallet command first and try again."
     rolesWithReviewAuthority: ["MEMBER", "OWNER"]
+    requiredLabelsToStart: ["Priority: 5 (Emergency)"]
 ```
 
 # Testing

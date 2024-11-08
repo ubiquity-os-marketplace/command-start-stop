@@ -22,6 +22,7 @@ export interface Context<T extends SupportedEventsU = SupportedEventsU, TU exten
   octokit: InstanceType<typeof Octokit> & paginateGraphQLInterface;
   adapters: ReturnType<typeof createAdapters>;
   config: PluginSettings;
+  organizations: string[];
   env: Env;
   logger: Logs;
 }

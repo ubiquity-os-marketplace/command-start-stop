@@ -5,11 +5,12 @@ import { cleanLogString, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { userStartStop, userUnassigned } from "../src/handlers/user-start-stop";
-import { Context, envConfigValidator, Sender, SupportedEventsU } from "../src/types";
+import { AssignedIssueScope, Context, envConfigValidator, Sender, SupportedEventsU } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
+import { HttpStatusCode } from "../src/handlers/result-types";
 
 dotenv.config();
 
@@ -18,6 +19,8 @@ type PayloadSender = Context["payload"]["sender"];
 
 const octokit = jest.requireActual("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
+const PRIORITY_ONE = "Priority: 1 (Normal)";
+const PRIORITY_LABELS = [PRIORITY_ONE, "Priority: 2 (Medium)", "Priority: 3 (High)", "Priority: 4 (Urgent)", "Priority: 5 (Emergency)"];
 
 beforeAll(() => {
   server.listen();
@@ -221,9 +224,10 @@ describe("User start/stop", () => {
     const context = createContext(issue, sender) as unknown as Context;
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: { raw: "You have reached your max task limit. Please close out some tasks before assigning new ones." },
-    });
+
+    const { content, status } = await userStartStop(context);
+    expect(content).toEqual("You have reached your max task limit. Please close out some tasks before assigning new ones.");
+    expect(status).toEqual(HttpStatusCode.NOT_MODIFIED);
 
     expect(memberLimit).toEqual(6);
   });
@@ -274,6 +278,23 @@ describe("User start/stop", () => {
       expect(errorDetails).toContain("Invalid BOT_USER_ID");
     }
   });
+
+  test("Should not allow a user to start if no requiredLabelToStart exists", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+
+    const context = createContext(issue, sender, "/start", "1", false, [
+      "Priority: 3 (High)",
+      "Priority: 4 (Urgent)",
+      "Priority: 5 (Emergency)",
+    ]) as Context<"issue_comment.created">;
+
+    context.adapters = createAdapters(getSupabase(), context);
+
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: { raw: "This task does not reflect a business priority at the moment and cannot be started. This will be reassessed in the coming weeks." },
+    });
+  });
 });
 
 async function setupTests() {
@@ -322,7 +343,11 @@ async function setupTests() {
     node_id: "MDU6SXNzdWUy",
     title: "Third issue",
     number: 3,
-    labels: [],
+    labels: [
+      {
+        name: PRIORITY_ONE,
+      },
+    ],
     body: "Third issue body",
     owner: "ubiquity",
   });
@@ -357,6 +382,28 @@ async function setupTests() {
     body: "Sixth issue body",
     owner: "ubiquity",
     assignees: [],
+  });
+
+  db.issue.create({
+    ...issueTemplate,
+    id: 7,
+    node_id: "MDU6SXNzdWUg",
+    title: "Seventh issue",
+    number: 7,
+    body: "Seventh issue body",
+    owner: "ubiquity",
+    assignees: [],
+    labels: [
+      {
+        name: "Price: 200 USD",
+      },
+      {
+        name: "Time: 1h",
+      },
+      {
+        name: PRIORITY_ONE,
+      },
+    ],
   });
 
   db.pull.create({
@@ -593,7 +640,7 @@ function createIssuesForMaxAssignment(n: number, userId: number) {
   for (let i = 0; i < n; i++) {
     db.issue.create({
       ...issueTemplate,
-      id: i + 7,
+      id: i + 8,
       assignee: user,
     });
   }
@@ -610,7 +657,8 @@ export function createContext(
   sender: Record<string, unknown> | undefined,
   body = "/start",
   appId: string | null = "1",
-  startRequiresWallet = false
+  startRequiresWallet = false,
+  requiredLabelsToStart: string[] = PRIORITY_LABELS
 ): Context {
   return {
     adapters: {} as ReturnType<typeof createAdapters>,
@@ -629,11 +677,14 @@ export function createContext(
       taskStaleTimeoutDuration: "30 Days",
       maxConcurrentTasks: maxConcurrentDefaults,
       startRequiresWallet,
+      assignedIssueScope: AssignedIssueScope.ORG,
       emptyWalletText: "Please set your wallet address with the /wallet command first and try again.",
       rolesWithReviewAuthority: ["ADMIN", "OWNER", "MEMBER"],
+      requiredLabelsToStart,
     },
     octokit: new octokit.Octokit(),
     eventName: "issue_comment.created" as SupportedEventsU,
+    organizations: ["ubiquity"],
     env: {
       SUPABASE_KEY: "key",
       SUPABASE_URL: "url",

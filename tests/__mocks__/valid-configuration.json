@@ -7,6 +7,8 @@
     "member": 10,
     "contributor": 2
   },
+  "assignedIssueScope": "org",
   "emptyWalletText": "Please set your wallet address with the /wallet command first and try again.",
-  "rolesWithReviewAuthority": ["OWNER", "ADMIN", "MEMBER"]
+  "rolesWithReviewAuthority": ["OWNER", "ADMIN", "MEMBER"],
+  "requiredLabelsToStart": ["Priority: 1 (Normal)", "Priority: 2 (Medium)", "Priority: 3 (High)", "Priority: 4 (Urgent)", "Priority: 5 (Emergency)"]
 }

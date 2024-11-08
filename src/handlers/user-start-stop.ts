@@ -11,8 +11,7 @@ export async function userStartStop(context: Context): Promise<Result> {
   if (!isIssueCommentEvent(context)) {
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
-  const { payload } = context;
-  const { issue, comment, sender, repository } = payload;
+  const { issue, comment, sender, repository } = context.payload;
   const slashCommand = comment.body.trim().split(" ")[0].replace("/", "");
   const teamMates = comment.body
     .split("@")

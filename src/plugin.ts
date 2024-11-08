@@ -6,6 +6,7 @@ import { createAdapters } from "./adapters";
 import { userPullRequest, userSelfAssign, userStartStop, userUnassigned } from "./handlers/user-start-stop";
 import { Context, Env, PluginInputs } from "./types";
 import { addCommentToIssue } from "./utils/issue";
+import { listOrganizations } from "./utils/list-organizations";
 
 export async function startStopTask(inputs: PluginInputs, env: Env) {
   const customOctokit = Octokit.plugin(paginateGraphQL);
@@ -16,6 +17,7 @@ export async function startStopTask(inputs: PluginInputs, env: Env) {
     eventName: inputs.eventName,
     payload: inputs.eventPayload,
     config: inputs.settings,
+    organizations: [],
     octokit,
     env,
     logger: new Logs("info"),
@@ -25,6 +27,9 @@ export async function startStopTask(inputs: PluginInputs, env: Env) {
   context.adapters = createAdapters(supabase, context);
 
   try {
+    const organizations = await listOrganizations(context);
+    context.organizations = organizations;
+
     switch (context.eventName) {
       case "issue_comment.created":
         return await userStartStop(context);

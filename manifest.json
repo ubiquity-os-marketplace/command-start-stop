@@ -46,6 +46,23 @@
           }
         }
       },
+      "assignedIssueScope": {
+        "default": "org",
+        "anyOf": [
+          {
+            "const": "org",
+            "type": "string"
+          },
+          {
+            "const": "repo",
+            "type": "string"
+          },
+          {
+            "const": "network",
+            "type": "string"
+          }
+        ]
+      },
       "emptyWalletText": {
         "default": "Please set your wallet address with the /wallet command first and try again.",
         "type": "string"
@@ -61,6 +78,13 @@
         "items": {
           "type": "string"
         }
+      },
+      "requiredLabelsToStart": {
+        "default": [],
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "required": [
@@ -68,8 +92,10 @@
       "taskStaleTimeoutDuration",
       "startRequiresWallet",
       "maxConcurrentTasks",
+      "assignedIssueScope",
       "emptyWalletText",
-      "rolesWithReviewAuthority"
+      "rolesWithReviewAuthority",
+      "requiredLabelsToStart"
     ]
   }
 }

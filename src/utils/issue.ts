@@ -2,31 +2,36 @@ import { RestEndpointMethodTypes } from "@octokit/rest";
 import { Endpoints } from "@octokit/types";
 import ms from "ms";
 import { Context } from "../types/context";
-import { GitHubIssueSearch, Review } from "../types/payload";
+import { GitHubIssueSearch, RepoIssues, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
+import { AssignedIssueScope } from "../types";
 
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
   return body.match(parentPattern);
 }
 
-export async function getAssignedIssues(context: Context, username: string) {
-  const payload = context.payload;
+export async function getAssignedIssues(context: Context, username: string): Promise<GitHubIssueSearch["items"] | RepoIssues> {
+  let repoOrgQuery = "";
+  if (context.config.assignedIssueScope === AssignedIssueScope.REPO) {
+    repoOrgQuery = `repo:${context.payload.repository.full_name}`;
+  } else {
+    context.organizations.forEach((org) => {
+      repoOrgQuery += `org:${org} `;
+    });
+  }
 
   try {
-    return await context.octokit
-      .paginate(context.octokit.rest.search.issuesAndPullRequests, {
-        q: `org:${payload.repository.owner.login} assignee:${username} is:open is:issue`,
-        per_page: 100,
-        order: "desc",
-        sort: "created",
-      })
-      .then((issues) =>
-        issues.filter((issue) => {
-          return issue.state === "open" && (issue.assignee?.login === username || issue.assignees?.some((assignee) => assignee.login === username));
-        })
-      );
+    const issues = await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
+      q: `${repoOrgQuery} is:open is:issue assignee:${username}`,
+      per_page: 100,
+      order: "desc",
+      sort: "created",
+    });
+    return issues.filter((issue) => {
+      return issue.assignee?.login === username || issue.assignees?.some((assignee) => assignee.login === username);
+    });
   } catch (err) {
     context.logger.info("Will try re-fetching assigned issues...", { error: err as Error });
     return getAssignedIssuesFallback(context, username);
@@ -174,9 +179,17 @@ export async function addAssignees(context: Context, issueNo: number, assignees:
 }
 
 async function getAllPullRequests(context: Context, state: Endpoints["GET /repos/{owner}/{repo}/pulls"]["parameters"]["state"] = "open", username: string) {
-  const { payload } = context;
+  let repoOrgQuery = "";
+  if (context.config.assignedIssueScope === AssignedIssueScope.REPO) {
+    repoOrgQuery = `repo:${context.payload.repository.full_name}`;
+  } else {
+    context.organizations.forEach((org) => {
+      repoOrgQuery += `org:${org} `;
+    });
+  }
+
   const query: RestEndpointMethodTypes["search"]["issuesAndPullRequests"]["parameters"] = {
-    q: `org:${payload.repository.owner.login} author:${username} state:${state}`,
+    q: `${repoOrgQuery} author:${username} state:${state} is:pr`,
     per_page: 100,
     order: "desc",
     sort: "created",

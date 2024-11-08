@@ -11,6 +11,12 @@ export interface PluginInputs<T extends SupportedEventsU = SupportedEventsU, TU 
   ref: string;
 }
 
+export enum AssignedIssueScope {
+  ORG = "org",
+  REPO = "repo",
+  NETWORK = "network",
+}
+
 const rolesWithReviewAuthority = T.Array(T.String(), { default: ["COLLABORATOR", "OWNER", "MEMBER", "ADMIN"] });
 
 function maxConcurrentTasks() {
@@ -41,10 +47,12 @@ export const pluginSettingsSchema = T.Object(
     taskStaleTimeoutDuration: T.String({ default: "30 Days" }),
     startRequiresWallet: T.Boolean({ default: true }),
     maxConcurrentTasks: maxConcurrentTasks(),
+    assignedIssueScope: T.Enum(AssignedIssueScope, { default: AssignedIssueScope.ORG }),
     emptyWalletText: T.String({ default: "Please set your wallet address with the /wallet command first and try again." }),
     rolesWithReviewAuthority: T.Transform(rolesWithReviewAuthority)
       .Decode((value) => value.map((role) => role.toUpperCase()))
       .Encode((value) => value.map((role) => role.toUpperCase())),
+    requiredLabelsToStart: T.Array(T.String(), { default: [] }),
   },
   {
     default: {},

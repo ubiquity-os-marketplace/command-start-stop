@@ -51,6 +51,9 @@ export default {
     {
       name: "Time: 1h",
     },
+    {
+      name: "Priority: 1 (Normal)",
+    },
   ],
   body: "body",
 };

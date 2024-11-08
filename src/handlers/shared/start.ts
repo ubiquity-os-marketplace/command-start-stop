@@ -1,4 +1,4 @@
-import { Context, ISSUE_TYPE, Label } from "../../types";
+import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
 import { isUserCollaborator } from "../../utils/get-user-association";
 import { addAssignees, addCommentToIssue, getAssignedIssues, getAvailableOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
@@ -16,7 +16,18 @@ export async function start(
   teammates: string[]
 ): Promise<Result> {
   const { logger, config } = context;
-  const { taskStaleTimeoutDuration } = config;
+  const { taskStaleTimeoutDuration, requiredLabelsToStart } = config;
+
+  const issueLabels = issue.labels.map((label) => label.name);
+
+  if (requiredLabelsToStart.length && !requiredLabelsToStart.some((label) => issueLabels.includes(label))) {
+    // The "Priority" label must reflect a business priority, not a development one.
+    throw logger.error("This task does not reflect a business priority at the moment and cannot be started. This will be reassessed in the coming weeks.", {
+      requiredLabelsToStart,
+      issueLabels,
+      issue: issue.html_url,
+    });
+  }
 
   if (!sender) {
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
@@ -64,23 +75,51 @@ export async function start(
   teammates.push(sender.login);
 
   const toAssign = [];
+  let assignedIssues: AssignedIssue[] = [];
   // check max assigned issues
   for (const user of teammates) {
-    if (await handleTaskLimitChecks(user, context, logger, sender.login)) {
+    const { isWithinLimit, issues } = await handleTaskLimitChecks(user, context, logger, sender.login);
+    if (isWithinLimit) {
       toAssign.push(user);
+    } else {
+      issues.forEach((issue) => {
+        assignedIssues = assignedIssues.concat({
+          title: issue.title,
+          html_url: issue.html_url,
+        });
+      });
     }
   }
 
   let error: string | null = null;
-
   if (toAssign.length === 0 && teammates.length > 1) {
     error = "All teammates have reached their max task limit. Please close out some tasks before assigning new ones.";
+    throw logger.error(error, { issueNumber: issue.number });
   } else if (toAssign.length === 0) {
     error = "You have reached your max task limit. Please close out some tasks before assigning new ones.";
-  }
+    let issues = "";
+    const urlPattern = /https:\/\/(github.com\/(\S+)\/(\S+)\/issues\/(\d+))/;
+    assignedIssues.forEach((el) => {
+      const match = el.html_url.match(urlPattern);
+      if (match) {
+        issues = issues.concat(`- ###### [${match[2]}/${match[3]} - ${el.title} #${match[4]}](https://www.${match[1]})\n`);
+      } else {
+        issues = issues.concat(`- ###### [${el.title}](${el.html_url})\n`);
+      }
+    });
 
-  if (error) {
-    throw logger.error(error, { issueNumber: issue.number });
+    await addCommentToIssue(
+      context,
+      `
+      
+> [!WARNING]
+> ${error}
+
+${issues}
+
+`
+    );
+    return { content: error, status: HttpStatusCode.NOT_MODIFIED };
   }
 
   const labels = issue.labels ?? [];
@@ -168,12 +207,18 @@ async function handleTaskLimitChecks(username: string, context: Context, logger:
       limit,
     });
 
-    return false;
+    return {
+      isWithinLimit: false,
+      issues: assignedIssues,
+    };
   }
 
   if (await hasUserBeenUnassigned(context, username)) {
     throw logger.error(`${username} you were previously unassigned from this task. You cannot be reassigned.`, { username });
   }
 
-  return true;
+  return {
+    isWithinLimit: true,
+    issues: [],
+  };
 }
