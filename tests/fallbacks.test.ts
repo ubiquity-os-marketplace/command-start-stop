@@ -1,4 +1,4 @@
-import { RestEndpointMethodTypes } from "@octokit/rest";
+import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { Context } from "../src/types/context";
 import { getAllPullRequestsWithRetry } from "../src/utils/issue";

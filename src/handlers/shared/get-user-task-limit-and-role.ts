@@ -21,7 +21,7 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       throw new Error("Invalid organization name");
     }
 
-    const response = await context.octokit.orgs.getMembershipForUser({
+    const response = await context.octokit.rest.orgs.getMembershipForUser({
       org: orgLogin,
       username: user,
     });

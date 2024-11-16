@@ -10,7 +10,7 @@ async function getUserStopComments(context: Context, username: string): Promise<
   const { owner, repo } = getOwnerRepoFromHtmlUrl(html_url);
 
   try {
-    const comments = await octokit.paginate(octokit.issues.listComments, {
+    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner,
       repo,
       issue_number: number,
@@ -60,7 +60,7 @@ async function getAssignmentEvents(context: Context) {
   }
   const { repository, issue } = context.payload;
   try {
-    const data = await context.octokit.paginate(context.octokit.issues.listEventsForTimeline, {
+    const data = await context.octokit.paginate(context.octokit.rest.issues.listEventsForTimeline, {
       owner: repository.owner.login,
       repo: repository.name,
       issue_number: issue.number,

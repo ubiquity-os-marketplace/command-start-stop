@@ -1,23 +1,36 @@
 {
   "name": "Start | Stop",
-  "description": "Assign or un-assign yourself from an issue.",
-  "ubiquity:listeners": [
-    "issue_comment.created",
-    "issues.assigned",
-    "issues.unassigned",
-    "pull_request.opened",
-    "pull_request.edited"
-  ],
-  "commands": {
-    "start": {
+  "description": "Assign or un-assign yourself from an issue/task.",
+  "ubiquity:listeners": ["issue_comment.created", "issues.assigned", "issues.unassigned", "pull_request.opened", "pull_request.edited"],
+  "commands": [
+    {
+      "name": "start",
       "ubiquity:example": "/start",
-      "description": "Assign yourself to the issue."
+      "description": "Assign yourself and/or others to the issue/task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "teammates": {
+            "description": "Users other than yourself to assign to the issue",
+            "type": "array",
+            "items": {
+              "description": "Github username",
+              "type": "string"
+            }
+          }
+        }
+      }
     },
-    "stop": {
+    {
+      "name": "stop",
       "ubiquity:example": "/stop",
-      "description": "Unassign yourself from the issue."
+      "description": "Unassign yourself from the issue/task.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
     }
-  },
+  ],
   "configuration": {
     "default": {},
     "type": "object",
@@ -68,12 +81,7 @@
         "type": "string"
       },
       "rolesWithReviewAuthority": {
-        "default": [
-          "COLLABORATOR",
-          "OWNER",
-          "MEMBER",
-          "ADMIN"
-        ],
+        "default": ["COLLABORATOR", "OWNER", "MEMBER", "ADMIN"],
         "type": "array",
         "items": {
           "type": "string"

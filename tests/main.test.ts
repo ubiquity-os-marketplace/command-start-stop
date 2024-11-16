@@ -5,12 +5,13 @@ import { cleanLogString, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { userStartStop, userUnassigned } from "../src/handlers/user-start-stop";
-import { AssignedIssueScope, Context, envConfigValidator, Sender, SupportedEventsU } from "../src/types";
+import { AssignedIssueScope, Context, envSchema, Role, Sender, SupportedEvents } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
 import { HttpStatusCode } from "../src/handlers/result-types";
+import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 
 dotenv.config();
 
@@ -252,14 +253,14 @@ describe("User start/stop", () => {
 
     const env = { ...context.env };
     Reflect.deleteProperty(env, "BOT_USER_ID");
-    if (!envConfigValidator.test(env)) {
-      const errorDetails: string[] = [];
-      for (const error of envConfigValidator.errors(env)) {
-        errorDetails.push(`${error.path}: ${error.message}`);
-      }
 
-      expect(errorDetails).toContain("/BOT_USER_ID: Expected union value");
+    const errors = [...Value.Errors(envSchema, env)];
+    const errorDetails: string[] = [];
+    for (const error of errors) {
+      errorDetails.push(`${error.path}: ${error.message}`);
     }
+
+    expect(errorDetails).toContain("/BOT_USER_ID: Expected union value");
   });
 
   test("Should throw if BOT_USER_ID is not a number", async () => {
@@ -269,13 +270,16 @@ describe("User start/stop", () => {
     const context = createContext(issue, sender, "/start", "testing-one");
     const env = { ...context.env };
 
-    if (!envConfigValidator.test(env)) {
-      const errorDetails: string[] = [];
-      for (const error of envConfigValidator.errors(env)) {
-        errorDetails.push(`${error.path}: ${error.message}`);
-      }
-
-      expect(errorDetails).toContain("Invalid BOT_USER_ID");
+    let err: unknown = null;
+    try {
+      Value.Decode(envSchema, env);
+    } catch (e) {
+      err = e;
+    }
+    expect(err).not.toBeNull();
+    expect(err).toBeInstanceOf(TransformDecodeError);
+    if (err instanceof TransformDecodeError) {
+      expect(err.message).toContain("Invalid BOT_USER_ID");
     }
   });
 
@@ -682,17 +686,18 @@ export function createContext(
       startRequiresWallet,
       assignedIssueScope: AssignedIssueScope.ORG,
       emptyWalletText: "Please set your wallet address with the /wallet command first and try again.",
-      rolesWithReviewAuthority: ["ADMIN", "OWNER", "MEMBER"],
+      rolesWithReviewAuthority: [Role.ADMIN, Role.OWNER, Role.MEMBER],
       requiredLabelsToStart,
     },
     octokit: new octokit.Octokit(),
-    eventName: "issue_comment.created" as SupportedEventsU,
+    eventName: "issue_comment.created" as SupportedEvents,
     organizations: ["ubiquity"],
     env: {
       SUPABASE_KEY: "key",
       SUPABASE_URL: "url",
       BOT_USER_ID: appId as unknown as number,
     },
+    command: null,
   };
 }
 

@@ -1,11 +1,11 @@
-import { RestEndpointMethodTypes } from "@octokit/rest";
+import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Endpoints } from "@octokit/types";
 import ms from "ms";
 import { Context } from "../types/context";
 import { GitHubIssueSearch, RepoIssues, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
-import { AssignedIssueScope } from "../types";
+import { AssignedIssueScope, Role } from "../types";
 
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
@@ -227,7 +227,7 @@ export async function getAllPullRequestReviews(context: Context, pullNumber: num
         pull_number: pullNumber,
         per_page: 100,
       })
-    ).filter((review) => rolesWithReviewAuthority.includes(review.author_association)) as Review[];
+    ).filter((review) => rolesWithReviewAuthority.includes(review.author_association as Role)) as Review[];
   } catch (err) {
     if (err && typeof err === "object" && "status" in err && err.status === 404) {
       return [];
