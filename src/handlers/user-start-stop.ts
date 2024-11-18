@@ -32,8 +32,12 @@ export async function userSelfAssign(context: Context<"issues.assigned">): Promi
   const { issue } = payload;
   const deadline = getDeadline(issue.labels);
 
-  if (!deadline) {
-    context.logger.debug("Skipping deadline posting message because no deadline has been set.");
+  // We avoid posting a message if the bot is the actor to avoid double posting
+  if (!deadline || payload.sender.type === "Bot") {
+    context.logger.debug("Skipping deadline posting message.", {
+      senderType: payload.sender.type,
+      deadline: deadline,
+    });
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
 
@@ -91,13 +95,18 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
   return { status: HttpStatusCode.NOT_MODIFIED };
 }
 
-export async function userUnassigned(context: Context): Promise<Result> {
+export async function userUnassigned(context: Context<"issues.unassigned">): Promise<Result> {
   if (!("issue" in context.payload)) {
     context.logger.debug("Payload does not contain an issue, skipping issues.unassigned event.");
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
   const { payload } = context;
-  const { issue, sender, repository } = payload;
-  await closePullRequestForAnIssue(context, issue.number, repository, sender.login);
+  const { issue, repository, assignee } = payload;
+  // 'assignee' is the user that actually got un-assigned during this event. Since it can theoretically be null,
+  // we display an error if none is found in the payload.
+  if (!assignee) {
+    throw context.logger.fatal("No assignee found in payload, failed to close pull-requests.");
+  }
+  await closePullRequestForAnIssue(context, issue.number, repository, assignee?.login);
   return { status: HttpStatusCode.OK, content: "Linked pull-requests closed." };
 }

@@ -40,7 +40,7 @@ export async function startStopTask(inputs: PluginInputs, env: Env) {
       case "pull_request.edited":
         return await userPullRequest(context as Context<"pull_request.edited">);
       case "issues.unassigned":
-        return await userUnassigned(context);
+        return await userUnassigned(context as Context<"issues.unassigned">);
       default:
         context.logger.error(`Unsupported event: ${context.eventName}`);
     }

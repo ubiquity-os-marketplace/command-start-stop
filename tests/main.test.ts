@@ -292,7 +292,9 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: { raw: "This task does not reflect a business priority at the moment and cannot be started. This will be reassessed in the coming weeks." },
+      logMessage: {
+        raw: "This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
+      },
     });
   });
 });
@@ -670,6 +672,9 @@ export function createContext(
       action: "created",
       installation: { id: 1 } as unknown as Context["payload"]["installation"],
       organization: { login: "ubiquity" } as unknown as Context["payload"]["organization"],
+      assignee: {
+        ...sender,
+      },
     } as Context["payload"],
     logger: new Logs("debug"),
     config: {
