@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.3.0...v1.4.0) (2024-11-18)
+
+
+### Features
+
+* new error msg on missing required label ([ef6198a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ef6198ae51b9d8a39f61fe669144e8826e724924))
+
 ## [1.3.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.2.0...v1.3.0) (2024-11-08)
 
 
