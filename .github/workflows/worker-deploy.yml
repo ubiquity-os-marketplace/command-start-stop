@@ -43,10 +43,14 @@ jobs:
             SUPABASE_URL
             SUPABASE_KEY
             BOT_USER_ID
+            CLOUDFLARE_ACCOUNT_ID
+            CLOUDFLARE_API_TOKEN
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Write Deployment URL to Summary
         run: |
