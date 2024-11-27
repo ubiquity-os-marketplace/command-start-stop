@@ -23,9 +23,6 @@ async function getUserStopComments(context: Context, username: string): Promise<
 }
 
 export async function hasUserBeenUnassigned(context: Context, username: string): Promise<boolean> {
-  const {
-    env: { BOT_USER_ID },
-  } = context;
   const events = await getAssignmentEvents(context);
   const userAssignments = events.filter((event) => event.assignee === username);
 
@@ -36,9 +33,9 @@ export async function hasUserBeenUnassigned(context: Context, username: string):
   const unassignedEvents = userAssignments.filter((event) => event.event === "unassigned");
   // all bot unassignments (/stop, disqualification,  etc)
   // TODO: task-xp-guard: will also prevent future assignments so we need to add a comment tracker we can use here
-  const botUnassigned = unassignedEvents.filter((event) => event.actorId === BOT_USER_ID);
+  const botUnassigned = unassignedEvents.filter((event) => event.actorType === "Bot");
   // UI assignment
-  const adminUnassigned = unassignedEvents.filter((event) => event.actor !== username && event.actorId !== BOT_USER_ID);
+  const adminUnassigned = unassignedEvents.filter((event) => event.actor !== username && event.actorType !== "Bot");
   // UI assignment
   const userUnassigned = unassignedEvents.filter((event) => event.actor === username);
   const userStopComments = await getUserStopComments(context, username);
@@ -69,19 +66,21 @@ async function getAssignmentEvents(context: Context) {
     const events = data
       .filter((event) => event.event === "assigned" || event.event === "unassigned")
       .map((event) => {
-        let actor, assignee, createdAt, actorId;
+        let actor, assignee, createdAt, actorId, actorType;
 
         if ((event.event === "unassigned" || event.event === "assigned") && "actor" in event && event.actor && "assignee" in event && event.assignee) {
           actor = event.actor.login;
           assignee = event.assignee.login;
           createdAt = event.created_at;
           actorId = event.actor.id;
+          actorType = event.actor.type;
         }
 
         return {
           event: event.event,
           actor,
           actorId,
+          actorType,
           assignee,
           createdAt,
         };
