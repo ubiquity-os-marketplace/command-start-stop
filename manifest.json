@@ -1,21 +1,32 @@
 {
   "name": "Start | Stop",
-  "description": "Assign or un-assign yourself from an issue.",
-  "ubiquity:listeners": [
-    "issue_comment.created",
-    "issues.assigned",
-    "issues.unassigned",
-    "pull_request.opened",
-    "pull_request.edited"
-  ],
+  "description": "Assign or un-assign yourself from an issue/task.",
+  "ubiquity:listeners": ["issue_comment.created", "issues.assigned", "issues.unassigned", "pull_request.opened", "pull_request.edited"],
   "commands": {
     "start": {
       "ubiquity:example": "/start",
-      "description": "Assign yourself to the issue."
+      "description": "Assign yourself and/or others to the issue/task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "teammates": {
+            "description": "Users other than yourself to assign to the issue",
+            "type": "array",
+            "items": {
+              "description": "Github username",
+              "type": "string"
+            }
+          }
+        }
+      }
     },
     "stop": {
       "ubiquity:example": "/stop",
-      "description": "Unassign yourself from the issue."
+      "description": "Unassign yourself from the issue/task.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
     }
   },
   "configuration": {
@@ -24,6 +35,7 @@
     "properties": {
       "reviewDelayTolerance": {
         "default": "1 Day",
+        "description": "How long shall the wait be for a reviewer to take action?",
         "type": "string"
       },
       "taskStaleTimeoutDuration": {
@@ -68,15 +80,28 @@
         "type": "string"
       },
       "rolesWithReviewAuthority": {
-        "default": [
-          "COLLABORATOR",
-          "OWNER",
-          "MEMBER",
-          "ADMIN"
-        ],
+        "default": ["OWNER", "ADMIN", "MEMBER", "COLLABORATOR"],
+        "uniqueItems": true,
         "type": "array",
         "items": {
-          "type": "string"
+          "anyOf": [
+            {
+              "const": "OWNER",
+              "type": "string"
+            },
+            {
+              "const": "ADMIN",
+              "type": "string"
+            },
+            {
+              "const": "MEMBER",
+              "type": "string"
+            },
+            {
+              "const": "COLLABORATOR",
+              "type": "string"
+            }
+          ]
         }
       },
       "requiredLabelsToStart": {
@@ -86,16 +111,6 @@
           "type": "string"
         }
       }
-    },
-    "required": [
-      "reviewDelayTolerance",
-      "taskStaleTimeoutDuration",
-      "startRequiresWallet",
-      "maxConcurrentTasks",
-      "assignedIssueScope",
-      "emptyWalletText",
-      "rolesWithReviewAuthority",
-      "requiredLabelsToStart"
-    ]
+    }
   }
 }

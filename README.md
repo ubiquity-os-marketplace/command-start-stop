@@ -26,7 +26,7 @@ To stop a task, a hunter should use the `/stop` command. This will unassign them
 
 #### Note: The command name is `"start"` when configuring your `.ubiquity-os.config.yml` file.
 
-To configure your Ubiquibot to run this plugin, add the following to the `.ubiquity-os.config.yml` file in your organization configuration repository.
+To configure your Ubiquity Kernel to run this plugin, add the following to the `.ubiquity-os.config.yml` file in your organization configuration repository.
 
 ```yml
 - plugin: http://localhost:4000 # or the URL where the plugin is hosted

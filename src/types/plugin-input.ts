@@ -1,15 +1,4 @@
 import { StaticDecode, Type as T } from "@sinclair/typebox";
-import { StandardValidator } from "typebox-validators";
-import { SupportedEvents, SupportedEventsU } from "./context";
-
-export interface PluginInputs<T extends SupportedEventsU = SupportedEventsU, TU extends SupportedEvents[T] = SupportedEvents[T]> {
-  stateId: string;
-  eventName: T;
-  eventPayload: TU["payload"];
-  settings: PluginSettings;
-  authToken: string;
-  ref: string;
-}
 
 export enum AssignedIssueScope {
   ORG = "org",
@@ -17,7 +6,14 @@ export enum AssignedIssueScope {
   NETWORK = "network",
 }
 
-const rolesWithReviewAuthority = T.Array(T.String(), { default: ["COLLABORATOR", "OWNER", "MEMBER", "ADMIN"] });
+export enum Role {
+  OWNER = "OWNER",
+  ADMIN = "ADMIN",
+  MEMBER = "MEMBER",
+  COLLABORATOR = "COLLABORATOR",
+}
+
+const rolesWithReviewAuthority = T.Array(T.Enum(Role), { default: [Role.OWNER, Role.ADMIN, Role.MEMBER, Role.COLLABORATOR], uniqueItems: true });
 
 function maxConcurrentTasks() {
   return T.Transform(T.Record(T.String(), T.Integer(), { default: { member: 10, contributor: 2 } }))
@@ -43,15 +39,13 @@ function maxConcurrentTasks() {
 
 export const pluginSettingsSchema = T.Object(
   {
-    reviewDelayTolerance: T.String({ default: "1 Day" }),
+    reviewDelayTolerance: T.String({ default: "1 Day", description: "How long shall the wait be for a reviewer to take action?" }),
     taskStaleTimeoutDuration: T.String({ default: "30 Days" }),
     startRequiresWallet: T.Boolean({ default: true }),
     maxConcurrentTasks: maxConcurrentTasks(),
     assignedIssueScope: T.Enum(AssignedIssueScope, { default: AssignedIssueScope.ORG }),
     emptyWalletText: T.String({ default: "Please set your wallet address with the /wallet command first and try again." }),
-    rolesWithReviewAuthority: T.Transform(rolesWithReviewAuthority)
-      .Decode((value) => value.map((role) => role.toUpperCase()))
-      .Encode((value) => value.map((role) => role.toUpperCase())),
+    rolesWithReviewAuthority: rolesWithReviewAuthority,
     requiredLabelsToStart: T.Array(T.String(), { default: [] }),
   },
   {
@@ -60,4 +54,3 @@ export const pluginSettingsSchema = T.Object(
 );
 
 export type PluginSettings = StaticDecode<typeof pluginSettingsSchema>;
-export const startStopSettingsValidator = new StandardValidator(pluginSettingsSchema);

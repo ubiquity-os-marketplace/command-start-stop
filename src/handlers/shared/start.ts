@@ -1,6 +1,6 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
 import { isUserCollaborator } from "../../utils/get-user-association";
-import { addAssignees, addCommentToIssue, getAssignedIssues, getAvailableOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
+import { addAssignees, addCommentToIssue, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
 import { checkTaskStale } from "./check-task-stale";
@@ -198,7 +198,7 @@ async function fetchUserIds(context: Context, username: string[]) {
 }
 
 async function handleTaskLimitChecks(username: string, context: Context, logger: Context["logger"], sender: string) {
-  const openedPullRequests = await getAvailableOpenedPullRequests(context, username);
+  const openedPullRequests = await getPendingOpenedPullRequests(context, username);
   const assignedIssues = await getAssignedIssues(context, username);
   const { limit } = await getUserRoleAndTaskLimit(context, username);
 

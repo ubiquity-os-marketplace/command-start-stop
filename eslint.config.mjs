@@ -9,7 +9,7 @@ export default tsEslint.config({
     "@typescript-eslint": tsEslint.plugin,
     "check-file": checkFile,
   },
-  ignores: [".github/knip.ts", ".github/cspell.ts", ".wrangler/**/*.ts", ".wrangler/**/*.js"],
+  ignores: [".github/knip.ts", ".github/cspell.ts", ".wrangler/**/*.ts", ".wrangler/**/*.js", "dist/**", "eslint.config.mjs"],
   extends: [eslint.configs.recommended, ...tsEslint.configs.recommended, sonarjs.configs.recommended],
   languageOptions: {
     parser: tsEslint.parser,

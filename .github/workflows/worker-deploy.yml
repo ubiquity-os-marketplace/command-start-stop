@@ -20,6 +20,9 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Update wrangler.toml Name Field
         run: |
           branch_name=$(echo '${{ github.event.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
@@ -32,21 +35,24 @@ jobs:
           # Update the wrangler.toml file
           sed -i "s/^name = .*/name = \"$new_name\"/" wrangler.toml
           echo "Updated wrangler.toml name to: $new_name"
+
       - name: Deploy with Wrangler
         id: wrangler_deploy
         uses: cloudflare/wrangler-action@v3
         with:
-          wranglerVersion: "3.79.0"
+          wranglerVersion: "3.87.0"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           secrets: |
             SUPABASE_URL
             SUPABASE_KEY
             BOT_USER_ID
+            ${{ secrets.KERNEL_PUBLIC_KEY && secrets.KERNEL_PUBLIC_KEY != '' && 'KERNEL_PUBLIC_KEY' || '' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
+          KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
 
       - name: Write Deployment URL to Summary
         run: |

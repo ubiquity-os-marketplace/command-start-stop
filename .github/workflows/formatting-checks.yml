@@ -1,0 +1,28 @@
+name: Formatting Check
+
+on:
+  push:
+
+jobs:
+  format-check:
+    name: Check for formatting errors
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install toolchain
+        run: bun install --frozen-lockfile
+
+      - name: Eslint
+        run: bun run eslint --fix-dry-run
+
+      - name: Cspell
+        run: bun run format:cspell
+
+      - name: Prettier
+        run: bun run prettier --check .

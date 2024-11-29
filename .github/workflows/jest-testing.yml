@@ -21,11 +21,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Enable corepack
-        run: corepack enable
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install toolchain
+        run: bun install --frozen-lockfile
 
       - name: Jest With Coverage
-        run: yarn install && yarn test
+        run: bun run test
 
       - name: Add Jest Report to Summary
         if: always()

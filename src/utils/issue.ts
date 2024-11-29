@@ -1,11 +1,11 @@
-import { RestEndpointMethodTypes } from "@octokit/rest";
+import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Endpoints } from "@octokit/types";
 import ms from "ms";
+import { AssignedIssueScope, Role } from "../types";
 import { Context } from "../types/context";
 import { GitHubIssueSearch, RepoIssues, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
-import { AssignedIssueScope } from "../types";
 
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
@@ -227,7 +227,7 @@ export async function getAllPullRequestReviews(context: Context, pullNumber: num
         pull_number: pullNumber,
         per_page: 100,
       })
-    ).filter((review) => rolesWithReviewAuthority.includes(review.author_association)) as Review[];
+    ).filter((review) => rolesWithReviewAuthority.includes(review.author_association as Role)) as Review[];
   } catch (err) {
     if (err && typeof err === "object" && "status" in err && err.status === 404) {
       return [];
@@ -248,7 +248,62 @@ export function getOwnerRepoFromHtmlUrl(url: string) {
   };
 }
 
-export async function getAvailableOpenedPullRequests(context: Context, username: string) {
+async function getReviewByUser(context: Context, pullRequest: Awaited<ReturnType<typeof getOpenedPullRequestsForUser>>[0]) {
+  const { owner, repo } = getOwnerRepoFromHtmlUrl(pullRequest.html_url);
+  const reviews = (await getAllPullRequestReviews(context, pullRequest.number, owner, repo)).sort((a, b) => {
+    if (!a?.submitted_at || !b?.submitted_at) {
+      return 0;
+    }
+    return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
+  });
+  const latestReviewsByUser: Map<number, Review> = new Map();
+  for (const review of reviews) {
+    const isReviewRequestedForUser =
+      "requested_reviewers" in pullRequest && pullRequest.requested_reviewers && pullRequest.requested_reviewers.some((o) => o.id === review.user?.id);
+    if (!isReviewRequestedForUser && review.user?.id && !latestReviewsByUser.has(review.user?.id)) {
+      latestReviewsByUser.set(review.user?.id, review);
+    }
+  }
+
+  return latestReviewsByUser;
+}
+
+async function shouldSkipPullRequest(
+  context: Context,
+  pullRequest: Awaited<ReturnType<typeof getOpenedPullRequestsForUser>>[0],
+  reviews: Awaited<ReturnType<typeof getReviewByUser>>,
+  { owner, repo, issueNumber }: { owner: string; repo: string; issueNumber: number },
+  reviewDelayTolerance: string
+) {
+  const timeline = await context.octokit.paginate(context.octokit.rest.issues.listEventsForTimeline, {
+    owner,
+    repo,
+    issue_number: issueNumber,
+  });
+  const reviewEvent = timeline.filter((o) => o.event === "review_requested").pop();
+  const referenceTime = reviewEvent && "created_at" in reviewEvent ? new Date(reviewEvent.created_at).getTime() : new Date(pullRequest.created_at).getTime();
+
+  // If no reviews exist, check time reference
+  if (reviews.size === 0) {
+    return new Date().getTime() - referenceTime >= getTimeValue(reviewDelayTolerance);
+  }
+
+  // If changes are requested, do not skip
+  if (Array.from(reviews.values()).some((review) => review.state === "CHANGES_REQUESTED")) {
+    return true;
+  }
+
+  // If no approvals exist or time reference has exceeded review delay tolerance
+  const hasApproval = Array.from(reviews.values()).some((review) => review.state === "APPROVED");
+  const isTimePassed = new Date().getTime() - referenceTime >= getTimeValue(reviewDelayTolerance);
+
+  return hasApproval || !isTimePassed;
+}
+
+/**
+ * Returns all the pull-requests pending to be approved, counting as a malus against the PR user's quota.
+ */
+export async function getPendingOpenedPullRequests(context: Context, username: string) {
   const { reviewDelayTolerance } = context.config;
   if (!reviewDelayTolerance) return [];
 
@@ -259,16 +314,15 @@ export async function getAvailableOpenedPullRequests(context: Context, username:
     const openedPullRequest = openedPullRequests[i];
     if (!openedPullRequest) continue;
     const { owner, repo } = getOwnerRepoFromHtmlUrl(openedPullRequest.html_url);
-    const reviews = await getAllPullRequestReviews(context, openedPullRequest.number, owner, repo);
-
-    if (reviews.length > 0) {
-      const approvedReviews = reviews.find((review) => review.state === "APPROVED");
-      if (approvedReviews) {
-        result.push(openedPullRequest);
-      }
-    }
-
-    if (reviews.length === 0 && new Date().getTime() - new Date(openedPullRequest.created_at).getTime() >= getTimeValue(reviewDelayTolerance)) {
+    const latestReviewsByUser = await getReviewByUser(context, openedPullRequest);
+    const shouldSkipPr = await shouldSkipPullRequest(
+      context,
+      openedPullRequest,
+      latestReviewsByUser,
+      { owner, repo, issueNumber: openedPullRequest.number },
+      reviewDelayTolerance
+    );
+    if (!shouldSkipPr) {
       result.push(openedPullRequest);
     }
   }
