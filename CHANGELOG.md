@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.5.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.4.0...v1.5.0) (2024-11-29)
+
+
+### Features
+
+* manifest commands object ([aaf9c59](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/aaf9c59f083b15f82c5348eb7495d87fa7eb2791))
+* switch to Bun and fix deploy ([6241af7](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/6241af7be3f21449632960daa12a51a5182eb2e6))
+* upgrade typebox ([1a32260](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/1a32260f4b2be30f4adcb4f139392aadc38a4f06))
+
+
+### Bug Fixes
+
+* ignore dist ([2ba5e14](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/2ba5e142969eb24b0d898c5eed44df1abb957588))
+* ignore eslint config ([9155361](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/9155361f8fcb61fd72b5fb74a8856089a13de55a))
+* logic to retrieve pull-requests pending for a user updated ([e5259f1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e5259f16f1e2ab931383152a8d749c21d0720327))
+* ncc build ([29c2aef](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/29c2aefeeadf5b134edfc25e05a2e2d85bbdc442))
+* switch back to CJS ([5f81ebf](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/5f81ebfd2aa3c89f2004dc8f75539dfbd9d31fdd))
+* yarn v1 ([7deffaf](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/7deffaf3d91385468e3a2ccf3b91c7d89c47175a))
+
 ## [1.4.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.3.0...v1.4.0) (2024-11-18)
 
 
