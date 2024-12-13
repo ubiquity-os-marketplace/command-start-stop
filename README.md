@@ -55,5 +55,5 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 To run the Jest test suite, run the following command:
 
 ```bash
-yarn test
+bun test
 ```
