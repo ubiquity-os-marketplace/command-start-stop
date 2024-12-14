@@ -203,7 +203,7 @@ async function handleTaskLimitChecks(username: string, context: Context, logger:
   const { limit } = await getUserRoleAndTaskLimit(context, username);
 
   // check for max and enforce max
-  if (Math.abs(assignedIssues.length - openedPullRequests.length) >= limit) {
+  if (assignedIssues.length - openedPullRequests.length >= limit) {
     logger.error(username === sender ? "You have reached your max task limit" : `${username} has reached their max task limit`, {
       assignedIssues: assignedIssues.length,
       openedPullRequests: openedPullRequests.length,
