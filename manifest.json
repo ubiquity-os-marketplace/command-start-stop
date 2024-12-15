@@ -129,7 +129,38 @@
         "examples": [["Priority: 5 (Emergency)"], ["Good First Issue"]],
         "type": "array",
         "items": {
-          "type": "string"
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "roles": {
+              "uniqueItems": true,
+              "default": ["admin", "member", "contributor", "owner"],
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "const": "admin",
+                    "type": "string"
+                  },
+                  {
+                    "const": "member",
+                    "type": "string"
+                  },
+                  {
+                    "const": "contributor",
+                    "type": "string"
+                  },
+                  {
+                    "const": "owner",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          },
+          "required": ["name"]
         }
       }
     }
