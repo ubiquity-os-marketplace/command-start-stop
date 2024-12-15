@@ -18,27 +18,38 @@ export async function start(
   const { logger, config } = context;
   const { taskStaleTimeoutDuration, requiredLabelsToStart } = config;
 
-  const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
-  const userAssociation = await Promise.all(teammates.map(async (t) => await getUserRoleAndTaskLimit(context, t)));
+  if (!sender) {
+    throw logger.error(`Skipping '/start' since there is no sender in the context.`);
+  }
 
-  // TODO get member association level and compare to the list
-  console.log(teammates, userAssociation, sender, issue.assignees);
+  const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
+  const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
+
   if (requiredLabelsToStart.length) {
-    const currentLabelConfiguration = requiredLabelsToStart.find((label) => issueLabels.some((issueLabel) => label.name.includes(issueLabel)));
-    console.log(currentLabelConfiguration);
+    const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
+      issueLabels.some((issueLabel) => label.name.toLowerCase() === issueLabel.toLowerCase())
+    );
     if (!currentLabelConfiguration) {
       // If we didn't find the label in the allowed list, then the user cannot start this task.
       throw logger.error(
-        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.join(", ")}`,
+        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`,
         {
           requiredLabelsToStart,
           issueLabels,
           issue: issue.html_url,
         }
       );
-    } else if (!requiredLabelsToStart.some((label) => issueLabels.some((issueLabel) => label.roles.some((role) => role === issueLabel)))) {
+    } else if (!currentLabelConfiguration.roles.includes(userAssociation.role.toLowerCase() as (typeof currentLabelConfiguration.roles)[number])) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
-      console.log("jere");
+      throw logger.error(
+        `You do not have the adequate role to start this task (your role is: ${userAssociation.role}). Allowed roles are: ${currentLabelConfiguration.roles.join(", ")}.`,
+        {
+          currentLabelConfiguration,
+          issueLabels,
+          issue: issue.html_url,
+          userAssociation,
+        }
+      );
     }
   }
 
