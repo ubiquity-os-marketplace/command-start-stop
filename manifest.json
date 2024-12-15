@@ -132,9 +132,11 @@
           "type": "object",
           "properties": {
             "name": {
+              "description": "The name of the required labels to start the task.",
               "type": "string"
             },
             "roles": {
+              "description": "The list of allowed roles to start the task with the given label.",
               "uniqueItems": true,
               "default": ["admin", "member", "contributor", "owner"],
               "type": "array",
