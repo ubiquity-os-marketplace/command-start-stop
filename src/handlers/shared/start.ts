@@ -18,18 +18,28 @@ export async function start(
   const { logger, config } = context;
   const { taskStaleTimeoutDuration, requiredLabelsToStart } = config;
 
-  const issueLabels = issue.labels.map((label) => label.name);
+  const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
+  const userAssociation = await Promise.all(teammates.map(async (t) => await getUserRoleAndTaskLimit(context, t)));
 
-  if (requiredLabelsToStart.length && !requiredLabelsToStart.some((label) => issueLabels.includes(label))) {
-    // The "Priority" label must reflect a business priority, not a development one.
-    throw logger.error(
-      `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.join(", ")}`,
-      {
-        requiredLabelsToStart,
-        issueLabels,
-        issue: issue.html_url,
-      }
-    );
+  // TODO get member association level and compare to the list
+  console.log(teammates, userAssociation, sender, issue.assignees);
+  if (requiredLabelsToStart.length) {
+    const currentLabelConfiguration = requiredLabelsToStart.find((label) => issueLabels.some((issueLabel) => label.name.includes(issueLabel)));
+    console.log(currentLabelConfiguration);
+    if (!currentLabelConfiguration) {
+      // If we didn't find the label in the allowed list, then the user cannot start this task.
+      throw logger.error(
+        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.join(", ")}`,
+        {
+          requiredLabelsToStart,
+          issueLabels,
+          issue: issue.html_url,
+        }
+      );
+    } else if (!requiredLabelsToStart.some((label) => issueLabels.some((issueLabel) => label.roles.some((role) => role === issueLabel)))) {
+      // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
+      console.log("jere");
+    }
   }
 
   if (!sender) {

@@ -56,9 +56,10 @@ export function stringLiteralUnion<T extends string[]>(values: [...T]): Union<In
   return T.Union(literals) as Union<IntoStringLiteralUnion<T>>;
 }
 
-const roles = stringLiteralUnion(["admin", "member", "contributor", "owner"]);
+const roleList = ["admin", "member", "contributor", "owner"];
+const roles = stringLiteralUnion(roleList);
 
-const requiredLabel = T.Object({ name: T.String(), roles: T.Array(roles, { uniqueItems: true, default: [] }) });
+const requiredLabel = T.Object({ name: T.String(), roles: T.Array(roles, { uniqueItems: true, default: roleList }) });
 
 export const pluginSettingsSchema = T.Object(
   {
