@@ -9,21 +9,13 @@ import { getUserRoleAndTaskLimit } from "./get-user-task-limit-and-role";
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-export async function start(
-  context: Context,
-  issue: Context<"issue_comment.created">["payload"]["issue"],
-  sender: Context["payload"]["sender"],
-  teammates: string[]
-): Promise<Result> {
-  const { logger, config } = context;
-  const { taskStaleTimeoutDuration, requiredLabelsToStart } = config;
-
-  if (!sender) {
-    throw logger.error(`Skipping '/start' since there is no sender in the context.`);
-  }
-
+async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string) {
+  const {
+    config: { requiredLabelsToStart },
+    logger,
+  } = context;
   const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
-  const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
+  const userAssociation = await getUserRoleAndTaskLimit(context, login);
 
   if (requiredLabelsToStart.length) {
     const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
@@ -52,10 +44,22 @@ export async function start(
       );
     }
   }
+}
+
+export async function start(
+  context: Context,
+  issue: Context<"issue_comment.created">["payload"]["issue"],
+  sender: Context["payload"]["sender"],
+  teammates: string[]
+): Promise<Result> {
+  const { logger, config } = context;
+  const { taskStaleTimeoutDuration } = config;
 
   if (!sender) {
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
   }
+
+  await checkRequirements(context, issue, sender.login);
 
   // is it a child issue?
   if (issue.body && isParentIssue(issue.body)) {
