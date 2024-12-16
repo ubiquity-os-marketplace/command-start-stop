@@ -369,7 +369,7 @@ async function setupTests() {
     number: 3,
     labels: [
       {
-        name: PRIORITY_ONE,
+        name: PRIORITY_ONE.name,
       },
     ],
     body: "Third issue body",
@@ -425,7 +425,7 @@ async function setupTests() {
         name: "Time: 1h",
       },
       {
-        name: PRIORITY_ONE,
+        name: PRIORITY_ONE.name,
       },
     ],
   });
