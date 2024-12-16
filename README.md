@@ -30,11 +30,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 
 ```yml
 - plugin: http://localhost:4000 # or the URL where the plugin is hosted
-  name: start-stop
   id: start-stop-command
-  description: "Allows a user to start/stop a task without negative XP impact"
-  command: "\/start|\/stop"
-  example: "/start" # or "/stop"
   with:
     reviewDelayTolerance: "3 Days"
     taskStaleTimeoutDuration: "30 Days"
@@ -45,7 +41,9 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
     assignedIssueScope: "org" # or "org" or "network". Default is org
     emptyWalletText: "Please set your wallet address with the /wallet command first and try again."
     rolesWithReviewAuthority: ["MEMBER", "OWNER"]
-    requiredLabelsToStart: ["Priority: 5 (Emergency)"]
+    requiredLabelsToStart:
+      - name: "Priority: 5 (Emergency)"
+        roles: ["admin", "collaborator"]
 ```
 
 # Testing
@@ -55,5 +53,5 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 To run the Jest test suite, run the following command:
 
 ```bash
-bun test
+bun run test
 ```
