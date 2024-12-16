@@ -21,6 +21,9 @@ type PayloadSender = Context["payload"]["sender"];
 const octokit = jest.requireActual("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
 const PRIORITY_ONE = { name: "Priority: 1 (Normal)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] };
+const priority3LabelName = "Priority: 3 (High)";
+const priority4LabelName = "Priority: 4 (Urgent)";
+const priority5LabelName = "Priority: 5 (Emergency)";
 const PRIORITY_LABELS = [
   PRIORITY_ONE,
   {
@@ -28,15 +31,15 @@ const PRIORITY_LABELS = [
     roles: ["admin", "member", "contributor", "owner", "billing_manager"],
   },
   {
-    name: "Priority: 3 (High)",
+    name: priority3LabelName,
     roles: ["admin", "member", "contributor", "owner", "billing_manager"],
   },
   {
-    name: "Priority: 4 (Urgent)",
+    name: priority4LabelName,
     roles: ["admin", "member", "contributor", "owner", "billing_manager"],
   },
   {
-    name: "Priority: 5 (Emergency)",
+    name: priority5LabelName,
     roles: ["admin", "member", "contributor", "owner", "billing_manager"],
   },
 ];
@@ -306,9 +309,9 @@ describe("User start/stop", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: "Priority: 3 (High)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
-      { name: "Priority: 4 (Urgent)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
-      { name: "Priority: 5 (Emergency)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+      { name: priority3LabelName, roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+      { name: priority4LabelName, roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+      { name: priority5LabelName, roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
@@ -316,6 +319,27 @@ describe("User start/stop", () => {
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
         raw: "This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
+      },
+    });
+  });
+
+  test("Should not allow a user to start if the user role is not listed", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+
+    const context = createContext(issue, sender, "/start", "1", false, [
+      { name: "Priority: 1 (Normal)", roles: ["contributor"] },
+      { name: "Priority: 2 (Medium)", roles: ["contributor"] },
+      { name: priority3LabelName, roles: ["contributor"] },
+      { name: priority4LabelName, roles: ["contributor"] },
+      { name: priority5LabelName, roles: ["contributor"] },
+    ]) as Context<"issue_comment.created">;
+
+    context.adapters = createAdapters(getSupabase(), context);
+
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "You do not have the adequate role to start this task (your role is: admin). Allowed roles are: contributor.",
       },
     });
   });

@@ -3,11 +3,11 @@ import { AssignedIssueScope, PluginSettings, pluginSettingsSchema, Role } from "
 import cfg from "./__mocks__/valid-configuration.json";
 
 const PRIORITY_LABELS = [
-  { name: "Priority: 1 (Normal)" },
-  { name: "Priority: 2 (Medium)" },
-  { name: "Priority: 3 (High)" },
-  { name: "Priority: 4 (Urgent)" },
-  { name: "Priority: 5 (Emergency)" },
+  { name: "Priority: 1 (Normal)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 2 (Medium)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 3 (High)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 4 (Urgent)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 5 (Emergency)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
 ];
 
 describe("Configuration tests", () => {
