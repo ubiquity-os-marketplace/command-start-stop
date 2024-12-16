@@ -20,8 +20,26 @@ type PayloadSender = Context["payload"]["sender"];
 
 const octokit = jest.requireActual("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
-const PRIORITY_ONE = "Priority: 1 (Normal)";
-const PRIORITY_LABELS = [PRIORITY_ONE, "Priority: 2 (Medium)", "Priority: 3 (High)", "Priority: 4 (Urgent)", "Priority: 5 (Emergency)"];
+const PRIORITY_ONE = { name: "Priority: 1 (Normal)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] };
+const PRIORITY_LABELS = [
+  PRIORITY_ONE,
+  {
+    name: "Priority: 2 (Medium)",
+    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+  },
+  {
+    name: "Priority: 3 (High)",
+    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+  },
+  {
+    name: "Priority: 4 (Urgent)",
+    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+  },
+  {
+    name: "Priority: 5 (Emergency)",
+    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+  },
+];
 
 beforeAll(() => {
   server.listen();
@@ -288,9 +306,9 @@ describe("User start/stop", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      "Priority: 3 (High)",
-      "Priority: 4 (Urgent)",
-      "Priority: 5 (Emergency)",
+      { name: "Priority: 3 (High)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+      { name: "Priority: 4 (Urgent)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+      { name: "Priority: 5 (Emergency)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
@@ -664,7 +682,7 @@ export function createContext(
   body = "/start",
   appId: string | null = "1",
   startRequiresWallet = false,
-  requiredLabelsToStart: string[] = PRIORITY_LABELS
+  requiredLabelsToStart = PRIORITY_LABELS
 ): Context {
   return {
     adapters: {} as ReturnType<typeof createAdapters>,

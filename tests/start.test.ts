@@ -24,12 +24,6 @@ afterEach(() => {
 
 afterAll(() => server.close());
 
-beforeEach(async () => {
-  jest.clearAllMocks();
-  jest.resetModules();
-  await setupTests();
-});
-
 async function setupTests() {
   db.users.create({
     id: 1,
