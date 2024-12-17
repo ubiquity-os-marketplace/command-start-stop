@@ -2,7 +2,13 @@ import { Value } from "@sinclair/typebox/value";
 import { AssignedIssueScope, PluginSettings, pluginSettingsSchema, Role } from "../src/types";
 import cfg from "./__mocks__/valid-configuration.json";
 
-const PRIORITY_LABELS = ["Priority: 1 (Normal)", "Priority: 2 (Medium)", "Priority: 3 (High)", "Priority: 4 (Urgent)", "Priority: 5 (Emergency)"];
+const PRIORITY_LABELS = [
+  { name: "Priority: 1 (Normal)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 2 (Medium)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 3 (High)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 4 (Urgent)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+  { name: "Priority: 5 (Emergency)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+];
 
 describe("Configuration tests", () => {
   it("Should decode the configuration", () => {

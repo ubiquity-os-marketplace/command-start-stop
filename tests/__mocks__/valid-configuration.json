@@ -10,5 +10,26 @@
   "assignedIssueScope": "org",
   "emptyWalletText": "Please set your wallet address with the /wallet command first and try again.",
   "rolesWithReviewAuthority": ["OWNER", "ADMIN", "MEMBER"],
-  "requiredLabelsToStart": ["Priority: 1 (Normal)", "Priority: 2 (Medium)", "Priority: 3 (High)", "Priority: 4 (Urgent)", "Priority: 5 (Emergency)"]
+  "requiredLabelsToStart": [
+    {
+      "name": "Priority: 1 (Normal)",
+      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+    },
+    {
+      "name": "Priority: 2 (Medium)",
+      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+    },
+    {
+      "name": "Priority: 3 (High)",
+      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+    },
+    {
+      "name": "Priority: 4 (Urgent)",
+      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+    },
+    {
+      "name": "Priority: 5 (Emergency)",
+      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+    }
+  ]
 }
