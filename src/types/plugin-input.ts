@@ -1,4 +1,4 @@
-import { StaticDecode, Type as T } from "@sinclair/typebox";
+import { StaticDecode, TLiteral, Type as T, Union } from "@sinclair/typebox";
 
 export enum AssignedIssueScope {
   ORG = "org",
@@ -49,6 +49,24 @@ const maxConcurrentTasks = T.Transform(
   })
   .Encode((value) => value);
 
+type IntoStringLiteralUnion<T> = { [K in keyof T]: T[K] extends string ? TLiteral<T[K]> : never };
+
+export function stringLiteralUnion<T extends string[]>(values: [...T]): Union<IntoStringLiteralUnion<T>> {
+  const literals = values.map((value) => T.Literal(value));
+  return T.Union(literals) as Union<IntoStringLiteralUnion<T>>;
+}
+
+const roles = stringLiteralUnion(["admin", "member", "collaborator", "contributor", "owner", "billing_manager"]);
+
+const requiredLabel = T.Object({
+  name: T.String({ description: "The name of the required labels to start the task." }),
+  roles: T.Array(roles, {
+    description: "The list of allowed roles to start the task with the given label.",
+    uniqueItems: true,
+    default: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+  }),
+});
+
 export const pluginSettingsSchema = T.Object(
   {
     reviewDelayTolerance: T.String({
@@ -79,7 +97,7 @@ export const pluginSettingsSchema = T.Object(
     rolesWithReviewAuthority: T.Transform(rolesWithReviewAuthority)
       .Decode((value) => value.map((role) => role.toUpperCase()))
       .Encode((value) => value.map((role) => Role[role as keyof typeof Role])),
-    requiredLabelsToStart: T.Array(T.String(), {
+    requiredLabelsToStart: T.Array(requiredLabel, {
       default: [],
       description: "If set, a task must have at least one of these labels to be started.",
       examples: [["Priority: 5 (Emergency)"], ["Good First Issue"]],

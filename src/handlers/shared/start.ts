@@ -9,6 +9,43 @@ import { getUserRoleAndTaskLimit } from "./get-user-task-limit-and-role";
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
+async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string) {
+  const {
+    config: { requiredLabelsToStart },
+    logger,
+  } = context;
+  const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
+  const userAssociation = await getUserRoleAndTaskLimit(context, login);
+
+  if (requiredLabelsToStart.length) {
+    const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
+      issueLabels.some((issueLabel) => label.name.toLowerCase() === issueLabel.toLowerCase())
+    );
+    if (!currentLabelConfiguration) {
+      // If we didn't find the label in the allowed list, then the user cannot start this task.
+      throw logger.error(
+        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`,
+        {
+          requiredLabelsToStart,
+          issueLabels,
+          issue: issue.html_url,
+        }
+      );
+    } else if (!currentLabelConfiguration.roles.includes(userAssociation.role.toLowerCase() as (typeof currentLabelConfiguration.roles)[number])) {
+      // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
+      throw logger.error(
+        `You do not have the adequate role to start this task (your role is: ${userAssociation.role}). Allowed roles are: ${currentLabelConfiguration.roles.join(", ")}.`,
+        {
+          currentLabelConfiguration,
+          issueLabels,
+          issue: issue.html_url,
+          userAssociation,
+        }
+      );
+    }
+  }
+}
+
 export async function start(
   context: Context,
   issue: Context<"issue_comment.created">["payload"]["issue"],
@@ -16,25 +53,13 @@ export async function start(
   teammates: string[]
 ): Promise<Result> {
   const { logger, config } = context;
-  const { taskStaleTimeoutDuration, requiredLabelsToStart } = config;
-
-  const issueLabels = issue.labels.map((label) => label.name);
-
-  if (requiredLabelsToStart.length && !requiredLabelsToStart.some((label) => issueLabels.includes(label))) {
-    // The "Priority" label must reflect a business priority, not a development one.
-    throw logger.error(
-      `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.join(", ")}`,
-      {
-        requiredLabelsToStart,
-        issueLabels,
-        issue: issue.html_url,
-      }
-    );
-  }
+  const { taskStaleTimeoutDuration } = config;
 
   if (!sender) {
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
   }
+
+  await checkRequirements(context, issue, sender.login);
 
   // is it a child issue?
   if (issue.body && isParentIssue(issue.body)) {
