@@ -20,7 +20,7 @@ type PayloadSender = Context["payload"]["sender"];
 
 const octokit = jest.requireActual("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
-const PRIORITY_ONE = { name: "Priority: 1 (Normal)", roles: ["admin", "member", "contributor", "owner", "billing_manager"] };
+const PRIORITY_ONE = { name: "Priority: 1 (Normal)", roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] };
 const priority3LabelName = "Priority: 3 (High)";
 const priority4LabelName = "Priority: 4 (Urgent)";
 const priority5LabelName = "Priority: 5 (Emergency)";
@@ -28,19 +28,19 @@ const PRIORITY_LABELS = [
   PRIORITY_ONE,
   {
     name: "Priority: 2 (Medium)",
-    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
   },
   {
     name: priority3LabelName,
-    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
   },
   {
     name: priority4LabelName,
-    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
   },
   {
     name: priority5LabelName,
-    roles: ["admin", "member", "contributor", "owner", "billing_manager"],
+    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
   },
 ];
 
@@ -309,9 +309,9 @@ describe("User start/stop", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: priority3LabelName, roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
-      { name: priority4LabelName, roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
-      { name: priority5LabelName, roles: ["admin", "member", "contributor", "owner", "billing_manager"] },
+      { name: priority3LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
+      { name: priority4LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
+      { name: priority5LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
