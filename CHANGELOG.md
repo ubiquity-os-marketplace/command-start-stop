@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.5.0...v1.6.0) (2024-12-17)
+
+
+### Features
+
+* fine grain permission to start tasks ([e408abe](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e408abee2503a3bd47ce3db0e00127d57ef27117))
+
 ## [1.5.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.4.0...v1.5.0) (2024-11-29)
 
 
