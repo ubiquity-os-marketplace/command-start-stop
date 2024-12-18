@@ -1,22 +1,29 @@
 name: Deploy Worker
 
 on:
-  push:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Update Configuration and Build"]
+    types:
+      - completed
+
+env:
+  APP_ID: ${{ secrets.APP_ID }}
+  APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
     environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
+    permissions:
+      contents: write
+
     steps:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20.10.0"
-
-      - name: Enable corepack
-        run: corepack enable
 
       - uses: actions/checkout@v4
 
@@ -25,7 +32,7 @@ jobs:
 
       - name: Update wrangler.toml Name Field
         run: |
-          branch_name=$(echo '${{ github.event.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
+          branch_name=$(echo '${{ github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
           # Extract base name from wrangler.toml
           base_name=$(grep '^name = ' wrangler.toml | sed 's/^name = "\(.*\)"$/\1/')
           # Concatenate branch name with base name
@@ -53,6 +60,46 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+
+      - name: Update manifest.json worker url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const manifestPath = path.resolve("${{ github.workspace }}", './manifest.json');
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+            manifest["homepage_url"] = "${{ steps.wrangler_deploy.outputs.deployment-url }}";
+
+            const updatedManifest = JSON.stringify(manifest, null, 2);
+            fs.writeFileSync(manifestPath, updatedManifest);
+            console.log('Updated manifest:', updatedManifest);
+
+      - name: Get GitHub App token
+        if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+
+      - name: Format manifest.json using Prettier
+        shell: bash
+        run: |
+          bun add -DE prettier
+          bun prettier --write .
+
+      - name: Commit file
+        uses: swinton/commit@v2.x
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            manifest.json
+          commit-message: "chore: [skip ci] update manifest.json url"
+          ref: ${{ github.ref }}
 
       - name: Write Deployment URL to Summary
         run: |
