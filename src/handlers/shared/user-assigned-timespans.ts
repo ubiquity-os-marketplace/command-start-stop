@@ -13,12 +13,13 @@ interface UserAssignments {
 interface AssignmentPeriod {
   assignedAt: string;
   unassignedAt: string | null;
-  reason: "user" | "bot";
+  reason: "user" | "bot" | "admin";
 }
 
 /*
  * Returns all the assignment periods by user, with the reason of the un-assignments. If it is instigated by the user,
- * (e.g. GitHub UI or using /stop), the reason will be "user", otherwise "bot".
+ * (e.g. GitHub UI or using /stop), the reason will be "user", otherwise "bot", or "admin" if the admin is the
+ * instigator.
  */
 export async function getAssignmentPeriods(octokit: Context["octokit"], issueParams: IssueParams) {
   const [events, comments] = await Promise.all([
@@ -61,15 +62,19 @@ export async function getAssignmentPeriods(octokit: Context["octokit"], issuePar
       const periodStart = new Date(lastPeriod.assignedAt).getTime();
       const periodEnd = new Date(event.created_at).getTime();
 
-      const hasStopCommand =
-        stopComments.some((comment) => {
-          const commentTime = new Date(comment.created_at).getTime();
-          return commentTime >= periodStart && commentTime <= periodEnd;
-        }) ||
-        ("assigner" in event && event.assigner.type !== "Bot");
+      if ("assigner" in event && event.assigner.type !== "Bot" && event.assigner.login !== username) {
+        lastPeriod.reason = "admin";
+      } else {
+        const hasStopCommand =
+          stopComments.some((comment) => {
+            const commentTime = new Date(comment.created_at).getTime();
+            return commentTime >= periodStart && commentTime <= periodEnd;
+          }) ||
+          ("assigner" in event && event.assigner.type !== "Bot");
 
-      if (hasStopCommand) {
-        lastPeriod.reason = "user";
+        if (hasStopCommand) {
+          lastPeriod.reason = "user";
+        }
       }
     }
   });
