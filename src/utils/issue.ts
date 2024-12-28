@@ -64,7 +64,7 @@ export async function addCommentToIssue(context: Context, message: string | null
 
 // Pull Requests
 
-export async function closePullRequest(context: Context, results: GetLinkedResults) {
+export async function closePullRequest(context: Context, results: Pick<GetLinkedResults, "number">) {
   const { payload } = context;
   try {
     await context.octokit.rest.pulls.update({
