@@ -1,7 +1,7 @@
 import { Repository } from "@octokit/graphql-schema";
 import { Context, isIssueCommentEvent, Label } from "../types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
-import { addCommentToIssue, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
+import { closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";
 import { getDeadline } from "./shared/generate-assignment-comment";
 import { start } from "./shared/start";
@@ -60,9 +60,6 @@ export async function userSelfAssign(context: Context<"issues.assigned">): Promi
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
 
-  const users = issue.assignees.map((user) => `@${user?.login}`).join(", ");
-
-  await addCommentToIssue(context, `${users} the deadline is at ${deadline}`);
   return { status: HttpStatusCode.OK };
 }
 
