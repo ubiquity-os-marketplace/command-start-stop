@@ -33,15 +33,12 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
       );
     } else if (!currentLabelConfiguration.roles.includes(userAssociation.role.toLowerCase() as (typeof currentLabelConfiguration.roles)[number])) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
-      throw logger.error(
-        `You do not have the adequate role to start this task (your role is: ${userAssociation.role}). Allowed roles are: ${currentLabelConfiguration.roles.join(", ")}.`,
-        {
-          currentLabelConfiguration,
-          issueLabels,
-          issue: issue.html_url,
-          userAssociation,
-        }
-      );
+      throw logger.error("You must be a core team member to start this task", {
+        currentLabelConfiguration,
+        issueLabels,
+        issue: issue.html_url,
+        userAssociation,
+      });
     }
   }
 }
@@ -139,7 +136,7 @@ export async function start(
     await addCommentToIssue(
       context,
       `
-      
+
 > [!WARNING]
 > ${error}
 
