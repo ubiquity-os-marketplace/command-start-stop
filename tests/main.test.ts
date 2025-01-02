@@ -339,7 +339,7 @@ describe("User start/stop", () => {
 
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "You do not have the adequate role to start this task (your role is: admin). Allowed roles are: contributor.",
+        raw: "You must be a core team member to start this task",
       },
     });
   });
