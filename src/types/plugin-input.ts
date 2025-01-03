@@ -63,7 +63,7 @@ const requiredLabel = T.Object({
   roles: T.Array(roles, {
     description: "The list of allowed roles to start the task with the given label.",
     uniqueItems: true,
-    default: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager", "write"],
+    default: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager", "write", "read"],
   }),
 });
 
