@@ -21,7 +21,7 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       throw new Error("Invalid organization name");
     }
 
-    let role = "contributor";
+    let role;
     let limit;
 
     try {
@@ -30,7 +30,8 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
         username: user,
       });
       role = response.data.role.toLowerCase();
-      limit = maxConcurrentTasks[role];
+      limit = maxConcurrentTasks[role] ?? Infinity;
+      return { role, limit };
     } catch (err) {
       logger.error("Could not get user membership", { err });
     }
@@ -50,11 +51,9 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       role,
       data: permissionLevel.data,
     });
-    if (role && maxConcurrentTasks[role]) {
-      limit = maxConcurrentTasks[role];
-    }
+    limit = maxConcurrentTasks[role] ?? Infinity;
 
-    return limit ? { role, limit } : { ...minUserTaskLimit, role };
+    return { role, limit };
   } catch (err) {
     logger.error("Could not get user role", { err });
     return minUserTaskLimit;
