@@ -15,24 +15,35 @@
   "useGitignore": true,
   "language": "en",
   "words": [
-    "knip",
-    "mischeck",
     "dataurl",
     "devpool",
+    "knip",
+    "mischeck",
+    "mswjs",
     "outdir",
     "servedir",
-    "Supabase",
-    "supabase",
-    "SUPABASE",
-    "typebox",
-    "ubiquity-os",
     "signoff",
     "sonarjs",
-    "mswjs",
+    "supabase",
+    "Supabase",
+    "SUPABASE",
+    "timespans",
+    "typebox",
+    "ubiquity-os",
     "unassignment",
     "unassignments"
   ],
-  "dictionaries": ["typescript", "node", "software-terms"],
-  "import": ["@cspell/dict-typescript/cspell-ext.json", "@cspell/dict-node/cspell-ext.json", "@cspell/dict-software-terms"],
-  "ignoreRegExpList": ["[0-9a-fA-F]{6}"]
+  "dictionaries": [
+    "typescript",
+    "node",
+    "software-terms"
+  ],
+  "import": [
+    "@cspell/dict-typescript/cspell-ext.json",
+    "@cspell/dict-node/cspell-ext.json",
+    "@cspell/dict-software-terms"
+  ],
+  "ignoreRegExpList": [
+    "[0-9a-fA-F]{6}"
+  ]
 }
