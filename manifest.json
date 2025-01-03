@@ -138,7 +138,7 @@
             "roles": {
               "description": "The list of allowed roles to start the task with the given label.",
               "uniqueItems": true,
-              "default": ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+              "default": ["admin", "member", "collaborator", "contributor", "owner", "billing_manager", "write"],
               "type": "array",
               "items": {
                 "anyOf": [
@@ -164,6 +164,14 @@
                   },
                   {
                     "const": "billing_manager",
+                    "type": "string"
+                  },
+                  {
+                    "const": "read",
+                    "type": "string"
+                  },
+                  {
+                    "const": "write",
                     "type": "string"
                   }
                 ]
