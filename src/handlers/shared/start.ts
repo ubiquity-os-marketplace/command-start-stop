@@ -5,7 +5,7 @@ import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
 import { checkTaskStale } from "./check-task-stale";
 import { generateAssignmentComment } from "./generate-assignment-comment";
-import { getUserRoleAndTaskLimit } from "./get-user-task-limit-and-role";
+import { getUserRoleAndTaskLimit, isAdminRole, isCollaboratorRole } from "./get-user-task-limit-and-role";
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
@@ -31,7 +31,7 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
           issue: issue.html_url,
         }
       );
-    } else if (!currentLabelConfiguration.roles.includes(userAssociation.role.toLowerCase() as (typeof currentLabelConfiguration.roles)[number])) {
+    } else if (!isAdminRole(userAssociation.role) && !isCollaboratorRole(userAssociation.role)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
       throw logger.error("You must be a core team member to start this task", {
         currentLabelConfiguration,

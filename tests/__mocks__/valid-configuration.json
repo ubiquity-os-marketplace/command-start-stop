@@ -1,35 +1,34 @@
 {
-  "reviewDelayTolerance": "1 Day",
-  "taskStaleTimeoutDuration": "30 Days",
-  "startRequiresWallet": true,
-  "maxConcurrentTasks": {
-    "admin": 20,
-    "member": 10,
-    "contributor": 2
-  },
   "assignedIssueScope": "org",
   "emptyWalletText": "Please set your wallet address with the /wallet command first and try again.",
-  "rolesWithReviewAuthority": ["OWNER", "ADMIN", "MEMBER"],
+  "maxConcurrentTasks": {
+    "collaborator": 10,
+    "contributor": 2
+  },
   "requiredLabelsToStart": [
     {
-      "name": "Priority: 1 (Normal)",
-      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+      "allowedRoles": ["collaborator", "contributor"],
+      "name": "Priority: 1 (Normal)"
     },
     {
-      "name": "Priority: 2 (Medium)",
-      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+      "allowedRoles": ["collaborator", "contributor"],
+      "name": "Priority: 2 (Medium)"
     },
     {
-      "name": "Priority: 3 (High)",
-      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+      "allowedRoles": ["collaborator", "contributor"],
+      "name": "Priority: 3 (High)"
     },
     {
-      "name": "Priority: 4 (Urgent)",
-      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+      "allowedRoles": ["collaborator", "contributor"],
+      "name": "Priority: 4 (Urgent)"
     },
     {
-      "name": "Priority: 5 (Emergency)",
-      "roles": ["admin", "member", "contributor", "owner", "billing_manager"]
+      "allowedRoles": ["collaborator", "contributor"],
+      "name": "Priority: 5 (Emergency)"
     }
-  ]
+  ],
+  "reviewDelayTolerance": "1 Day",
+  "rolesWithReviewAuthority": ["OWNER", "ADMIN", "MEMBER"],
+  "startRequiresWallet": true,
+  "taskStaleTimeoutDuration": "30 Days"
 }

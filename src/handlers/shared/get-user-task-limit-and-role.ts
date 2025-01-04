@@ -6,11 +6,11 @@ interface MatchingUserProps {
 }
 
 export function isAdminRole(role: string) {
-  return ADMIN_ROLES.includes(role);
+  return ADMIN_ROLES.includes(role.toLowerCase());
 }
 
 export function isCollaboratorRole(role: string) {
-  return COLLABORATOR_ROLES.includes(role);
+  return COLLABORATOR_ROLES.includes(role.toLowerCase());
 }
 
 export function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks"], role: string) {
