@@ -43,7 +43,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
     rolesWithReviewAuthority: ["MEMBER", "OWNER"]
     requiredLabelsToStart:
       - name: "Priority: 5 (Emergency)"
-        roles: ["admin", "collaborator"]
+        roles: ["admin", "collaborator", "write"]
 ```
 
 # Testing

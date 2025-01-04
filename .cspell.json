@@ -33,17 +33,7 @@
     "unassignment",
     "unassignments"
   ],
-  "dictionaries": [
-    "typescript",
-    "node",
-    "software-terms"
-  ],
-  "import": [
-    "@cspell/dict-typescript/cspell-ext.json",
-    "@cspell/dict-node/cspell-ext.json",
-    "@cspell/dict-software-terms"
-  ],
-  "ignoreRegExpList": [
-    "[0-9a-fA-F]{6}"
-  ]
+  "dictionaries": ["typescript", "node", "software-terms"],
+  "import": ["@cspell/dict-typescript/cspell-ext.json", "@cspell/dict-node/cspell-ext.json", "@cspell/dict-software-terms"],
+  "ignoreRegExpList": ["[0-9a-fA-F]{6}"]
 }

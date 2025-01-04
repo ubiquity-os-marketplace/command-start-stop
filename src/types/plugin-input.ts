@@ -56,14 +56,14 @@ export function stringLiteralUnion<T extends string[]>(values: [...T]): Union<In
   return T.Union(literals) as Union<IntoStringLiteralUnion<T>>;
 }
 
-const roles = stringLiteralUnion(["admin", "member", "collaborator", "contributor", "owner", "billing_manager"]);
+const roles = stringLiteralUnion(["admin", "member", "collaborator", "contributor", "owner", "billing_manager", "read", "write"]);
 
 const requiredLabel = T.Object({
   name: T.String({ description: "The name of the required labels to start the task." }),
   roles: T.Array(roles, {
     description: "The list of allowed roles to start the task with the given label.",
     uniqueItems: true,
-    default: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    default: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager", "write", "read"],
   }),
 });
 
