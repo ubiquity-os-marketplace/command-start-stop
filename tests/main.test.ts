@@ -20,7 +20,7 @@ type PayloadSender = Context["payload"]["sender"];
 
 const octokit = jest.requireActual("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
-const PRIORITY_ONE = { name: "Priority: 1 (Normal)", roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] };
+const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
 const priority3LabelName = "Priority: 3 (High)";
 const priority4LabelName = "Priority: 4 (Urgent)";
 const priority5LabelName = "Priority: 5 (Emergency)";
@@ -28,19 +28,19 @@ const PRIORITY_LABELS = [
   PRIORITY_ONE,
   {
     name: "Priority: 2 (Medium)",
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
   {
     name: priority3LabelName,
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
   {
     name: priority4LabelName,
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
   {
     name: priority5LabelName,
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
 ];
 
@@ -240,7 +240,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 5 } } }) as unknown as Sender;
 
-    const memberLimit = maxConcurrentDefaults.member;
+    const memberLimit = maxConcurrentDefaults.collaborator;
 
     createIssuesForMaxAssignment(memberLimit + 4, sender.id);
     const context = createContext(issue, sender) as unknown as Context;
@@ -309,9 +309,9 @@ describe("User start/stop", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: priority3LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
-      { name: priority4LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
-      { name: priority5LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
+      { name: priority3LabelName, allowedRoles: ["collaborator", "contributor"] },
+      { name: priority4LabelName, allowedRoles: ["collaborator", "contributor"] },
+      { name: priority5LabelName, allowedRoles: ["collaborator", "contributor"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
@@ -328,11 +328,11 @@ describe("User start/stop", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: "Priority: 1 (Normal)", roles: ["contributor"] },
-      { name: "Priority: 2 (Medium)", roles: ["contributor"] },
-      { name: priority3LabelName, roles: ["contributor"] },
-      { name: priority4LabelName, roles: ["contributor"] },
-      { name: priority5LabelName, roles: ["contributor"] },
+      { name: "Priority: 1 (Normal)", allowedRoles: ["contributor"] },
+      { name: "Priority: 2 (Medium)", allowedRoles: ["contributor"] },
+      { name: priority3LabelName, allowedRoles: ["contributor"] },
+      { name: priority4LabelName, allowedRoles: ["contributor"] },
+      { name: priority5LabelName, allowedRoles: ["contributor"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
@@ -695,8 +695,7 @@ function createIssuesForMaxAssignment(n: number, userId: number) {
 }
 
 const maxConcurrentDefaults = {
-  admin: Infinity,
-  member: 6,
+  collaborator: 6,
   contributor: 4,
 };
 
