@@ -51,21 +51,23 @@
         "type": "boolean"
       },
       "maxConcurrentTasks": {
-        "default": {
-          "member": 10,
-          "contributor": 2
-        },
         "description": "The maximum number of tasks a user can have assigned to them at once, based on their role.",
         "examples": [
           {
-            "member": 5,
+            "collaborator": 5,
             "contributor": 1
           }
         ],
+        "default": {},
         "type": "object",
-        "patternProperties": {
-          "^(.*)$": {
-            "type": "integer"
+        "properties": {
+          "collaborator": {
+            "default": 10,
+            "type": "number"
+          },
+          "contributor": {
+            "default": 5,
+            "type": "number"
           }
         }
       },
@@ -135,43 +137,20 @@
               "description": "The name of the required labels to start the task.",
               "type": "string"
             },
-            "roles": {
+            "allowedRoles": {
               "description": "The list of allowed roles to start the task with the given label.",
               "uniqueItems": true,
-              "default": ["admin", "member", "collaborator", "contributor", "owner", "billing_manager", "write", "read"],
+              "default": ["collaborator", "contributor"],
+              "examples": [["collaborator", "contributor"]],
               "type": "array",
               "items": {
                 "anyOf": [
-                  {
-                    "const": "admin",
-                    "type": "string"
-                  },
-                  {
-                    "const": "member",
-                    "type": "string"
-                  },
                   {
                     "const": "collaborator",
                     "type": "string"
                   },
                   {
                     "const": "contributor",
-                    "type": "string"
-                  },
-                  {
-                    "const": "owner",
-                    "type": "string"
-                  },
-                  {
-                    "const": "billing_manager",
-                    "type": "string"
-                  },
-                  {
-                    "const": "read",
-                    "type": "string"
-                  },
-                  {
-                    "const": "write",
                     "type": "string"
                   }
                 ]
