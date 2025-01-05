@@ -1,7 +1,7 @@
 import { Repository } from "@octokit/graphql-schema";
 import { Context, isIssueCommentEvent, Label } from "../types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
-import { closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
+import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";
 import { getDeadline } from "./shared/generate-assignment-comment";
 import { start } from "./shared/start";
