@@ -1,7 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Super } from "./supabase";
 import { Context } from "../../../types/context";
-import { addCommentToIssue } from "../../../utils/issue";
+import { Super } from "./supabase";
 
 type Wallet = {
   address: string;
@@ -17,8 +16,7 @@ export class User extends Super {
     if ((error && !data) || !data.wallets?.address) {
       this.context.logger.error("No wallet address found", { userId, issueNumber });
       if (this.context.config.startRequiresWallet) {
-        await addCommentToIssue(this.context, this.context.logger.error(this.context.config.emptyWalletText, { userId, issueNumber }).logMessage.diff);
-        throw new Error("No wallet address found");
+        throw this.context.logger.error(this.context.config.emptyWalletText, { userId, issueNumber });
       }
     } else {
       this.context.logger.info("Successfully fetched wallet", { userId, address: data.wallets?.address });

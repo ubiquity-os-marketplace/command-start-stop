@@ -301,7 +301,7 @@ async function shouldSkipPullRequest(
 }
 
 /**
- * Returns all the pull-requests pending to be approved, counting as a malus against the PR user's quota.
+ * Returns all the pull-requests pending approval, which count negatively against the PR author's quota.
  */
 export async function getPendingOpenedPullRequests(context: Context, username: string) {
   const { reviewDelayTolerance } = context.config;

@@ -56,6 +56,7 @@ export const handlers = [
   ),
   // list events for an issue timeline
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/timeline", () => HttpResponse.json(db.event.getAll())),
+  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/events", () => HttpResponse.json(db.event.getAll())),
   // update a pull request
   http.patch("https://api.github.com/repos/:owner/:repo/pulls/:pull_number", ({ params: { owner, repo, pull_number: pullNumber } }) =>
     HttpResponse.json({ owner, repo, pullNumber })

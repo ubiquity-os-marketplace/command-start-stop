@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect } from "@j
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
-import { cleanLogString, Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { cleanLogString, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { HttpStatusCode } from "../src/handlers/result-types";
@@ -211,7 +211,7 @@ describe("User start/stop", () => {
     const context = createContext(issue, sender, "/start", "2", true) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(false), context);
-    await expect(userStartStop(context)).rejects.toThrow("No wallet address found");
+    await expect(userStartStop(context)).rejects.toBeInstanceOf(LogReturn);
   });
 
   test("User can't start an issue that's closed", async () => {
@@ -339,7 +339,7 @@ describe("User start/stop", () => {
 
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "You do not have the adequate role to start this task (your role is: admin). Allowed roles are: contributor.",
+        raw: "You must be a core team member to start this task",
       },
     });
   });
