@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
@@ -18,7 +18,7 @@ dotenv.config();
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
-const octokit = jest.requireActual("@octokit/rest");
+const octokit = await import("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
 const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
 const priority3LabelName = "Priority: 3 (High)";
@@ -325,14 +325,14 @@ describe("User start/stop", () => {
 
   test("Should not allow a user to start if the user role is not listed", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: "Priority: 1 (Normal)", allowedRoles: ["contributor"] },
-      { name: "Priority: 2 (Medium)", allowedRoles: ["contributor"] },
-      { name: priority3LabelName, allowedRoles: ["contributor"] },
-      { name: priority4LabelName, allowedRoles: ["contributor"] },
-      { name: priority5LabelName, allowedRoles: ["contributor"] },
+      { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator"] },
+      { name: "Priority: 2 (Medium)", allowedRoles: ["collaborator"] },
+      { name: priority3LabelName, allowedRoles: ["collaborator"] },
+      { name: priority4LabelName, allowedRoles: ["collaborator"] },
+      { name: priority5LabelName, allowedRoles: ["collaborator"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
@@ -748,21 +748,23 @@ export function getSupabase(withData = true) {
   const mockedTable = {
     select: jest.fn().mockReturnValue({
       eq: jest.fn().mockReturnValue({
-        single: jest.fn().mockResolvedValue({
-          data: withData
-            ? {
-                id: 1,
-                wallets: {
-                  address: "0x123",
+        single: jest.fn(() =>
+          Promise.resolve({
+            data: withData
+              ? {
+                  id: 1,
+                  wallets: {
+                    address: "0x123",
+                  },
+                }
+              : {
+                  id: 1,
+                  wallets: {
+                    address: undefined,
+                  },
                 },
-              }
-            : {
-                id: 1,
-                wallets: {
-                  address: undefined,
-                },
-              },
-        }),
+          })
+        ),
       }),
     }),
   };

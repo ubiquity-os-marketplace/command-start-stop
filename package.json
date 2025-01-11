@@ -16,7 +16,7 @@
     "knip": "knip --config .github/knip.ts",
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "husky install",
-    "test": "jest --setupFiles dotenv/config --coverage",
+    "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
     "worker": "wrangler dev --env dev --port 4000"
   },
   "keywords": [
@@ -51,6 +51,7 @@
     "@types/jest": "29.5.12",
     "@types/ms": "^0.7.34",
     "@types/node": "20.14.5",
+    "cross-env": "^7.0.3",
     "cspell": "8.9.0",
     "eslint": "9.14.0",
     "eslint-config-prettier": "9.1.0",
