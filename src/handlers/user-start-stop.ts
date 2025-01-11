@@ -1,7 +1,7 @@
 import { Repository } from "@octokit/graphql-schema";
 import { Context, isIssueCommentEvent, Label } from "../types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
-import { closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
+import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";
 import { getDeadline } from "./shared/generate-assignment-comment";
 import { start } from "./shared/start";
@@ -104,7 +104,13 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
           html_url: issue.url,
         } as unknown as Context<"issue_comment.created">["payload"]["issue"];
         context.payload = Object.assign({ issue: issueWithComment }, context.payload);
-        return await start(context, issueWithComment, payload.sender, []);
+        try {
+          return await start(context, issueWithComment, payload.sender, []);
+        } catch (error) {
+          context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
+          await closePullRequest(context, { number: pull_request.number });
+          throw error;
+        }
       }
     }
   }
