@@ -1,4 +1,4 @@
-import { describe, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { getUserRoleAndTaskLimit } from "../src/handlers/shared/get-user-task-limit-and-role";
 import { Context } from "../src/types";
@@ -6,9 +6,8 @@ import { Context } from "../src/types";
 describe("Role tests", () => {
   it("Should retrieve the user role from organization", async () => {
     const maxConcurrentTasks = {
-      contributor: 2,
-      admin: 100,
-      read: 1,
+      collaborator: 2,
+      contributor: 1,
     };
     const ctx = {
       payload: {
@@ -36,7 +35,7 @@ describe("Role tests", () => {
     } as unknown as Context;
 
     let result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
-    expect(result).toEqual({ limit: maxConcurrentTasks.admin, role: "admin" });
+    expect(result).toEqual({ limit: Infinity, role: "admin" });
     ctx.octokit = {
       rest: {
         repos: {
@@ -45,6 +44,6 @@ describe("Role tests", () => {
       },
     } as unknown as Context["octokit"];
     result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
-    expect(result).toEqual({ limit: maxConcurrentTasks.read, role: "read" });
+    expect(result).toEqual({ limit: 1, role: "read" });
   });
 });

@@ -1,19 +1,41 @@
-import { Context } from "../../types";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../../types";
 
 interface MatchingUserProps {
   role: string;
   limit: number;
 }
 
+export function isAdminRole(role: string) {
+  return ADMIN_ROLES.includes(role.toLowerCase());
+}
+
+export function isCollaboratorRole(role: string) {
+  return COLLABORATOR_ROLES.includes(role.toLowerCase());
+}
+
+export function getTransformedRole(role: string) {
+  if (isAdminRole(role)) {
+    return "admin";
+  } else if (isCollaboratorRole(role)) {
+    return "collaborator";
+  }
+  return "contributor";
+}
+
+export function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks"], role: string) {
+  if (isAdminRole(role)) {
+    return Infinity;
+  }
+  if (isCollaboratorRole(role)) {
+    return maxConcurrentTasks.collaborator;
+  }
+  return maxConcurrentTasks.contributor;
+}
+
 export async function getUserRoleAndTaskLimit(context: Context, user: string): Promise<MatchingUserProps> {
   const orgLogin = context.payload.organization?.login;
   const { config, logger, octokit } = context;
   const { maxConcurrentTasks } = config;
-
-  const minUserTaskLimit = Object.entries(maxConcurrentTasks).reduce((minTask, [role, limit]) => (limit < minTask.limit ? { role, limit } : minTask), {
-    role: "",
-    limit: Infinity,
-  } as MatchingUserProps);
 
   try {
     // Validate the organization login
@@ -30,7 +52,7 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
         username: user,
       });
       role = response.data.role.toLowerCase();
-      limit = maxConcurrentTasks[role] ?? Infinity;
+      limit = getUserTaskLimit(maxConcurrentTasks, role);
       return { role, limit };
     } catch (err) {
       logger.error("Could not get user membership", { err });
@@ -51,11 +73,11 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       role,
       data: permissionLevel.data,
     });
-    limit = maxConcurrentTasks[role] ?? Infinity;
+    limit = getUserTaskLimit(maxConcurrentTasks, role);
 
     return { role, limit };
   } catch (err) {
     logger.error("Could not get user role", { err });
-    return minUserTaskLimit;
+    return { role: "unknown", limit: maxConcurrentTasks.contributor };
   }
 }
