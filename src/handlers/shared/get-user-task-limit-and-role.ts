@@ -13,6 +13,15 @@ export function isCollaboratorRole(role: string) {
   return COLLABORATOR_ROLES.includes(role.toLowerCase());
 }
 
+export function getTransformedRole(role: string) {
+  if (isAdminRole(role)) {
+    return "admin";
+  } else if (isCollaboratorRole(role)) {
+    return "collaborator";
+  }
+  return "contributor";
+}
+
 export function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks"], role: string) {
   if (isAdminRole(role)) {
     return Infinity;

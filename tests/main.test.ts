@@ -339,7 +339,7 @@ describe("User start/stop", () => {
 
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "You must be a core team member to start this task",
+        raw: "You must be a core team member, or an administrator to start this task",
       },
     });
   });

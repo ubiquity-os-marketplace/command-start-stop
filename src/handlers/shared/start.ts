@@ -5,7 +5,7 @@ import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
 import { checkTaskStale } from "./check-task-stale";
 import { generateAssignmentComment } from "./generate-assignment-comment";
-import { getUserRoleAndTaskLimit, isAdminRole, isCollaboratorRole } from "./get-user-task-limit-and-role";
+import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-limit-and-role";
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
@@ -21,6 +21,13 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
     const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
       issueLabels.some((issueLabel) => label.name.toLowerCase() === issueLabel.toLowerCase())
     );
+    const userRole = getTransformedRole(userAssociation.role);
+
+    // Admins can start any task
+    if (userRole === "admin") {
+      return;
+    }
+
     if (!currentLabelConfiguration) {
       // If we didn't find the label in the allowed list, then the user cannot start this task.
       throw logger.error(
@@ -31,17 +38,13 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
           issue: issue.html_url,
         }
       );
-    } else if (!currentLabelConfiguration.allowedRoles.length && !isAdminRole(userAssociation.role)) {
-      // An empty allowedRoles list implies admin only task
-      throw logger.error("You must be an admin to start this task", {
-        currentLabelConfiguration,
-        issueLabels,
-        issue: issue.html_url,
-        userAssociation,
-      });
-    } else if (!currentLabelConfiguration.allowedRoles.includes("contributor") && !isCollaboratorRole(userAssociation.role)) {
+    } else if (!currentLabelConfiguration.allowedRoles.includes(userRole)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
-      throw logger.error("You must be a core team member to start this task", {
+      const humanReadableRoles = [
+        ...currentLabelConfiguration.allowedRoles.map((o) => (o === "collaborator" ? "a core team member" : `a ${o}`)),
+        "an administrator",
+      ].join(", or ");
+      throw logger.error(`You must be ${humanReadableRoles} to start this task`, {
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,
