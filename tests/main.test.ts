@@ -306,7 +306,7 @@ describe("User start/stop", () => {
 
   test("Should not allow a user to start if no requiredLabelToStart exists", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
       { name: priority3LabelName, allowedRoles: ["collaborator", "contributor"] },
