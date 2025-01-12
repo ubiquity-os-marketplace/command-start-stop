@@ -31,11 +31,15 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
           issue: issue.html_url,
         }
       );
-    } else if (
-      !currentLabelConfiguration.allowedRoles.includes("contributor") &&
-      !isAdminRole(userAssociation.role) &&
-      !isCollaboratorRole(userAssociation.role)
-    ) {
+    } else if (!currentLabelConfiguration.allowedRoles.length && !isAdminRole(userAssociation.role)) {
+      // An empty allowedRoles list implies admin only task
+      throw logger.error("You must be an admin to start this task", {
+        currentLabelConfiguration,
+        issueLabels,
+        issue: issue.html_url,
+        userAssociation,
+      });
+    } else if (!currentLabelConfiguration.allowedRoles.includes("contributor") && !isCollaboratorRole(userAssociation.role)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
       throw logger.error("You must be a core team member to start this task", {
         currentLabelConfiguration,
