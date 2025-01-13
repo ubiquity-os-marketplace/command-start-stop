@@ -55,8 +55,13 @@ describe("Collaborator tests", () => {
   });
 
   it("Should return error if user trying to assign is not a collaborator", async () => {
+    db.users.create({
+      id: 3,
+      login: "user1",
+      role: "contributor",
+    });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
     const context = createContext(issue, sender, "/start");
     context.adapters = createAdapters(getSupabase(), context);
     await expect(start(context, issue, sender, [])).rejects.toMatchObject({

@@ -35,7 +35,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
     reviewDelayTolerance: "3 Days"
     taskStaleTimeoutDuration: "30 Days"
     maxConcurrentTasks: # Default concurrent task limits per role.
-      member: 5
+      collaborator: 5
       contributor: 3
     startRequiresWallet: true # default is true
     assignedIssueScope: "org" # or "org" or "network". Default is org
@@ -43,7 +43,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
     rolesWithReviewAuthority: ["MEMBER", "OWNER"]
     requiredLabelsToStart:
       - name: "Priority: 5 (Emergency)"
-        roles: ["admin", "collaborator"]
+        allowedRoles: ["contributor", "collaborator"]
 ```
 
 # Testing

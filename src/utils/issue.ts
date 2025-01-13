@@ -1,5 +1,6 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Endpoints } from "@octokit/types";
+import { postComment } from "@ubiquity-os/plugin-sdk";
 import ms from "ms";
 import { AssignedIssueScope, Role } from "../types";
 import { Context } from "../types/context";
@@ -48,15 +49,9 @@ export async function addCommentToIssue(context: Context, message: string | null
     context.logger.error("Cannot post without a referenced issue.");
     return;
   }
-  const { payload } = context;
 
   try {
-    await context.octokit.rest.issues.createComment({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-      issue_number: payload.issue.number,
-      body: message,
-    });
+    await postComment(context, context.logger.info(message), { raw: true });
   } catch (err: unknown) {
     throw new Error(context.logger.error("Adding a comment failed!", { error: err as Error }).logMessage.raw);
   }
@@ -64,7 +59,7 @@ export async function addCommentToIssue(context: Context, message: string | null
 
 // Pull Requests
 
-export async function closePullRequest(context: Context, results: GetLinkedResults) {
+export async function closePullRequest(context: Context, results: Pick<GetLinkedResults, "number">) {
   const { payload } = context;
   try {
     await context.octokit.rest.pulls.update({
@@ -301,7 +296,7 @@ async function shouldSkipPullRequest(
 }
 
 /**
- * Returns all the pull-requests pending to be approved, counting as a malus against the PR user's quota.
+ * Returns all the pull-requests pending approval, which count negatively against the PR author's quota.
  */
 export async function getPendingOpenedPullRequests(context: Context, username: string) {
   const { reviewDelayTolerance } = context.config;

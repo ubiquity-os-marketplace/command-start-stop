@@ -55,12 +55,12 @@ X-GitHub-Delivery: mock-delivery-id
         }
       ],
       "user": {
-        "login": "ubiquity-ubiquibot",
+        "login": "{{LOGIN}}",
         "id": 12345678,
         "node_id": "MDQ6VXNlcjEyMzQ1Njc4",
         "avatar_url": "https://avatars.githubusercontent.com/u/12345678?v=4",
-        "url": "https://api.github.com/users/ubiquity-ubiquibot",
-        "html_url": "https://github.com/ubiquity-ubiquibot",
+        "url": "https://api.github.com/users/{{LOGIN}}",
+        "html_url": "https://github.com/{{LOGIN}}",
         "type": "User",
         "site_admin": false
       },
@@ -82,12 +82,12 @@ X-GitHub-Delivery: mock-delivery-id
     "id": 1234567890,
     "node_id": "IC_kwDOA1234567",
     "user": {
-      "login": "ubiquity-ubiquibot",
+      "login": "{{LOGIN}}",
       "id": 163369652,
       "node_id": "MDQ6VXNlcjEyMzQ1Njc4",
       "avatar_url": "https://avatars.githubusercontent.com/u/12345678?v=4",
-      "url": "https://api.github.com/users/ubiquity-ubiquibot",
-      "html_url": "https://github.com/ubiquity-ubiquibot",
+      "url": "https://api.github.com/users/{{LOGIN}}",
+      "html_url": "https://github.com/{{LOGIN}}",
       "type": "User",
       "site_admin": false
     },
@@ -134,12 +134,12 @@ X-GitHub-Delivery: mock-delivery-id
     "description": "Ubiquity Organization"
   },
   "sender": {
-    "login": "ubiquity-ubiquibot",
+    "login": "{{LOGIN}}",
     "id": 163369652,
     "node_id": "MDQ6VXNlcjEyMzQ1Njc4",
     "avatar_url": "https://avatars.githubusercontent.com/u/12345678?v=4",
-    "url": "https://api.github.com/users/ubiquity-ubiquibot",
-    "html_url": "https://github.com/ubiquity-ubiquibot",
+    "url": "https://api.github.com/users/{{LOGIN}}",
+    "html_url": "https://github.com/{{LOGIN}}",
     "type": "User",
     "site_admin": false
   }

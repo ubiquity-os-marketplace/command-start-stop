@@ -1,4 +1,4 @@
-import { StaticDecode, TLiteral, Type as T, Union } from "@sinclair/typebox";
+import { StaticDecode, Type as T } from "@sinclair/typebox";
 
 export enum AssignedIssueScope {
   ORG = "org",
@@ -13,6 +13,11 @@ export enum Role {
   COLLABORATOR = "COLLABORATOR",
 }
 
+// These correspond to getMembershipForUser and getCollaboratorPermissionLevel for a user.
+// Anything outside these values is considered to be a contributor (external user).
+export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
+export const COLLABORATOR_ROLES = ["write", "member", "collaborator"];
+
 const rolesWithReviewAuthority = T.Array(T.Enum(Role), {
   default: [Role.OWNER, Role.ADMIN, Role.MEMBER, Role.COLLABORATOR],
   uniqueItems: true,
@@ -23,47 +28,24 @@ const rolesWithReviewAuthority = T.Array(T.Enum(Role), {
   ],
 });
 
-const maxConcurrentTasks = T.Transform(
-  T.Record(T.String(), T.Integer(), {
-    default: { member: 10, contributor: 2 },
+const maxConcurrentTasks = T.Object(
+  { collaborator: T.Number({ default: 10 }), contributor: T.Number({ default: 2 }) },
+  {
     description: "The maximum number of tasks a user can have assigned to them at once, based on their role.",
-    examples: [{ member: 5, contributor: 1 }],
-  })
-)
-  .Decode((obj) => {
-    // normalize the role keys to lowercase
-    obj = Object.keys(obj).reduce(
-      (acc, key) => {
-        acc[key.toLowerCase()] = obj[key];
-        return acc;
-      },
-      {} as Record<string, number>
-    );
+    examples: [{ collaborator: 10, contributor: 2 }],
+    default: {},
+  }
+);
 
-    // If admin is omitted, defaults to infinity
-    if (!obj["admin"]) {
-      obj["admin"] = Infinity;
-    }
-
-    return obj;
-  })
-  .Encode((value) => value);
-
-type IntoStringLiteralUnion<T> = { [K in keyof T]: T[K] extends string ? TLiteral<T[K]> : never };
-
-export function stringLiteralUnion<T extends string[]>(values: [...T]): Union<IntoStringLiteralUnion<T>> {
-  const literals = values.map((value) => T.Literal(value));
-  return T.Union(literals) as Union<IntoStringLiteralUnion<T>>;
-}
-
-const roles = stringLiteralUnion(["admin", "member", "collaborator", "contributor", "owner", "billing_manager"]);
+const roles = T.KeyOf(maxConcurrentTasks);
 
 const requiredLabel = T.Object({
   name: T.String({ description: "The name of the required labels to start the task." }),
-  roles: T.Array(roles, {
+  allowedRoles: T.Array(roles, {
     description: "The list of allowed roles to start the task with the given label.",
     uniqueItems: true,
-    default: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    default: [],
+    examples: [["collaborator", "contributor"]],
   }),
 });
 

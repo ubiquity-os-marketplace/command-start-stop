@@ -1,4 +1,4 @@
-name: Update Manifest and Commit Changes
+name: "Update Configuration and Build"
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   update-manifest:
-    name: "Update Manifest and Commit Changes"
+    name: "Update Configuration & Build"
     runs-on: ubuntu-latest
     permissions: write-all
 
@@ -18,4 +18,5 @@ jobs:
           sourcemap: false
           pluginEntry: ${{ github.workspace }}/src/index.ts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

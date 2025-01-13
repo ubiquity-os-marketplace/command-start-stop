@@ -1,19 +1,41 @@
-import { Context } from "../../types";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../../types";
 
 interface MatchingUserProps {
   role: string;
   limit: number;
 }
 
+export function isAdminRole(role: string) {
+  return ADMIN_ROLES.includes(role.toLowerCase());
+}
+
+export function isCollaboratorRole(role: string) {
+  return COLLABORATOR_ROLES.includes(role.toLowerCase());
+}
+
+export function getTransformedRole(role: string) {
+  if (isAdminRole(role)) {
+    return "admin";
+  } else if (isCollaboratorRole(role)) {
+    return "collaborator";
+  }
+  return "contributor";
+}
+
+export function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks"], role: string) {
+  if (isAdminRole(role)) {
+    return Infinity;
+  }
+  if (isCollaboratorRole(role)) {
+    return maxConcurrentTasks.collaborator;
+  }
+  return maxConcurrentTasks.contributor;
+}
+
 export async function getUserRoleAndTaskLimit(context: Context, user: string): Promise<MatchingUserProps> {
   const orgLogin = context.payload.organization?.login;
-  const { config, logger } = context;
+  const { config, logger, octokit } = context;
   const { maxConcurrentTasks } = config;
-
-  const minUserTaskLimit = Object.entries(maxConcurrentTasks).reduce((minTask, [role, limit]) => (limit < minTask.limit ? { role, limit } : minTask), {
-    role: "",
-    limit: Infinity,
-  } as MatchingUserProps);
 
   try {
     // Validate the organization login
@@ -21,17 +43,41 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       throw new Error("Invalid organization name");
     }
 
-    const response = await context.octokit.rest.orgs.getMembershipForUser({
-      org: orgLogin,
+    let role;
+    let limit;
+
+    try {
+      const response = await octokit.rest.orgs.getMembershipForUser({
+        org: orgLogin,
+        username: user,
+      });
+      role = response.data.role.toLowerCase();
+      limit = getUserTaskLimit(maxConcurrentTasks, role);
+      return { role, limit };
+    } catch (err) {
+      logger.error("Could not get user membership", { err });
+    }
+
+    // If we failed to get organization membership, narrow down to repo role
+    const permissionLevel = await octokit.rest.repos.getCollaboratorPermissionLevel({
       username: user,
+      owner: context.payload.repository.owner.login,
+      repo: context.payload.repository.name,
     });
+    role = permissionLevel.data.role_name?.toLowerCase();
+    context.logger.debug(`Retrieved collaborator permission level for ${user}.`, {
+      user,
+      owner: context.payload.repository.owner.login,
+      repo: context.payload.repository.name,
+      isAdmin: permissionLevel.data.user?.permissions?.admin,
+      role,
+      data: permissionLevel.data,
+    });
+    limit = getUserTaskLimit(maxConcurrentTasks, role);
 
-    const role = response.data.role.toLowerCase();
-    const limit = maxConcurrentTasks[role];
-
-    return limit ? { role, limit } : minUserTaskLimit;
+    return { role, limit };
   } catch (err) {
     logger.error("Could not get user role", { err });
-    return minUserTaskLimit;
+    return { role: "unknown", limit: maxConcurrentTasks.contributor };
   }
 }

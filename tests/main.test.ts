@@ -1,8 +1,8 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
-import { cleanLogString, Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { cleanLogString, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { HttpStatusCode } from "../src/handlers/result-types";
@@ -18,9 +18,9 @@ dotenv.config();
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
-const octokit = jest.requireActual("@octokit/rest");
+const octokit = await import("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
-const PRIORITY_ONE = { name: "Priority: 1 (Normal)", roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] };
+const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
 const priority3LabelName = "Priority: 3 (High)";
 const priority4LabelName = "Priority: 4 (Urgent)";
 const priority5LabelName = "Priority: 5 (Emergency)";
@@ -28,19 +28,19 @@ const PRIORITY_LABELS = [
   PRIORITY_ONE,
   {
     name: "Priority: 2 (Medium)",
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
   {
     name: priority3LabelName,
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
   {
     name: priority4LabelName,
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
   {
     name: priority5LabelName,
-    roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"],
+    allowedRoles: ["collaborator", "contributor"],
   },
 ];
 
@@ -211,7 +211,7 @@ describe("User start/stop", () => {
     const context = createContext(issue, sender, "/start", "2", true) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(false), context);
-    await expect(userStartStop(context)).rejects.toThrow("No wallet address found");
+    await expect(userStartStop(context)).rejects.toBeInstanceOf(LogReturn);
   });
 
   test("User can't start an issue that's closed", async () => {
@@ -240,7 +240,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 5 } } }) as unknown as Sender;
 
-    const memberLimit = maxConcurrentDefaults.member;
+    const memberLimit = maxConcurrentDefaults.collaborator;
 
     createIssuesForMaxAssignment(memberLimit + 4, sender.id);
     const context = createContext(issue, sender) as unknown as Context;
@@ -306,12 +306,12 @@ describe("User start/stop", () => {
 
   test("Should not allow a user to start if no requiredLabelToStart exists", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: priority3LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
-      { name: priority4LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
-      { name: priority5LabelName, roles: ["admin", "member", "collaborator", "contributor", "owner", "billing_manager"] },
+      { name: priority3LabelName, allowedRoles: ["collaborator", "contributor"] },
+      { name: priority4LabelName, allowedRoles: ["collaborator", "contributor"] },
+      { name: priority5LabelName, allowedRoles: ["collaborator", "contributor"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
@@ -325,21 +325,21 @@ describe("User start/stop", () => {
 
   test("Should not allow a user to start if the user role is not listed", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
     const context = createContext(issue, sender, "/start", "1", false, [
-      { name: "Priority: 1 (Normal)", roles: ["contributor"] },
-      { name: "Priority: 2 (Medium)", roles: ["contributor"] },
-      { name: priority3LabelName, roles: ["contributor"] },
-      { name: priority4LabelName, roles: ["contributor"] },
-      { name: priority5LabelName, roles: ["contributor"] },
+      { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator"] },
+      { name: "Priority: 2 (Medium)", allowedRoles: ["collaborator"] },
+      { name: priority3LabelName, allowedRoles: ["collaborator"] },
+      { name: priority4LabelName, allowedRoles: ["collaborator"] },
+      { name: priority5LabelName, allowedRoles: ["collaborator"] },
     ]) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "You do not have the adequate role to start this task (your role is: admin). Allowed roles are: contributor.",
+        raw: "You must be a core team member, or an administrator to start this task",
       },
     });
   });
@@ -695,8 +695,7 @@ function createIssuesForMaxAssignment(n: number, userId: number) {
 }
 
 const maxConcurrentDefaults = {
-  admin: Infinity,
-  member: 6,
+  collaborator: 6,
   contributor: 4,
 };
 
@@ -749,21 +748,23 @@ export function getSupabase(withData = true) {
   const mockedTable = {
     select: jest.fn().mockReturnValue({
       eq: jest.fn().mockReturnValue({
-        single: jest.fn().mockResolvedValue({
-          data: withData
-            ? {
-                id: 1,
-                wallets: {
-                  address: "0x123",
+        single: jest.fn(() =>
+          Promise.resolve({
+            data: withData
+              ? {
+                  id: 1,
+                  wallets: {
+                    address: "0x123",
+                  },
+                }
+              : {
+                  id: 1,
+                  wallets: {
+                    address: undefined,
+                  },
                 },
-              }
-            : {
-                id: 1,
-                wallets: {
-                  address: undefined,
-                },
-              },
-        }),
+          })
+        ),
       }),
     }),
   };
