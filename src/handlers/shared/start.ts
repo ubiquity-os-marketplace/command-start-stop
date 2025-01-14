@@ -67,6 +67,13 @@ export async function start(
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
   }
 
+  const labels = issue.labels ?? [];
+  const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
+
+  if (!priceLabel) {
+    throw logger.error("No price label is set to calculate the duration", { issueNumber: issue.number });
+  }
+
   await checkRequirements(context, issue, sender.login);
 
   // is it a child issue?
@@ -156,13 +163,6 @@ ${issues}
 `
     );
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
-  }
-
-  const labels = issue.labels ?? [];
-  const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
-
-  if (!priceLabel) {
-    throw logger.error("No price label is set to calculate the duration", { issueNumber: issue.number });
   }
 
   // Checks if non-collaborators can be assigned to the issue
