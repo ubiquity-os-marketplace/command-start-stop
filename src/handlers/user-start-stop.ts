@@ -105,7 +105,7 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
         } as unknown as Context<"issue_comment.created">["payload"]["issue"];
         context.payload = Object.assign({ issue: issueWithComment }, context.payload);
         try {
-          return await start(context, issueWithComment, payload.sender, []);
+          return await start(context, issueWithComment, pull_request.user ?? payload.sender, []);
         } catch (error) {
           context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
           await closePullRequest(context, { number: pull_request.number });

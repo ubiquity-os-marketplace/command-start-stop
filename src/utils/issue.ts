@@ -167,7 +167,7 @@ export async function addAssignees(context: Context, issueNo: number, assignees:
       assignees,
     });
   } catch (e: unknown) {
-    throw new Error(context.logger.error("Adding the assignee failed", { assignee: assignees, issueNo, error: e as Error }).logMessage.raw);
+    throw context.logger.error("Adding the assignee failed", { assignee: assignees, issueNo, error: e as Error });
   }
 
   await confirmMultiAssignment(context, issueNo, assignees);

@@ -73,4 +73,64 @@ describe("Collaborator tests", () => {
       },
     });
   });
+
+  it("should assign the author of the pull-request and not the sender of the edit", async () => {
+    db.users.create({
+      id: 3,
+      login: "ubiquity-os-sender",
+      role: "admin",
+    });
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
+    context.eventName = "pull_request.edited";
+    context.payload.pull_request = {
+      html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
+      number: 1,
+      user: {
+        id: 1,
+        login: "ubiquity-os-author",
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+    context.octokit = {
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      labels: {
+                        nodes: [{ name: "Time: <1 Hour" }],
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+
+    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+      createClient: jest.fn(),
+    }));
+    jest.unstable_mockModule("../src/adapters", () => ({
+      createAdapters: jest.fn(),
+    }));
+    const start = jest.fn();
+    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
+      start,
+    }));
+    const { startStopTask } = await import("../src/plugin");
+    await startStopTask(context);
+    // Make sure the author is the one who starts and not the sender who modified the comment
+    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: "ubiquity-os-author" }, []);
+    start.mockReset();
+  });
 });
