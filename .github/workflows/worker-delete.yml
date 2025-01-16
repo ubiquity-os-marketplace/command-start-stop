@@ -22,7 +22,7 @@ jobs:
       - name: Get Deleted Branch Name
         id: get_branch
         run: |
-          branch_name=$(echo '${{ github.event.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
+          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
           echo "branch_name=$branch_name" >> $GITHUB_ENV
       - name: Retrieve and Construct Full Worker Name
         id: construct_worker_name
