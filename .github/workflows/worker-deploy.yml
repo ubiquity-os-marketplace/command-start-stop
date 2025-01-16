@@ -15,16 +15,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
-    environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
+    environment: ${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
     permissions:
       contents: write
 
     steps:
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.10.0"
-
       - uses: actions/checkout@v4
 
       - name: Setup Bun
@@ -32,7 +27,7 @@ jobs:
 
       - name: Update wrangler.toml Name Field
         run: |
-          branch_name=$(echo '${{ github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
+          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
           # Extract base name from wrangler.toml
           base_name=$(grep '^name = ' wrangler.toml | sed 's/^name = "\(.*\)"$/\1/')
           # Concatenate branch name with base name
@@ -101,7 +96,7 @@ jobs:
           files: |
             manifest.json
           commit-message: "chore: [skip ci] update manifest.json url"
-          ref: ${{ github.ref }}
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
 
       - name: Write Deployment URL to Summary
         run: |

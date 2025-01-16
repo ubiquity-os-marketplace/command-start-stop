@@ -7,3 +7,6 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [observability]
 enabled = true
+
+[version_metadata]
+binding = "CLOUDFLARE_VERSION_METADATA"
