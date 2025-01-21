@@ -9,15 +9,13 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string): Promise<string[]> {
+async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string): Promise<string | null> {
   const {
     config: { requiredLabelsToStart },
     logger,
   } = context;
   const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
   const userAssociation = await getUserRoleAndTaskLimit(context, login);
-
-  const errors: string[] = [];
 
   if (requiredLabelsToStart.length) {
     const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
@@ -27,39 +25,35 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
 
     // Admins can start any task
     if (userRole === "admin") {
-      return errors;
+      return null;
     }
 
     if (!currentLabelConfiguration) {
       // If we didn't find the label in the allowed list, then the user cannot start this task.
-      errors.push(
-        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`
-      );
-      logger.error(
-        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`,
-        {
-          requiredLabelsToStart,
-          issueLabels,
-          issue: issue.html_url,
-        }
-      );
-    }
-    if (currentLabelConfiguration && !currentLabelConfiguration.allowedRoles.includes(userRole)) {
+      const error = `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`;
+      logger.error(error, {
+        requiredLabelsToStart,
+        issueLabels,
+        issue: issue.html_url,
+      });
+      return error;
+    } else if (!currentLabelConfiguration.allowedRoles.includes(userRole)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
       const humanReadableRoles = [
         ...currentLabelConfiguration.allowedRoles.map((o) => (o === "collaborator" ? "a core team member" : `a ${o}`)),
         "an administrator",
       ].join(", or ");
-      errors.push(`You must be ${humanReadableRoles} to start this task`);
-      logger.error(`You must be ${humanReadableRoles} to start this task`, {
+      const error = `You must be ${humanReadableRoles} to start this task`;
+      logger.error(error, {
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,
         userAssociation,
       });
+      return error;
     }
   }
-  return errors;
+  return null;
 }
 
 export async function start(
@@ -81,11 +75,16 @@ export async function start(
   const startErrors: string[] = [];
 
   if (!priceLabel) {
-    startErrors.push("No price label is set to calculate the duration");
-    logger.error("No price label is set to calculate the duration", { issueNumber: issue.number });
+    const error = "No price label is set to calculate the duration";
+    startErrors.push(error);
+    logger.error(error, { issueNumber: issue.number });
   }
 
-  startErrors.push(...(await checkRequirements(context, issue, sender.login)));
+  const checkRequirementsError = await checkRequirements(context, issue, sender.login);
+
+  if (checkRequirementsError) {
+    startErrors.push(checkRequirementsError);
+  }
 
   if (startErrors.length) {
     const startErrorsString = startErrors.join("\n");
