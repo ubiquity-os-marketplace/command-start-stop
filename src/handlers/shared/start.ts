@@ -9,7 +9,7 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string): Promise<string | null> {
+async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string): Promise<Error | null> {
   const {
     config: { requiredLabelsToStart },
     logger,
@@ -30,27 +30,27 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
 
     if (!currentLabelConfiguration) {
       // If we didn't find the label in the allowed list, then the user cannot start this task.
-      const error = `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`;
-      logger.error(error, {
+      const errorText = `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`;
+      logger.error(errorText, {
         requiredLabelsToStart,
         issueLabels,
         issue: issue.html_url,
       });
-      return error;
+      return new Error(errorText);
     } else if (!currentLabelConfiguration.allowedRoles.includes(userRole)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
       const humanReadableRoles = [
         ...currentLabelConfiguration.allowedRoles.map((o) => (o === "collaborator" ? "a core team member" : `a ${o}`)),
         "an administrator",
       ].join(", or ");
-      const error = `You must be ${humanReadableRoles} to start this task`;
-      logger.error(error, {
+      const errorText = `You must be ${humanReadableRoles} to start this task`;
+      logger.error(errorText, {
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,
         userAssociation,
       });
-      return error;
+      return new Error(errorText);
     }
   }
   return null;
@@ -72,23 +72,21 @@ export async function start(
   const labels = issue.labels ?? [];
   const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
 
-  const startErrors: string[] = [];
+  const startErrors: Error[] = [];
 
   if (!priceLabel) {
-    const error = "No price label is set to calculate the duration";
-    startErrors.push(error);
-    logger.error(error, { issueNumber: issue.number });
+    const errorText = "No price label is set to calculate the duration";
+    logger.error(errorText, { issueNumber: issue.number });
+    startErrors.push(new Error(errorText));
   }
 
   const checkRequirementsError = await checkRequirements(context, issue, sender.login);
-
   if (checkRequirementsError) {
     startErrors.push(checkRequirementsError);
   }
 
   if (startErrors.length) {
-    const startErrorsString = startErrors.join("\n");
-    throw logger.error(startErrorsString);
+    throw logger.error(startErrors.join("\n"));
   }
 
   // is it a child issue?
