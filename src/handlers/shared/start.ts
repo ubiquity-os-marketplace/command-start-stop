@@ -86,7 +86,7 @@ export async function start(
   }
 
   if (startErrors.length) {
-    throw logger.error(startErrors.join("\n"));
+    throw new AggregateError(startErrors);
   }
 
   // is it a child issue?
