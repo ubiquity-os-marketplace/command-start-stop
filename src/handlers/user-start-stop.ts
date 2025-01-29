@@ -108,15 +108,12 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
         try {
           return await start(context, issueWithComment, pull_request.user ?? payload.sender, []);
         } catch (error) {
-          if (error instanceof AggregateError) {
-            if (!error.errors.some((e) => e instanceof PricingError)) {
-              await closePullRequest(context, { number: pull_request.number });
-              throw context.logger.error(error.errors.map((o) => String(o)).join("\n"), { error: error as Error });
-            }
-          } else {
+          // We want to close the pull-request only if the PricingError is not present
+          if (!(error instanceof AggregateError) || !error.errors.some((e) => e instanceof PricingError)) {
             await closePullRequest(context, { number: pull_request.number });
-            throw error;
           }
+          // Makes sure to concatenate error messages on AggregateError for proper display
+          throw error instanceof AggregateError ? context.logger.error(error.errors.map(String).join("\n"), { error }) : error;
         }
       }
     }
