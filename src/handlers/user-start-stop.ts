@@ -1,5 +1,5 @@
 import { Repository } from "@octokit/graphql-schema";
-import { Context, isIssueCommentEvent, Label } from "../types";
+import { Context, isIssueCommentEvent } from "../types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";
@@ -78,40 +78,45 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
   for (const issue of issues) {
-    if (issue && !issue.assignees.nodes?.length) {
-      const labels =
-        issue.labels?.nodes?.reduce<Label[]>((acc, curr) => {
-          if (curr) {
-            acc.push({
-              ...curr,
-              id: Number(curr.id),
-              node_id: curr.id,
-              default: true,
-              description: curr.description ?? null,
-            });
-          }
-          return acc;
-        }, []) ?? [];
-      const deadline = getDeadline(labels);
-      if (!deadline) {
-        context.logger.debug("Skipping deadline posting message because no deadline has been set.");
-        return { status: HttpStatusCode.NOT_MODIFIED };
-      } else {
-        const issueWithComment: Context<"issue_comment.created">["payload"]["issue"] = {
-          ...issue,
-          assignees: issue.assignees.nodes as Context<"issue_comment.created">["payload"]["issue"]["assignees"],
-          labels,
-          html_url: issue.url,
-        } as unknown as Context<"issue_comment.created">["payload"]["issue"];
-        context.payload = Object.assign({ issue: issueWithComment }, context.payload);
-        try {
-          return await start(context, issueWithComment, pull_request.user ?? payload.sender, []);
-        } catch (error) {
-          context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
-          await closePullRequest(context, { number: pull_request.number });
-          throw error;
-        }
-      }
+    if (!issue || issue.assignees.nodes?.length) {
+      continue;
+    }
+    if (owner !== issue.repository.owner.login) {
+      context.logger.info(`Skipping linked issue ${issue.number} because it is not in the same organization.`);
+      continue;
+    }
+    const repository = (
+      await context.octokit.rest.repos.get({
+        owner: issue.repository.owner.login,
+        repo: issue.repository.name,
+      })
+    ).data as Context<"issue_comment.created">["payload"]["repository"];
+    const linkedIssue = (
+      await context.octokit.rest.issues.get({
+        owner: issue.repository.owner.login,
+        repo: issue.repository.name,
+        issue_number: issue.number,
+      })
+    ).data as Context<"issue_comment.created">["payload"]["issue"];
+    const deadline = getDeadline(linkedIssue.labels);
+    if (!deadline) {
+      context.logger.debug("Skipping deadline posting message because no deadline has been set.");
+      return { status: HttpStatusCode.NOT_MODIFIED };
+    }
+    const newContext = {
+      ...context,
+      payload: {
+        ...context.payload,
+        issue: linkedIssue,
+        repository,
+      },
+    };
+    try {
+      return await start(newContext, linkedIssue, pull_request.user ?? payload.sender, []);
+    } catch (error) {
+      context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
+      await closePullRequest(context, { number: pull_request.number });
+      throw error;
     }
   }
   return { status: HttpStatusCode.NOT_MODIFIED };
