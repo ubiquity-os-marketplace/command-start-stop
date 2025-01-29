@@ -1,5 +1,6 @@
 import { Repository } from "@octokit/graphql-schema";
 import { Context, isIssueCommentEvent, Label } from "../types";
+import { PricingError } from "../types/errors";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";
@@ -108,7 +109,9 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
           return await start(context, issueWithComment, pull_request.user ?? payload.sender, []);
         } catch (error) {
           context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
-          await closePullRequest(context, { number: pull_request.number });
+          if (!(error instanceof AggregateError) || !error.errors.some((e) => e instanceof PricingError)) {
+            await closePullRequest(context, { number: pull_request.number });
+          }
           throw error;
         }
       }

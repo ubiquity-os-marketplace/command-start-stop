@@ -1,4 +1,5 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
+import { PricingError } from "../../types/errors";
 import { isUserCollaborator } from "../../utils/get-user-association";
 import { addAssignees, addCommentToIssue, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
@@ -77,7 +78,7 @@ export async function start(
   if (!priceLabel) {
     const errorText = "No price label is set to calculate the duration";
     logger.error(errorText, { issueNumber: issue.number });
-    startErrors.push(new Error(errorText));
+    startErrors.push(new PricingError(errorText));
   }
 
   const checkRequirementsError = await checkRequirements(context, issue, sender.login);
