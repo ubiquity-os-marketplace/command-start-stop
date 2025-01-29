@@ -201,7 +201,14 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "No price label is set to calculate the duration" } });
+    try {
+      await userStartStop(context);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const errorMessages = aggregateError.errors.map((error) => error.message);
+      expect(errorMessages).toEqual(expect.arrayContaining(["No price label is set to calculate the duration"]));
+    }
   });
 
   test("User can't start an issue without a wallet address", async () => {
@@ -316,11 +323,18 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
-      },
-    });
+    try {
+      await userStartStop(context);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const errorMessages = aggregateError.errors.map((error) => error.message);
+      expect(errorMessages).toEqual(
+        expect.arrayContaining([
+          "This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
+        ])
+      );
+    }
   });
 
   test("Should not allow a user to start if the user role is not listed", async () => {
@@ -337,11 +351,14 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "You must be a core team member, or an administrator to start this task",
-      },
-    });
+    try {
+      await userStartStop(context);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const errorMessages = aggregateError.errors.map((error) => error.message);
+      expect(errorMessages).toEqual(expect.arrayContaining(["You must be a core team member, or an administrator to start this task"]));
+    }
   });
 });
 
