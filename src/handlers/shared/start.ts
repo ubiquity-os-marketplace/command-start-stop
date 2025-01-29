@@ -76,9 +76,7 @@ export async function start(
   const startErrors: Error[] = [];
 
   if (!priceLabel) {
-    const errorText = "No price label is set to calculate the duration";
-    logger.error(errorText, { issueNumber: issue.number });
-    startErrors.push(new PricingError(errorText));
+    startErrors.push(new PricingError(logger.error("No price label is set to calculate the duration", { issueNumber: issue.number }).logMessage.raw));
   }
 
   const checkRequirementsError = await checkRequirements(context, issue, sender.login);

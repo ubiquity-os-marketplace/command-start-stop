@@ -108,11 +108,15 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
         try {
           return await start(context, issueWithComment, pull_request.user ?? payload.sender, []);
         } catch (error) {
-          context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
-          if (!(error instanceof AggregateError) || !error.errors.some((e) => e instanceof PricingError)) {
+          if (error instanceof AggregateError) {
+            if (!error.errors.some((e) => e instanceof PricingError)) {
+              await closePullRequest(context, { number: pull_request.number });
+              throw context.logger.error(error.errors.map((o) => String(o)).join("\n"), { error: error as Error });
+            }
+          } else {
             await closePullRequest(context, { number: pull_request.number });
+            throw error;
           }
-          throw error;
         }
       }
     }
