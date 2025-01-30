@@ -6,6 +6,8 @@ import { HttpStatusCode, Result } from "./result-types";
 import { getDeadline } from "./shared/generate-assignment-comment";
 import { start } from "./shared/start";
 import { stop } from "./shared/stop";
+import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
+import { createAppAuth } from "@octokit/auth-app";
 
 export async function commandHandler(context: Context): Promise<Result> {
   if (!isIssueCommentEvent(context)) {
@@ -77,22 +79,35 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
     context.logger.info("No linked issues were found, nothing to do.");
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
+
+  const appOctokit = new customOctokit({
+    authStrategy: createAppAuth,
+    auth: {
+      appId: context.env.APP_ID,
+      privateKey: context.env.APP_PRIVATE_KEY,
+    },
+  });
+
   for (const issue of issues) {
     if (!issue || issue.assignees.nodes?.length) {
       continue;
     }
-    if (owner !== issue.repository.owner.login) {
-      context.logger.info(`Skipping linked issue ${issue.number} because it is not in the same organization.`);
-      continue;
-    }
-    const repository = (
-      await context.octokit.rest.repos.get({
-        owner: issue.repository.owner.login,
-        repo: issue.repository.name,
-      })
-    ).data as Context<"issue_comment.created">["payload"]["repository"];
+
+    const installation = await appOctokit.rest.apps.getRepoInstallation({
+      owner: issue.repository.owner.login,
+      repo: issue.repository.name,
+    });
+    const repoOctokit = new customOctokit({
+      authStrategy: createAppAuth,
+      auth: {
+        appId: Number(context.env.APP_ID),
+        privateKey: context.env.APP_PRIVATE_KEY,
+        installationId: installation.data.id,
+      },
+    });
+
     const linkedIssue = (
-      await context.octokit.rest.issues.get({
+      await repoOctokit.rest.issues.get({
         owner: issue.repository.owner.login,
         repo: issue.repository.name,
         issue_number: issue.number,
@@ -103,12 +118,29 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
       context.logger.debug("Skipping deadline posting message because no deadline has been set.");
       return { status: HttpStatusCode.NOT_MODIFIED };
     }
+
+    const repository = (
+      await repoOctokit.rest.repos.get({
+        owner: issue.repository.owner.login,
+        repo: issue.repository.name,
+      })
+    ).data as Context<"issue_comment.created">["payload"]["repository"];
+    let organization: Context<"issue_comment.created">["payload"]["organization"] | undefined = undefined;
+    if (repository.owner.type === "Organization") {
+      organization = (
+        await repoOctokit.rest.orgs.get({
+          org: issue.repository.owner.login,
+        })
+      ).data;
+    }
     const newContext = {
       ...context,
+      octokit: repoOctokit,
       payload: {
         ...context.payload,
         issue: linkedIssue,
         repository,
+        organization,
       },
     };
     try {

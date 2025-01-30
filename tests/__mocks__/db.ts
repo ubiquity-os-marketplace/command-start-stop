@@ -66,6 +66,7 @@ export const db = factory({
     owner: {
       login: String,
       id: Number,
+      type: String,
     },
     issues: Array,
   },
