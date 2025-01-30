@@ -11,6 +11,8 @@ import { createContext, getSupabase } from "./main.test";
 
 dotenv.config();
 
+const userLogin = "ubiquity-os-author";
+
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
@@ -89,7 +91,7 @@ describe("Collaborator tests", () => {
       number: 1,
       user: {
         id: 1,
-        login: "ubiquity-os-author",
+        login: userLogin,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
     context.octokit = {
@@ -130,7 +132,81 @@ describe("Collaborator tests", () => {
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // Make sure the author is the one who starts and not the sender who modified the comment
-    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: "ubiquity-os-author" }, []);
+    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
     start.mockReset();
+  });
+  it("Should properly update the close status of a linked pull-request", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    issue.labels = [];
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+
+    const context = createContext(issue, sender, "") as Context<"pull_request.opened">;
+    context.eventName = "pull_request.opened";
+    context.payload.pull_request = {
+      html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
+      number: 1,
+      user: {
+        id: 1,
+        login: userLogin,
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+    context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+      },
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      labels: {
+                        nodes: [{ name: "Time: <1 Hour" }],
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+      createClient: jest.fn(),
+    }));
+    jest.unstable_mockModule("../src/adapters", () => ({
+      createAdapters: jest.fn(),
+    }));
+    const { startStopTask } = await import("../src/plugin");
+    await expect(startStopTask(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: expect.stringContaining("No price label is set to calculate the duration"),
+      },
+    });
+    context.octokit = {
+      ...context.octokit,
+      //@ts-expect-error partial mock of the endpoint
+      paginate: jest.fn(() => []),
+      rest: {
+        ...context.octokit.rest,
+        orgs: {
+          //@ts-expect-error partial mock of the endpoint
+          getMembershipForUser: jest.fn(() => ({ data: { role: "member" } })),
+        },
+      },
+    };
+    await expect(startStopTask(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: expect.stringContaining("This task does not reflect a business priority at the moment"),
+      },
+    });
   });
 });

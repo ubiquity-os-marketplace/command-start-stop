@@ -1,5 +1,4 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
-import { PricingError } from "../../types/errors";
 import { isUserCollaborator } from "../../utils/get-user-association";
 import { addAssignees, addCommentToIssue, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
@@ -10,19 +9,21 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string): Promise<Error | null> {
+async function checkRequirements(
+  context: Context,
+  issue: Context<"issue_comment.created">["payload"]["issue"],
+  userRole: ReturnType<typeof getTransformedRole>
+): Promise<Error | null> {
   const {
     config: { requiredLabelsToStart },
     logger,
   } = context;
   const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
-  const userAssociation = await getUserRoleAndTaskLimit(context, login);
 
   if (requiredLabelsToStart.length) {
     const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
       issueLabels.some((issueLabel) => label.name.toLowerCase() === issueLabel.toLowerCase())
     );
-    const userRole = getTransformedRole(userAssociation.role);
 
     // Admins can start any task
     if (userRole === "admin") {
@@ -49,7 +50,7 @@ async function checkRequirements(context: Context, issue: Context<"issue_comment
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,
-        userAssociation,
+        userRole,
       });
       return new Error(errorText);
     }
@@ -72,14 +73,17 @@ export async function start(
 
   const labels = issue.labels ?? [];
   const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
+  const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
+  const userRole = getTransformedRole(userAssociation.role);
 
   const startErrors: Error[] = [];
 
-  if (!priceLabel) {
-    startErrors.push(new PricingError(logger.error("No price label is set to calculate the duration", { issueNumber: issue.number }).logMessage.raw));
+  // Collaborators and admins can start un-priced tasks
+  if (!priceLabel && userRole === "contributor") {
+    startErrors.push(new Error(logger.error("No price label is set to calculate the duration", { issueNumber: issue.number }).logMessage.raw));
   }
 
-  const checkRequirementsError = await checkRequirements(context, issue, sender.login);
+  const checkRequirementsError = await checkRequirements(context, issue, userRole);
   if (checkRequirementsError) {
     startErrors.push(checkRequirementsError);
   }

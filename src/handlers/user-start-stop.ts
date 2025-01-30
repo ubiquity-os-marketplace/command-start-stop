@@ -1,6 +1,5 @@
 import { Repository } from "@octokit/graphql-schema";
 import { Context, isIssueCommentEvent, Label } from "../types";
-import { PricingError } from "../types/errors";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";
@@ -108,10 +107,7 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
         try {
           return await start(context, issueWithComment, pull_request.user ?? payload.sender, []);
         } catch (error) {
-          // We want to close the pull-request only if the PricingError is not present
-          if (!(error instanceof AggregateError) || !error.errors.some((e) => e instanceof PricingError)) {
-            await closePullRequest(context, { number: pull_request.number });
-          }
+          await closePullRequest(context, { number: pull_request.number });
           // Makes sure to concatenate error messages on AggregateError for proper display
           throw error instanceof AggregateError ? context.logger.error(error.errors.map(String).join("\n"), { error }) : error;
         }
