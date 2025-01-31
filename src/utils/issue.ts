@@ -61,13 +61,17 @@ export async function addCommentToIssue(context: Context, message: string | null
 
 export async function closePullRequest(context: Context, results: Pick<GetLinkedResults, "number">) {
   const { payload } = context;
+  const params: RestEndpointMethodTypes["pulls"]["update"]["parameters"] = {
+    owner: payload.repository.owner.login,
+    repo: payload.repository.name,
+    pull_number: results.number,
+    state: "closed",
+  };
+  context.logger.info("Closing linked pull-request.", {
+    params,
+  });
   try {
-    await context.octokit.rest.pulls.update({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
-      pull_number: results.number,
-      state: "closed",
-    });
+    await context.octokit.rest.pulls.update(params);
   } catch (err: unknown) {
     throw new Error(context.logger.error("Closing pull requests failed!", { error: err as Error }).logMessage.raw);
   }
