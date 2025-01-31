@@ -1,4 +1,6 @@
+import { createAppAuth } from "@octokit/auth-app";
 import { Repository } from "@octokit/graphql-schema";
+import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Context, isIssueCommentEvent } from "../types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
@@ -6,8 +8,6 @@ import { HttpStatusCode, Result } from "./result-types";
 import { getDeadline } from "./shared/generate-assignment-comment";
 import { start } from "./shared/start";
 import { stop } from "./shared/stop";
-import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
-import { createAppAuth } from "@octokit/auth-app";
 
 export async function commandHandler(context: Context): Promise<Result> {
   if (!isIssueCommentEvent(context)) {
