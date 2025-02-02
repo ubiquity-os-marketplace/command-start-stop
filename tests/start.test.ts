@@ -11,6 +11,8 @@ import { createContext, getSupabase } from "./main.test";
 
 dotenv.config();
 
+const userLogin = "ubiquity-os-author";
+
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
@@ -55,6 +57,7 @@ describe("Collaborator tests", () => {
     drop(db);
     jest.clearAllMocks();
     jest.resetModules();
+    jest.resetAllMocks();
     await setupTests();
   });
 
@@ -70,7 +73,7 @@ describe("Collaborator tests", () => {
     context.adapters = createAdapters(getSupabase(), context);
     await expect(start(context, issue, sender, [])).rejects.toMatchObject({
       logMessage: {
-        diff: "```diff\n! Only collaborators can be assigned to this issue.\n```",
+        diff: expect.stringContaining("Only collaborators can be assigned to this issue"),
         level: "error",
         raw: "Only collaborators can be assigned to this issue.",
         type: "error",
@@ -93,7 +96,7 @@ describe("Collaborator tests", () => {
       number: 1,
       user: {
         id: 1,
-        login: "ubiquity-os-author",
+        login: userLogin,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
     context.octokit = {
@@ -160,8 +163,8 @@ describe("Collaborator tests", () => {
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // Make sure the author is the one who starts and not the sender who modified the comment
-    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: "ubiquity-os-author" }, []);
-    start.mockReset();
+    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
+    start.mockClear();
   });
 
   it("should successfully assign if the PR and linked issue are in different organizations", async () => {

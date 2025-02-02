@@ -146,9 +146,9 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
     try {
       return await start(newContext, linkedIssue, pull_request.user ?? payload.sender, []);
     } catch (error) {
-      context.logger.info("The task could not be started, closing linked pull-request.", { pull_request });
       await closePullRequest(context, { number: pull_request.number });
-      throw error;
+      // Makes sure to concatenate error messages on AggregateError for proper display
+      throw error instanceof AggregateError ? context.logger.error(error.errors.map(String).join("\n"), { error }) : error;
     }
   }
   return { status: HttpStatusCode.NOT_MODIFIED };

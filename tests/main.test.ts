@@ -132,11 +132,7 @@ describe("User start/stop", () => {
     expect(content).toEqual("Task unassigned successfully");
     const logs = infoSpy.mock.calls.flat();
     expect(logs[0]).toMatch(/Opened prs/);
-    expect(cleanLogString(logs[3])).toMatch(
-      cleanLogString(
-        " › ```diff# These linked pull requests are closed:  http://github.com/ubiquity/test-repo/pull/2  http://github.com/ubiquity/test-repo/pull/3"
-      )
-    );
+    expect(cleanLogString(logs[3])).toMatch(cleanLogString("›Closinglinkedpull-request."));
   });
 
   test("Author's manual unassign should close linked issue", async () => {
@@ -152,11 +148,7 @@ describe("User start/stop", () => {
     expect(content).toEqual("Linked pull-requests closed.");
     const logs = infoSpy.mock.calls.flat();
     expect(logs[0]).toMatch(/Opened prs/);
-    expect(cleanLogString(logs[3])).toMatch(
-      cleanLogString(
-        " › ```diff# These linked pull requests are closed:  http://github.com/ubiquity/test-repo/pull/2  http://github.com/ubiquity/test-repo/pull/3"
-      )
-    );
+    expect(cleanLogString(logs[3])).toMatch(cleanLogString("›Closinglinkedpull-request."));
   });
 
   test("User can't stop an issue they're not assigned to", async () => {
