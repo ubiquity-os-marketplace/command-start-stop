@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
+import { Repository } from "@octokit/graphql-schema";
 import dotenv from "dotenv";
 import { Context } from "../src/types";
 import { db } from "./__mocks__/db";
@@ -41,6 +42,7 @@ async function setupTests() {
     owner: {
       login: "ubiquity",
       id: 1,
+      type: "Organization",
     },
     issues: [],
   });
@@ -57,6 +59,7 @@ describe("Pull-request tests", () => {
 
   it("Should properly update the close status of a linked pull-request", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
@@ -87,9 +90,7 @@ describe("Pull-request tests", () => {
                       assignees: {
                         nodes: [],
                       },
-                      labels: {
-                        nodes: [{ name: "Time: <1 Hour" }],
-                      },
+                      repository: repo,
                     },
                   ],
                 },
@@ -105,24 +106,102 @@ describe("Pull-request tests", () => {
     jest.unstable_mockModule("../src/adapters", () => ({
       createAdapters: jest.fn(),
     }));
+    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+      customOctokit: jest.fn().mockReturnValue({
+        rest: {
+          apps: {
+            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+          },
+          issues: {
+            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: "Time: <1 Hour" }] } })),
+          },
+          repos: {
+            get: jest.fn(() => Promise.resolve({ data: repo })),
+          },
+          orgs: {
+            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+          },
+        },
+      }),
+    }));
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
         raw: expect.stringContaining("No price label is set to calculate the duration"),
       },
     });
+  });
+
+  it("Should properly update the close status of a linked pull-request", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    issue.labels = [];
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+
+    const context = createContext(issue, sender, "") as Context<"pull_request.opened">;
+    context.eventName = "pull_request.opened";
+    context.payload.pull_request = {
+      html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
+      number: 1,
+      user: {
+        id: 1,
+        login: userLogin,
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
     context.octokit = {
-      ...context.octokit,
-      //@ts-expect-error partial mock of the endpoint
-      paginate: jest.fn(() => []),
       rest: {
-        ...context.octokit.rest,
-        orgs: {
-          //@ts-expect-error partial mock of the endpoint
-          getMembershipForUser: jest.fn(() => ({ data: { role: "member" } })),
+        pulls: {
+          update: jest.fn(),
         },
       },
-    };
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      repository: repo,
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+      createClient: jest.fn(),
+    }));
+    jest.unstable_mockModule("../src/adapters", () => ({
+      createAdapters: jest.fn(),
+    }));
+    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+      customOctokit: jest.fn().mockReturnValue({
+        rest: {
+          apps: {
+            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+          },
+          issues: {
+            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: "Time: <1 Hour" }] } })),
+          },
+          repos: {
+            get: jest.fn(() => Promise.resolve({ data: repo })),
+            getCollaboratorPermissionLevel: jest.fn(() => Promise.resolve({ data: { role_name: "admin" } })),
+          },
+          orgs: {
+            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+            getMembershipForUser: jest.fn(() => ({ data: { role: "member" } })),
+          },
+        },
+      }),
+    }));
+    const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
         raw: "Error: This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 1 (Normal), Priority: 2 (Medium), Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",

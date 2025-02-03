@@ -3,6 +3,8 @@ import { StaticDecode } from "@sinclair/typebox";
 
 const ERROR_MSG = "Invalid BOT_USER_ID";
 export const envSchema = T.Object({
+  APP_ID: T.String({ minLength: 1 }),
+  APP_PRIVATE_KEY: T.String({ minLength: 1 }),
   SUPABASE_URL: T.String(),
   SUPABASE_KEY: T.String(),
   BOT_USER_ID: T.Transform(T.Union([T.String(), T.Number()], { examples: 123456 }))

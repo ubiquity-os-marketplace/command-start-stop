@@ -745,6 +745,8 @@ export function createContext(
     eventName: "issue_comment.created" as SupportedEvents,
     organizations: ["ubiquity"],
     env: {
+      APP_ID: appId,
+      APP_PRIVATE_KEY: "private_key",
       SUPABASE_KEY: "key",
       SUPABASE_URL: "url",
       BOT_USER_ID: appId as unknown as number,
