@@ -147,8 +147,7 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
       return await start(newContext, linkedIssue, pull_request.user ?? payload.sender, []);
     } catch (error) {
       await closePullRequest(context, { number: pull_request.number });
-      // Makes sure to concatenate error messages on AggregateError for proper display
-      throw error instanceof AggregateError ? context.logger.error(error.errors.map(String).join("\n"), { error }) : error;
+      throw error;
     }
   }
   return { status: HttpStatusCode.NOT_MODIFIED };
