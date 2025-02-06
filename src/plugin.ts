@@ -28,6 +28,6 @@ export async function startStopTask(context: Context) {
         return { status: HttpStatusCode.BAD_REQUEST };
     }
   } catch (error) {
-    throw error instanceof AggregateError ? context.logger.warn(error.errors.map(String).join("\n"), { error }) : error;
+    throw error instanceof AggregateError ? context.logger.warn(error.errors.map((err) => err.message).join("\n\n"), { error }) : error;
   }
 }
