@@ -48,23 +48,6 @@ export async function userStartStop(context: Context): Promise<Result> {
   return { status: HttpStatusCode.NOT_MODIFIED };
 }
 
-export async function userSelfAssign(context: Context<"issues.assigned">): Promise<Result> {
-  const { payload } = context;
-  const { issue } = payload;
-  const deadline = getDeadline(issue.labels);
-
-  // We avoid posting a message if the bot is the actor to avoid double posting
-  if (!deadline || payload.sender.type === "Bot") {
-    context.logger.debug("Skipping deadline posting message.", {
-      senderType: payload.sender.type,
-      deadline: deadline,
-    });
-    return { status: HttpStatusCode.NOT_MODIFIED };
-  }
-
-  return { status: HttpStatusCode.OK };
-}
-
 export async function userPullRequest(context: Context<"pull_request.opened" | "pull_request.edited">): Promise<Result> {
   const { payload } = context;
   const { pull_request } = payload;
