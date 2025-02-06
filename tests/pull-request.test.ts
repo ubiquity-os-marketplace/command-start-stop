@@ -204,7 +204,7 @@ describe("Pull-request tests", () => {
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "Error: This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 1 (Normal), Priority: 2 (Medium), Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
+        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
       },
     });
   });

@@ -48,23 +48,6 @@ export async function userStartStop(context: Context): Promise<Result> {
   return { status: HttpStatusCode.NOT_MODIFIED };
 }
 
-export async function userSelfAssign(context: Context<"issues.assigned">): Promise<Result> {
-  const { payload } = context;
-  const { issue } = payload;
-  const deadline = getDeadline(issue.labels);
-
-  // We avoid posting a message if the bot is the actor to avoid double posting
-  if (!deadline || payload.sender.type === "Bot") {
-    context.logger.debug("Skipping deadline posting message.", {
-      senderType: payload.sender.type,
-      deadline: deadline,
-    });
-    return { status: HttpStatusCode.NOT_MODIFIED };
-  }
-
-  return { status: HttpStatusCode.OK };
-}
-
 export async function userPullRequest(context: Context<"pull_request.opened" | "pull_request.edited">): Promise<Result> {
   const { payload } = context;
   const { pull_request } = payload;
@@ -147,8 +130,7 @@ export async function userPullRequest(context: Context<"pull_request.opened" | "
       return await start(newContext, linkedIssue, pull_request.user ?? payload.sender, []);
     } catch (error) {
       await closePullRequest(context, { number: pull_request.number });
-      // Makes sure to concatenate error messages on AggregateError for proper display
-      throw error instanceof AggregateError ? context.logger.error(error.errors.map(String).join("\n"), { error }) : error;
+      throw error;
     }
   }
   return { status: HttpStatusCode.NOT_MODIFIED };

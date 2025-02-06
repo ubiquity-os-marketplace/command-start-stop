@@ -323,7 +323,7 @@ describe("User start/stop", () => {
       const errorMessages = aggregateError.errors.map((error) => error.message);
       expect(errorMessages).toEqual(
         expect.arrayContaining([
-          "This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
+          "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
         ])
       );
     }

@@ -32,7 +32,7 @@ async function checkRequirements(
 
     if (!currentLabelConfiguration) {
       // If we didn't find the label in the allowed list, then the user cannot start this task.
-      const errorText = `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`;
+      const errorText = `This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => "`" + label.name + "`").join(", ")}`;
       logger.error(errorText, {
         requiredLabelsToStart,
         issueLabels,
