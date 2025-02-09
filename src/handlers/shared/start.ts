@@ -1,6 +1,6 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
 import { isUserCollaborator } from "../../utils/get-user-association";
-import { addAssignees, addCommentToIssue, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
+import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
 import { checkTaskStale } from "./check-task-stale";
@@ -96,11 +96,9 @@ export async function start(
 
   // is it a child issue?
   if (issue.body && isParentIssue(issue.body)) {
-    await addCommentToIssue(
-      context,
-      "```diff\n# Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.\n```"
-    );
-    throw logger.error(`Skipping '/start' since the issue is a parent issue`);
+    const message = logger.error("Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.");
+    await context.commentHandler.postComment(context, message);
+    throw message;
   }
 
   let commitHash: string | null = null;
@@ -169,16 +167,13 @@ export async function start(
       }
     });
 
-    await addCommentToIssue(
+    await context.commentHandler.postComment(
       context,
-      `
-
-> [!WARNING]
-> ${error}
+      context.logger.warn(`
+${error}
 
 ${issues}
-
-`
+`)
     );
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
   }
@@ -212,18 +207,21 @@ ${issues}
 
   const isTaskStale = checkTaskStale(getTimeValue(taskStaleTimeoutDuration), issue.created_at);
 
-  await addCommentToIssue(
+  await context.commentHandler.postComment(
     context,
-    [
-      assignTableComment({
-        isTaskStale,
-        daysElapsedSinceTaskCreation: assignmentComment.daysElapsedSinceTaskCreation,
-        taskDeadline: assignmentComment.deadline,
-        registeredWallet: assignmentComment.registeredWallet,
-      }),
-      assignmentComment.tips,
-      metadata,
-    ].join("\n") as string
+    logger.ok(
+      [
+        assignTableComment({
+          isTaskStale,
+          daysElapsedSinceTaskCreation: assignmentComment.daysElapsedSinceTaskCreation,
+          taskDeadline: assignmentComment.deadline,
+          registeredWallet: assignmentComment.registeredWallet,
+        }),
+        assignmentComment.tips,
+        metadata,
+      ].join("\n") as string
+    ),
+    { raw: true }
   );
 
   return { content: "Task assigned successfully", status: HttpStatusCode.OK };

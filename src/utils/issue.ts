@@ -1,6 +1,5 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Endpoints } from "@octokit/types";
-import { postComment } from "@ubiquity-os/plugin-sdk";
 import ms from "ms";
 import { AssignedIssueScope, Role } from "../types";
 import { Context } from "../types/context";
@@ -36,24 +35,6 @@ export async function getAssignedIssues(context: Context, username: string): Pro
   } catch (err) {
     context.logger.info("Will try re-fetching assigned issues...", { error: err as Error });
     return getAssignedIssuesFallback(context, username);
-  }
-}
-
-export async function addCommentToIssue(context: Context, message: string | null) {
-  if (!message) {
-    context.logger.error("Message is not defined");
-    return;
-  }
-
-  if (!("issue" in context.payload)) {
-    context.logger.error("Cannot post without a referenced issue.");
-    return;
-  }
-
-  try {
-    await postComment(context, context.logger.info(message), { raw: true });
-  } catch (err: unknown) {
-    throw new Error(context.logger.error("Adding a comment failed!", { error: err as Error }).logMessage.raw);
   }
 }
 
@@ -156,7 +137,7 @@ async function confirmMultiAssignment(context: Context, issueNumber: number, use
     const log = logger.info("This task belongs to a private repo and can only be assigned to one user without an official paid GitHub subscription.", {
       issueNumber,
     });
-    await addCommentToIssue(context, log?.logMessage.diff as string);
+    await context.commentHandler.postComment(context, log);
   }
 }
 

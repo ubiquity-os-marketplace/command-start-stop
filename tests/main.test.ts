@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, tes
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
+import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { cleanLogString, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
@@ -232,7 +233,9 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "Skipping '/start' since the issue is a parent issue" } });
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: { raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues." },
+    });
   });
 
   test("should set maxLimits to 6 if the user is a member", async () => {
@@ -752,6 +755,7 @@ export function createContext(
       BOT_USER_ID: appId as unknown as number,
     },
     command: null,
+    commentHandler: new CommentHandler(),
   } as unknown as Context;
 }
 
