@@ -38,24 +38,6 @@ export async function getAssignedIssues(context: Context, username: string): Pro
   }
 }
 
-export async function addCommentToIssue(context: Context, message: string | null) {
-  if (!message) {
-    context.logger.error("Message is not defined");
-    return;
-  }
-
-  if (!("issue" in context.payload)) {
-    context.logger.error("Cannot post without a referenced issue.");
-    return;
-  }
-
-  try {
-    await context.commentHandler.postComment(context, context.logger.info(message), { raw: true });
-  } catch (err: unknown) {
-    throw new Error(context.logger.error("Adding a comment failed!", { error: err as Error }).logMessage.raw);
-  }
-}
-
 // Pull Requests
 
 export async function closePullRequest(context: Context, results: Pick<GetLinkedResults, "number">) {
@@ -155,7 +137,7 @@ async function confirmMultiAssignment(context: Context, issueNumber: number, use
     const log = logger.info("This task belongs to a private repo and can only be assigned to one user without an official paid GitHub subscription.", {
       issueNumber,
     });
-    await addCommentToIssue(context, log?.logMessage.diff as string);
+    await context.commentHandler.postComment(context, log);
   }
 }
 
