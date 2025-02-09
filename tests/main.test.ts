@@ -233,7 +233,9 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "Skipping '/start' since the issue is a parent issue" } });
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: { raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues." },
+    });
   });
 
   test("should set maxLimits to 6 if the user is a member", async () => {
