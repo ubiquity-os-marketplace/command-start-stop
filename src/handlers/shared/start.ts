@@ -1,6 +1,6 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
 import { isUserCollaborator } from "../../utils/get-user-association";
-import { addAssignees, addCommentToIssue, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
+import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
 import { checkTaskStale } from "./check-task-stale";
@@ -9,49 +9,53 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-async function checkRequirements(context: Context, issue: Context<"issue_comment.created">["payload"]["issue"], login: string) {
+async function checkRequirements(
+  context: Context,
+  issue: Context<"issue_comment.created">["payload"]["issue"],
+  userRole: ReturnType<typeof getTransformedRole>
+): Promise<Error | null> {
   const {
     config: { requiredLabelsToStart },
     logger,
   } = context;
   const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
-  const userAssociation = await getUserRoleAndTaskLimit(context, login);
 
   if (requiredLabelsToStart.length) {
     const currentLabelConfiguration = requiredLabelsToStart.find((label) =>
       issueLabels.some((issueLabel) => label.name.toLowerCase() === issueLabel.toLowerCase())
     );
-    const userRole = getTransformedRole(userAssociation.role);
 
     // Admins can start any task
     if (userRole === "admin") {
-      return;
+      return null;
     }
 
     if (!currentLabelConfiguration) {
       // If we didn't find the label in the allowed list, then the user cannot start this task.
-      throw logger.error(
-        `This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => label.name).join(", ")}`,
-        {
-          requiredLabelsToStart,
-          issueLabels,
-          issue: issue.html_url,
-        }
-      );
+      const errorText = `This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: ${requiredLabelsToStart.map((label) => "`" + label.name + "`").join(", ")}`;
+      logger.error(errorText, {
+        requiredLabelsToStart,
+        issueLabels,
+        issue: issue.html_url,
+      });
+      return new Error(errorText);
     } else if (!currentLabelConfiguration.allowedRoles.includes(userRole)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
       const humanReadableRoles = [
         ...currentLabelConfiguration.allowedRoles.map((o) => (o === "collaborator" ? "a core team member" : `a ${o}`)),
         "an administrator",
       ].join(", or ");
-      throw logger.error(`You must be ${humanReadableRoles} to start this task`, {
+      const errorText = `You must be ${humanReadableRoles} to start this task`;
+      logger.error(errorText, {
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,
-        userAssociation,
+        userRole,
       });
+      return new Error(errorText);
     }
   }
+  return null;
 }
 
 export async function start(
@@ -67,15 +71,34 @@ export async function start(
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
   }
 
-  await checkRequirements(context, issue, sender.login);
+  const labels = issue.labels ?? [];
+  const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
+  const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
+  const userRole = getTransformedRole(userAssociation.role);
+
+  const startErrors: Error[] = [];
+
+  // Collaborators and admins can start un-priced tasks
+  if (!priceLabel && userRole === "contributor") {
+    const errorMessage = "No price label is set to calculate the duration";
+    logger.error(errorMessage, { issueNumber: issue.number });
+    startErrors.push(new Error(errorMessage));
+  }
+
+  const checkRequirementsError = await checkRequirements(context, issue, userRole);
+  if (checkRequirementsError) {
+    startErrors.push(checkRequirementsError);
+  }
+
+  if (startErrors.length) {
+    throw new AggregateError(startErrors);
+  }
 
   // is it a child issue?
   if (issue.body && isParentIssue(issue.body)) {
-    await addCommentToIssue(
-      context,
-      "```diff\n# Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.\n```"
-    );
-    throw logger.error(`Skipping '/start' since the issue is a parent issue`);
+    const message = logger.error("Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.");
+    await context.commentHandler.postComment(context, message);
+    throw message;
   }
 
   let commitHash: string | null = null;
@@ -144,25 +167,15 @@ export async function start(
       }
     });
 
-    await addCommentToIssue(
+    await context.commentHandler.postComment(
       context,
-      `
-
-> [!WARNING]
-> ${error}
+      context.logger.warn(`
+${error}
 
 ${issues}
-
-`
+`)
     );
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
-  }
-
-  const labels = issue.labels ?? [];
-  const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
-
-  if (!priceLabel) {
-    throw logger.error("No price label is set to calculate the duration", { issueNumber: issue.number });
   }
 
   // Checks if non-collaborators can be assigned to the issue
@@ -194,18 +207,21 @@ ${issues}
 
   const isTaskStale = checkTaskStale(getTimeValue(taskStaleTimeoutDuration), issue.created_at);
 
-  await addCommentToIssue(
+  await context.commentHandler.postComment(
     context,
-    [
-      assignTableComment({
-        isTaskStale,
-        daysElapsedSinceTaskCreation: assignmentComment.daysElapsedSinceTaskCreation,
-        taskDeadline: assignmentComment.deadline,
-        registeredWallet: assignmentComment.registeredWallet,
-      }),
-      assignmentComment.tips,
-      metadata,
-    ].join("\n") as string
+    logger.ok(
+      [
+        assignTableComment({
+          isTaskStale,
+          daysElapsedSinceTaskCreation: assignmentComment.daysElapsedSinceTaskCreation,
+          taskDeadline: assignmentComment.deadline,
+          registeredWallet: assignmentComment.registeredWallet,
+        }),
+        assignmentComment.tips,
+        metadata,
+      ].join("\n") as string
+    ),
+    { raw: true }
   );
 
   return { content: "Task assigned successfully", status: HttpStatusCode.OK };

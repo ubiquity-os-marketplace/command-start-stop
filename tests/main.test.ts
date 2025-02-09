@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, tes
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
+import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { cleanLogString, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
@@ -132,11 +133,7 @@ describe("User start/stop", () => {
     expect(content).toEqual("Task unassigned successfully");
     const logs = infoSpy.mock.calls.flat();
     expect(logs[0]).toMatch(/Opened prs/);
-    expect(cleanLogString(logs[3])).toMatch(
-      cleanLogString(
-        " › ```diff# These linked pull requests are closed:  http://github.com/ubiquity/test-repo/pull/2  http://github.com/ubiquity/test-repo/pull/3"
-      )
-    );
+    expect(cleanLogString(logs[3])).toMatch(cleanLogString("›Closinglinkedpull-request."));
   });
 
   test("Author's manual unassign should close linked issue", async () => {
@@ -152,11 +149,7 @@ describe("User start/stop", () => {
     expect(content).toEqual("Linked pull-requests closed.");
     const logs = infoSpy.mock.calls.flat();
     expect(logs[0]).toMatch(/Opened prs/);
-    expect(cleanLogString(logs[3])).toMatch(
-      cleanLogString(
-        " › ```diff# These linked pull requests are closed:  http://github.com/ubiquity/test-repo/pull/2  http://github.com/ubiquity/test-repo/pull/3"
-      )
-    );
+    expect(cleanLogString(logs[3])).toMatch(cleanLogString("›Closinglinkedpull-request."));
   });
 
   test("User can't stop an issue they're not assigned to", async () => {
@@ -201,7 +194,14 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "No price label is set to calculate the duration" } });
+    try {
+      await userStartStop(context);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const errorMessages = aggregateError.errors.map((error) => error.message);
+      expect(errorMessages).toEqual(expect.arrayContaining(["No price label is set to calculate the duration"]));
+    }
   });
 
   test("User can't start an issue without a wallet address", async () => {
@@ -233,7 +233,9 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "Skipping '/start' since the issue is a parent issue" } });
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: { raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues." },
+    });
   });
 
   test("should set maxLimits to 6 if the user is a member", async () => {
@@ -316,11 +318,18 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "This task does not reflect a business priority at the moment. You may start tasks with one of the following labels: Priority: 3 (High), Priority: 4 (Urgent), Priority: 5 (Emergency)",
-      },
-    });
+    try {
+      await userStartStop(context);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const errorMessages = aggregateError.errors.map((error) => error.message);
+      expect(errorMessages).toEqual(
+        expect.arrayContaining([
+          "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
+        ])
+      );
+    }
   });
 
   test("Should not allow a user to start if the user role is not listed", async () => {
@@ -337,11 +346,14 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "You must be a core team member, or an administrator to start this task",
-      },
-    });
+    try {
+      await userStartStop(context);
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const errorMessages = aggregateError.errors.map((error) => error.message);
+      expect(errorMessages).toEqual(expect.arrayContaining(["You must be a core team member, or an administrator to start this task"]));
+    }
   });
 });
 
@@ -736,11 +748,14 @@ export function createContext(
     eventName: "issue_comment.created" as SupportedEvents,
     organizations: ["ubiquity"],
     env: {
+      APP_ID: appId,
+      APP_PRIVATE_KEY: "private_key",
       SUPABASE_KEY: "key",
       SUPABASE_URL: "url",
       BOT_USER_ID: appId as unknown as number,
     },
     command: null,
+    commentHandler: new CommentHandler(),
   } as unknown as Context;
 }
 

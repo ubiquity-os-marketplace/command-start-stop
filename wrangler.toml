@@ -1,7 +1,9 @@
 name = "ubiquity-os-command-start-stop"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
-compatibility_flags = [ "nodejs_compat" ]
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true
+
 [env.dev]
 [env.prod]
 

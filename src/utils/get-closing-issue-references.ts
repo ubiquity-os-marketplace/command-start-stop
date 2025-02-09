@@ -8,6 +8,7 @@ export const QUERY_CLOSING_ISSUE_REFERENCES = /* GraphQL */ `
             id
             url
             number
+            state
             labels(first: 100) {
               nodes {
                 id
@@ -17,6 +18,14 @@ export const QUERY_CLOSING_ISSUE_REFERENCES = /* GraphQL */ `
             }
             assignees(first: 100) {
               nodes {
+                id
+                login
+              }
+            }
+            repository {
+              id
+              name
+              owner {
                 id
                 login
               }

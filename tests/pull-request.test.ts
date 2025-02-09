@@ -1,13 +1,12 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
+import { Repository } from "@octokit/graphql-schema";
 import dotenv from "dotenv";
-import { createAdapters } from "../src/adapters";
-import { start } from "../src/handlers/shared/start";
 import { Context } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
-import { createContext, getSupabase } from "./main.test";
+import { createContext } from "./main.test";
 
 dotenv.config();
 
@@ -15,9 +14,6 @@ const userLogin = "ubiquity-os-author";
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
-
-const commandStartStop = "command-start-stop";
-const ubiquityOsMarketplace = "ubiquity-os-marketplace";
 
 beforeAll(() => {
   server.listen();
@@ -52,7 +48,7 @@ async function setupTests() {
   });
 }
 
-describe("Collaborator tests", () => {
+describe("Pull-request tests", () => {
   beforeEach(async () => {
     drop(db);
     jest.clearAllMocks();
@@ -61,36 +57,14 @@ describe("Collaborator tests", () => {
     await setupTests();
   });
 
-  it("Should return error if user trying to assign is not a collaborator", async () => {
-    db.users.create({
-      id: 3,
-      login: "user1",
-      role: "contributor",
-    });
+  it("Should properly update the close status of a linked pull-request", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "/start");
-    context.adapters = createAdapters(getSupabase(), context);
-    await expect(start(context, issue, sender, [])).rejects.toMatchObject({
-      logMessage: {
-        diff: expect.stringContaining("Only collaborators can be assigned to this issue"),
-        level: "error",
-        raw: "Only collaborators can be assigned to this issue.",
-        type: "error",
-      },
-    });
-  });
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    issue.labels = [];
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-  it("should assign the author of the pull-request and not the sender of the edit", async () => {
-    db.users.create({
-      id: 3,
-      login: "ubiquity-os-sender",
-      role: "admin",
-    });
-    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
-    context.eventName = "pull_request.edited";
+    const context = createContext(issue, sender, "") as Context<"pull_request.opened">;
+    context.eventName = "pull_request.opened";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
       number: 1,
@@ -100,6 +74,11 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
     context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+      },
       graphql: {
         paginate: jest.fn(() =>
           Promise.resolve({
@@ -111,17 +90,7 @@ describe("Collaborator tests", () => {
                       assignees: {
                         nodes: [],
                       },
-                      labels: {
-                        nodes: [{ name: "Time: <1 Hour" }],
-                      },
-                      repository: {
-                        id: 1,
-                        name: commandStartStop,
-                        owner: {
-                          id: 1,
-                          login: ubiquityOsMarketplace,
-                        },
-                      },
+                      repository: repo,
                     },
                   ],
                 },
@@ -131,16 +100,11 @@ describe("Collaborator tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-
     jest.unstable_mockModule("@supabase/supabase-js", () => ({
       createClient: jest.fn(),
     }));
     jest.unstable_mockModule("../src/adapters", () => ({
       createAdapters: jest.fn(),
-    }));
-    const start = jest.fn();
-    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
-      start,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
@@ -149,52 +113,47 @@ describe("Collaborator tests", () => {
             getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
           },
           issues: {
-            get: jest.fn(() => Promise.resolve({ data: issue })),
+            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: "Time: <1 Hour" }] } })),
           },
           repos: {
-            get: jest.fn(() => Promise.resolve({ data: { id: 1, name: commandStartStop, owner: { id: 1, login: ubiquityOsMarketplace } } })),
+            get: jest.fn(() => Promise.resolve({ data: repo })),
           },
           orgs: {
-            get: jest.fn(() => Promise.resolve({ data: { id: 1, login: ubiquityOsMarketplace } })),
+            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
           },
         },
       }),
     }));
     const { startStopTask } = await import("../src/plugin");
-    await startStopTask(context);
-    // Make sure the author is the one who starts and not the sender who modified the comment
-    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
-    start.mockClear();
+    await expect(startStopTask(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: expect.stringContaining("No price label is set to calculate the duration"),
+      },
+    });
   });
 
-  it("should successfully assign if the PR and linked issue are in different organizations", async () => {
-    db.users.create({
-      id: 3,
-      login: "ubiquity-os-sender",
-      role: "admin",
-    });
+  it("Should properly update the close status of a linked pull-request", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
-    const repository = db.repo.findFirst({ where: { id: { equals: 1 } } });
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    issue.labels = [];
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
-    context.eventName = "pull_request.edited";
+    const context = createContext(issue, sender, "") as Context<"pull_request.opened">;
+    context.eventName = "pull_request.opened";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
-      number: 2,
+      number: 1,
       user: {
         id: 1,
-        login: "whilefoo",
+        login: userLogin,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
-    context.payload.repository = {
-      id: 2,
-      name: commandStartStop,
-      owner: {
-        login: "ubiquity-os-marketplace",
-      },
-    } as unknown as Context<"pull_request.edited">["payload"]["repository"];
     context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+      },
       graphql: {
         paginate: jest.fn(() =>
           Promise.resolve({
@@ -206,10 +165,7 @@ describe("Collaborator tests", () => {
                       assignees: {
                         nodes: [],
                       },
-                      labels: {
-                        nodes: [{ name: "Time: <1 Hour" }],
-                      },
-                      repository: repository,
+                      repository: repo,
                     },
                   ],
                 },
@@ -219,16 +175,11 @@ describe("Collaborator tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-
     jest.unstable_mockModule("@supabase/supabase-js", () => ({
       createClient: jest.fn(),
     }));
     jest.unstable_mockModule("../src/adapters", () => ({
       createAdapters: jest.fn(),
-    }));
-    const start = jest.fn();
-    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
-      start,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
@@ -237,23 +188,24 @@ describe("Collaborator tests", () => {
             getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
           },
           issues: {
-            get: jest.fn(() => Promise.resolve({ data: issue })),
+            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: "Time: <1 Hour" }] } })),
           },
           repos: {
-            get: jest.fn(() => Promise.resolve({ data: repository })),
+            get: jest.fn(() => Promise.resolve({ data: repo })),
+            getCollaboratorPermissionLevel: jest.fn(() => Promise.resolve({ data: { role_name: "admin" } })),
           },
           orgs: {
-            get: jest.fn(() => Promise.resolve({ data: repository?.owner })),
+            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+            getMembershipForUser: jest.fn(() => ({ data: { role: "member" } })),
           },
         },
       }),
     }));
     const { startStopTask } = await import("../src/plugin");
-    await startStopTask(context);
-    expect(start.mock.calls[0][0]).toMatchObject({ payload: { issue, repository, organization: repository?.owner } });
-    expect(start.mock.calls[0][1]).toMatchObject({ id: 1 });
-    expect(start.mock.calls[0][2]).toMatchObject({ id: 1, login: "whilefoo" });
-    expect(start.mock.calls[0][3]).toEqual([]);
-    start.mockReset();
+    await expect(startStopTask(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
+      },
+    });
   });
 });

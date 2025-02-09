@@ -1,10 +1,10 @@
 import { Context as PluginContext } from "@ubiquity-os/plugin-sdk";
 import { createAdapters } from "../adapters";
+import { Command } from "./command";
 import { Env } from "./env";
 import { PluginSettings } from "./plugin-input";
-import { Command } from "./command";
 
-export type SupportedEvents = "issue_comment.created" | "issues.assigned" | "pull_request.opened" | "pull_request.edited" | "issues.unassigned";
+export type SupportedEvents = "issue_comment.created" | "pull_request.opened" | "pull_request.edited" | "issues.unassigned";
 
 export function isIssueCommentEvent(context: Context): context is Context<"issue_comment.created"> {
   return "issue" in context.payload;
