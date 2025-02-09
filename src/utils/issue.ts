@@ -1,6 +1,5 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Endpoints } from "@octokit/types";
-import { postComment } from "@ubiquity-os/plugin-sdk";
 import ms from "ms";
 import { AssignedIssueScope, Role } from "../types";
 import { Context } from "../types/context";
@@ -51,7 +50,7 @@ export async function addCommentToIssue(context: Context, message: string | null
   }
 
   try {
-    await postComment(context, context.logger.info(message), { raw: true });
+    await context.commentHandler.postComment(context, context.logger.info(message), { raw: true });
   } catch (err: unknown) {
     throw new Error(context.logger.error("Adding a comment failed!", { error: err as Error }).logMessage.raw);
   }

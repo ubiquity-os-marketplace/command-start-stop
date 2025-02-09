@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, tes
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
+import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { cleanLogString, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
@@ -752,6 +753,7 @@ export function createContext(
       BOT_USER_ID: appId as unknown as number,
     },
     command: null,
+    commentHandler: new CommentHandler(),
   } as unknown as Context;
 }
 
