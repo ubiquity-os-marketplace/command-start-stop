@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.9.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.8.0...v1.9.0) (2025-02-09)
+
+
+### Features
+
+* aggregate price label and requirements errors ([088126b](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/088126b234a67279a2198656438a6b3fae7e67a2))
+* correct context and skip issues outside of the org ([2549597](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/2549597b57ec35071acb9551975b510e40aae8e3))
+* remove self assign handler ([0a3d85c](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/0a3d85ce58074c4aec99a418a07be14babdef9fc))
+* support cross-org ([bd63352](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/bd63352b346491a9fb79d016ddf992f8cc88e6b3))
+* upload source maps ([bb751d4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/bb751d4ba6af72458fb4409a2dd9352c0367b029))
+
+
+### Bug Fixes
+
+* add dependency ([506906b](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/506906bcdc68c5032a736871d7bbe53d726aa30a))
+* aggregate error and source maps ([a9383df](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/a9383df1c26ae0af7b1a08b2ec027823b8eed1c3))
+* deployment checkout branch ([a2088b9](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/a2088b99605817da2cb6a77a5c8ae254f4fe9cab))
+* error formatting ([597a745](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/597a745350e240c5580c6d9cb7b6d5af80076913))
+* fix jest tests to handle AggregateError ([7ef84db](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/7ef84db2b61c2e9fe641c4793b935b315ce8a1d8))
+* message formatting ([982a3f5](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/982a3f56413c79d5991aacdbcdab88b4efc6bed7))
+* pricing error do not close the linked pull-request ([9f97c8e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/9f97c8e15ec1f06c3dd2be6ae82d5632bf714c2c))
+* tests ([e4977d0](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e4977d0538ffdd8f025db8743d235889de73fc8d))
+* tests ([1e47186](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/1e471860392303cc8f01c4f99344b8be87686a87))
+* tests ([c2b42a4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/c2b42a4745dd1f3bc11b210be9ff968a7bcaad62))
+
 ## [1.8.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.7.1...v1.8.0) (2025-01-16)
 
 ### Features
