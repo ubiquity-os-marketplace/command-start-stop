@@ -6,8 +6,8 @@ This plugin allows a hunter to begin a task as well as gracefully stop a task wi
 
 ### Overview
 
-- Built as a GitHub App using [Probot](https://probot.github.io/) and TypeScript
-- Uses Supabase for data persistence
+- Built as a GitHub App using TypeScript
+- Reads wallet addresses for users
 - Implements a webhook-based event system for GitHub interactions
 - Runs as a Cloudflare Worker using Hono for HTTP handling
 
@@ -25,12 +25,7 @@ The plugin is built on the `@ubiquity-os/plugin-sdk` and handles:
 
 #### 2. Database Layer
 
-- Uses Supabase for data persistence
-- Stores:
-  - User assignments
-  - Task limits
-  - Role information
-  - Assignment timeframes
+- Reads wallet addresses for users
 - Implements database adapters in `src/adapters/supabase/`
 
 #### 3. Event Handling
@@ -114,14 +109,14 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 
 1. Node.js >=20.10.0 is required
 2. Copy `.dev.vars.example` to `.dev.vars` and configure environment variables
-3. Install dependencies with `npm install`
+3. Install dependencies with `bun install`
 
 ### Local Development
 
 Run the worker locally:
 
 ```bash
-npm run worker
+bun run worker
 ```
 
 ### Testing
@@ -131,7 +126,7 @@ npm run worker
 Run the full test suite:
 
 ```bash
-npm run test
+bun run test
 ```
 
 ### Code Quality
@@ -147,7 +142,7 @@ The project includes several quality tools:
 Run all formatting:
 
 ```bash
-npm run format
+bun run format
 ```
 
 ## Technical Dependencies
