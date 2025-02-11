@@ -5,6 +5,7 @@ This plugin allows a hunter to begin a task as well as gracefully stop a task wi
 ## Technical Architecture
 
 ### Overview
+
 - Built as a GitHub App using [Probot](https://probot.github.io/) and TypeScript
 - Uses Supabase for data persistence
 - Implements a webhook-based event system for GitHub interactions
@@ -13,7 +14,9 @@ This plugin allows a hunter to begin a task as well as gracefully stop a task wi
 ### Core Components
 
 #### 1. Plugin System
+
 The plugin is built on the `@ubiquity-os/plugin-sdk` and handles:
+
 - GitHub webhook event processing
 - Command parsing and validation
 - Error handling with automatic comment posting
@@ -21,6 +24,7 @@ The plugin is built on the `@ubiquity-os/plugin-sdk` and handles:
 - Signature verification for security
 
 #### 2. Database Layer
+
 - Uses Supabase for data persistence
 - Stores:
   - User assignments
@@ -30,14 +34,18 @@ The plugin is built on the `@ubiquity-os/plugin-sdk` and handles:
 - Implements database adapters in `src/adapters/supabase/`
 
 #### 3. Event Handling
+
 Processes multiple GitHub webhook events:
+
 - `issue_comment.created`: Handles `/start` and `/stop` commands
 - `issues.assigned`: Manages self-assignments
 - `pull_request.opened/edited`: Links PRs to issues
 - `issues.unassigned`: Cleanup for unassigned tasks
 
 #### 4. Command Processing
+
 Two main commands with complex validation:
+
 - `/start`: Task assignment flow
   - Validates price labels
   - Checks assignment availability
@@ -50,6 +58,7 @@ Two main commands with complex validation:
   - Handles unassignment cleanup
 
 #### 5. Security & Authorization
+
 - Command-level role checks
 - Repository and organization-level command controls
 - Wallet verification when required
@@ -102,12 +111,15 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 ## Development
 
 ### Environment Setup
+
 1. Node.js >=20.10.0 is required
 2. Copy `.dev.vars.example` to `.dev.vars` and configure environment variables
 3. Install dependencies with `npm install`
 
 ### Local Development
+
 Run the worker locally:
+
 ```bash
 npm run worker
 ```
@@ -115,13 +127,17 @@ npm run worker
 ### Testing
 
 #### Jest Tests
+
 Run the full test suite:
+
 ```bash
 npm run test
 ```
 
 ### Code Quality
+
 The project includes several quality tools:
+
 - ESLint for code linting
 - Prettier for code formatting
 - CSpell for spell checking
@@ -129,6 +145,7 @@ The project includes several quality tools:
 - Husky for git hooks
 
 Run all formatting:
+
 ```bash
 npm run format
 ```
@@ -136,12 +153,14 @@ npm run format
 ## Technical Dependencies
 
 ### Core
+
 - `@ubiquity-os/plugin-sdk`: Core plugin functionality
 - `@supabase/supabase-js`: Database operations
 - `@octokit/*`: GitHub API integration
 - `hono`: Web server framework
 
 ### Development
+
 - TypeScript for type safety
 - Jest for testing
 - ESLint & Prettier for code quality
