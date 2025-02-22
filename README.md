@@ -6,7 +6,7 @@ This plugin allows a hunter to begin a task as well as gracefully stop a task wi
 
 ### Overview
 
-- Built as a GitHub App using TypeScript
+- Built as a UbiquityOS plugin using TypeScript
 - Reads wallet addresses for users
 - Implements a webhook-based event system for GitHub interactions
 - Runs as a Cloudflare Worker using Hono for HTTP handling
