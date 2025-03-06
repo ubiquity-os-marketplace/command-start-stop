@@ -65,7 +65,7 @@ export async function start(
   teammates: string[]
 ): Promise<Result> {
   const { logger, config } = context;
-  const { taskStaleTimeoutDuration } = config;
+  const { taskStaleTimeoutDuration, taskAccessControl } = config;
 
   if (!sender) {
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
@@ -179,20 +179,33 @@ ${issues}
   }
 
   // Checks if non-collaborators can be assigned to the issue
-  for (const label of labels) {
-    if (label.description?.toLowerCase().includes("collaborator only")) {
-      for (const user of toAssign) {
-        if (!(await isUserCollaborator(context, user))) {
-          throw logger.error("Only collaborators can be assigned to this issue.", {
-            username: user,
-          });
-        }
-      }
+  // for (const label of labels) {
+  //   if (label.description?.toLowerCase().includes("collaborator only")) {
+  //     for (const user of toAssign) {
+  //       if (!(await isUserCollaborator(context, user))) {
+  //         throw logger.error("Only collaborators can be assigned to this issue.", {
+  //           username: user,
+  //         });
+  //       }
+  //     }
+  //   }
+  // }
+
+  const { priceMaxUSD } = taskAccessControl;
+  const userAllowedMaxPrice = priceMaxUSD[userRole];
+  if (priceLabel) {
+    const price = parseFloat(priceLabel.name.split("Price: ")[1].replace(/,/g, ""));
+    if (price > userAllowedMaxPrice) {
+      throw logger.error(`While we appreciate your enthusiasm, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`, {
+        userRole,
+        price,
+        userAllowedMaxPrice,
+        issueNumber: issue.number,
+      });
     }
   }
 
   const toAssignIds = await fetchUserIds(context, toAssign);
-
   const assignmentComment = await generateAssignmentComment(context, issue.created_at, issue.number, sender.id, null);
   const logMessage = logger.info("Task assigned successfully", {
     taskDeadline: assignmentComment.deadline,
