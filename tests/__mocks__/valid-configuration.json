@@ -30,5 +30,12 @@
   "reviewDelayTolerance": "1 Day",
   "rolesWithReviewAuthority": ["OWNER", "ADMIN", "MEMBER"],
   "startRequiresWallet": true,
-  "taskStaleTimeoutDuration": "30 Days"
+  "taskStaleTimeoutDuration": "30 Days",
+  "taskAccessControl": {
+    "priceMaxUSD": {
+      "admin": 10000,
+      "collaborator": 10000,
+      "contributor": 1000
+    }
+  }
 }

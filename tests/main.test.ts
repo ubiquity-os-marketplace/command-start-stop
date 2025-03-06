@@ -2,48 +2,28 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, tes
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
-import { CommentHandler } from "@ubiquity-os/plugin-sdk";
-import { cleanLogString, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { HttpStatusCode } from "../src/handlers/result-types";
 import { userStartStop, userUnassigned } from "../src/handlers/user-start-stop";
-import { AssignedIssueScope, Context, envSchema, Role, Sender, SupportedEvents } from "../src/types";
+import { Context, envSchema, Sender } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
+import { createContext, MAX_CONCURRENT_DEFAULTS } from "./utils";
 
 dotenv.config();
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
-const octokit = await import("@octokit/rest");
 const TEST_REPO = "ubiquity/test-repo";
 const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
 const priority3LabelName = "Priority: 3 (High)";
 const priority4LabelName = "Priority: 4 (Urgent)";
 const priority5LabelName = "Priority: 5 (Emergency)";
-const PRIORITY_LABELS = [
-  PRIORITY_ONE,
-  {
-    name: "Priority: 2 (Medium)",
-    allowedRoles: ["collaborator", "contributor"],
-  },
-  {
-    name: priority3LabelName,
-    allowedRoles: ["collaborator", "contributor"],
-  },
-  {
-    name: priority4LabelName,
-    allowedRoles: ["collaborator", "contributor"],
-  },
-  {
-    name: priority5LabelName,
-    allowedRoles: ["collaborator", "contributor"],
-  },
-];
 
 beforeAll(() => {
   server.listen();
@@ -62,6 +42,26 @@ describe("User start/stop", () => {
     jest.clearAllMocks();
     jest.resetModules();
     await setupTests();
+  });
+
+  test("User can't start a task priced more than their assigned priceMaxUSD", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 8 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+
+    const context = createContext(issue, sender, "/start", "3") as Context<"issue_comment.created">;
+
+    context.adapters = createAdapters(getSupabase(), context);
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "While we appreciate your enthusiasm, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
+      },
+      metadata: {
+        userRole: "collaborator",
+        price: 15000,
+        userAllowedMaxPrice: 10000,
+        issueNumber: 8,
+      },
+    });
   });
 
   test("User can start an issue", async () => {
@@ -242,7 +242,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 5 } } }) as unknown as Sender;
 
-    const memberLimit = maxConcurrentDefaults.collaborator;
+    const memberLimit = MAX_CONCURRENT_DEFAULTS.collaborator;
 
     createIssuesForMaxAssignment(memberLimit + 4, sender.id);
     const context = createContext(issue, sender) as unknown as Context;
@@ -456,6 +456,28 @@ async function setupTests() {
     labels: [
       {
         name: "Price: 200 USD",
+      },
+      {
+        name: "Time: 1h",
+      },
+      {
+        name: PRIORITY_ONE.name,
+      },
+    ],
+  });
+
+  db.issue.create({
+    ...issueTemplate,
+    id: 8,
+    node_id: "MDU6SXNzdWUg",
+    title: "Eighth issue",
+    number: 8,
+    body: "Eighth issue body",
+    owner: "ubiquity",
+    assignees: [],
+    labels: [
+      {
+        name: "Price: 15000 USD",
       },
       {
         name: "Time: 1h",
@@ -700,66 +722,13 @@ function createIssuesForMaxAssignment(n: number, userId: number) {
   for (let i = 0; i < n; i++) {
     db.issue.create({
       ...issueTemplate,
-      id: i + 8,
+      id: i + 9,
       assignee: user,
     });
   }
 }
 
-const maxConcurrentDefaults = {
-  collaborator: 6,
-  contributor: 4,
-};
-
-export function createContext(
-  issue: Record<string, unknown>,
-  sender: Record<string, unknown> | undefined,
-  body = "/start",
-  appId: string | null = "1",
-  startRequiresWallet = false,
-  requiredLabelsToStart = PRIORITY_LABELS
-): Context {
-  return {
-    adapters: {} as ReturnType<typeof createAdapters>,
-    payload: {
-      issue: issue as unknown as Context<"issue_comment.created">["payload"]["issue"],
-      sender: sender as unknown as Context["payload"]["sender"],
-      repository: db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["repository"],
-      comment: { body } as unknown as Context<"issue_comment.created">["payload"]["comment"],
-      action: "created",
-      installation: { id: 1 } as unknown as Context["payload"]["installation"],
-      organization: { login: "ubiquity" } as unknown as Context["payload"]["organization"],
-      assignee: {
-        ...sender,
-      },
-    } as Context["payload"],
-    logger: new Logs("debug") as unknown as Context["logger"],
-    config: {
-      reviewDelayTolerance: "3 Days",
-      taskStaleTimeoutDuration: "30 Days",
-      maxConcurrentTasks: maxConcurrentDefaults,
-      startRequiresWallet,
-      assignedIssueScope: AssignedIssueScope.ORG,
-      emptyWalletText: "Please set your wallet address with the /wallet command first and try again.",
-      rolesWithReviewAuthority: [Role.ADMIN, Role.OWNER, Role.MEMBER],
-      requiredLabelsToStart,
-    },
-    octokit: new octokit.Octokit(),
-    eventName: "issue_comment.created" as SupportedEvents,
-    organizations: ["ubiquity"],
-    env: {
-      APP_ID: appId,
-      APP_PRIVATE_KEY: "private_key",
-      SUPABASE_KEY: "key",
-      SUPABASE_URL: "url",
-      BOT_USER_ID: appId as unknown as number,
-    },
-    command: null,
-    commentHandler: new CommentHandler(),
-  } as unknown as Context;
-}
-
-export function getSupabase(withData = true) {
+function getSupabase(withData = true) {
   const mockedTable = {
     select: jest.fn().mockReturnValue({
       eq: jest.fn().mockReturnValue({

@@ -6,7 +6,7 @@ import { Context } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
-import { createContext } from "./main.test";
+import { createContext } from "./utils";
 
 dotenv.config();
 

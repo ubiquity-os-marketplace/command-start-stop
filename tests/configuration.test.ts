@@ -21,6 +21,13 @@ describe("Configuration tests", () => {
       maxConcurrentTasks: { collaborator: 10, contributor: 2 },
       rolesWithReviewAuthority: [Role.OWNER, Role.ADMIN, Role.MEMBER],
       requiredLabelsToStart: PRIORITY_LABELS,
+      taskAccessControl: {
+        priceMaxUSD: {
+          admin: 10000,
+          collaborator: 10000,
+          contributor: 1000,
+        },
+      },
     }) as PluginSettings;
     expect(settings).toEqual(cfg);
   });
