@@ -1,5 +1,4 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
-import { isUserCollaborator } from "../../utils/get-user-association";
 import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
@@ -178,30 +177,24 @@ ${issues}
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
   }
 
-  // Checks if non-collaborators can be assigned to the issue
-  // for (const label of labels) {
-  //   if (label.description?.toLowerCase().includes("collaborator only")) {
-  //     for (const user of toAssign) {
-  //       if (!(await isUserCollaborator(context, user))) {
-  //         throw logger.error("Only collaborators can be assigned to this issue.", {
-  //           username: user,
-  //         });
-  //       }
-  //     }
-  //   }
-  // }
-
   const { priceMaxUSD } = taskAccessControl;
   const userAllowedMaxPrice = priceMaxUSD[userRole];
   if (priceLabel) {
-    const price = parseFloat(priceLabel.name.split("Price: ")[1].replace(/,/g, ""));
+    const value = priceLabel.name.split("Price: ")[1].split(" ")[0];
+    if (isNaN(parseFloat(value))) {
+      throw logger.error("Price label is not in the correct format", { priceLabel: priceLabel.name });
+    }
+    const price = parseFloat(value);
     if (price > userAllowedMaxPrice) {
-      throw logger.error(`While we appreciate your enthusiasm, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`, {
-        userRole,
-        price,
-        userAllowedMaxPrice,
-        issueNumber: issue.number,
-      });
+      throw logger.error(
+        `While we appreciate your enthusiasm, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`,
+        {
+          userRole,
+          price,
+          userAllowedMaxPrice,
+          issueNumber: issue.number,
+        }
+      );
     }
   }
 

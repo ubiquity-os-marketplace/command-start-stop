@@ -84,13 +84,19 @@ export const pluginSettingsSchema = T.Object(
       description: "If set, a task must have at least one of these labels to be started.",
       examples: [["Priority: 5 (Emergency)"], ["Good First Issue"]],
     }),
-    taskAccessControl: T.Object({
-      priceMaxUSD: T.Object({
-        collaborator: T.Number({ default: 10000 }),
-        admin: T.Number({ default: 10000 }),
-        contributor: T.Number({ default: 200 })
-      }, { default: {} }),
-    }, { default: {} }),
+    taskAccessControl: T.Object(
+      {
+        priceMaxUSD: T.Object(
+          {
+            collaborator: T.Number({ default: 10000 }),
+            admin: T.Number({ default: 10000 }),
+            contributor: T.Number({ default: 200 }),
+          },
+          { default: {} }
+        ),
+      },
+      { default: {} }
+    ),
   },
   {
     default: {},
