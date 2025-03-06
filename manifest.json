@@ -159,6 +159,30 @@
           },
           "required": ["name"]
         }
+      },
+      "taskAccessControl": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "priceMaxUSD": {
+            "default": {},
+            "type": "object",
+            "properties": {
+              "collaborator": {
+                "default": 10000,
+                "type": "number"
+              },
+              "admin": {
+                "default": 10000,
+                "type": "number"
+              },
+              "contributor": {
+                "default": 200,
+                "type": "number"
+              }
+            }
+          }
+        }
       }
     }
   },
