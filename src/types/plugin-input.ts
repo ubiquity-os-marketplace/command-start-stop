@@ -89,7 +89,6 @@ export const pluginSettingsSchema = T.Object(
         priceMaxUSD: T.Object(
           {
             collaborator: T.Number({ default: 10000 }),
-            admin: T.Number({ default: 10000 }),
             contributor: T.Number({ default: 200 }),
           },
           { default: {} }

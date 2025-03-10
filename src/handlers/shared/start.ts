@@ -177,9 +177,9 @@ ${issues}
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
   }
 
-  const { priceMaxUSD } = taskAccessControl;
-  const userAllowedMaxPrice = priceMaxUSD[userRole];
-  if (priceLabel) {
+  if (priceLabel && userRole !== "admin") {
+    const { priceMaxUSD } = taskAccessControl;
+    const userAllowedMaxPrice = priceMaxUSD[userRole];
     const value = priceLabel.name.split("Price: ")[1].split(" ")[0];
     if (isNaN(parseFloat(value))) {
       throw logger.error("Price label is not in the correct format", { priceLabel: priceLabel.name });

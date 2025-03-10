@@ -68,7 +68,6 @@ export function createContext(
       requiredLabelsToStart,
       taskAccessControl: {
         priceMaxUSD: {
-          admin: 10000,
           collaborator: 10000,
           contributor: 1000,
         },
