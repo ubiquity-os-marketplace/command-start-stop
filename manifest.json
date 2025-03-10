@@ -172,10 +172,6 @@
                 "default": 10000,
                 "type": "number"
               },
-              "admin": {
-                "default": 10000,
-                "type": "number"
-              },
               "contributor": {
                 "default": 200,
                 "type": "number"
