@@ -164,12 +164,12 @@
         "default": {},
         "type": "object",
         "properties": {
-          "priceMaxUSD": {
+          "usdPriceMax": {
             "default": {},
             "type": "object",
             "properties": {
               "collaborator": {
-                "default": 10000,
+                "default": null,
                 "type": "number"
               },
               "contributor": {
