@@ -265,7 +265,7 @@ async function handleTaskLimitChecks(username: string, context: Context, logger:
   }
 
   if (await hasUserBeenUnassigned(context, username)) {
-    throw logger.error(`${username} you were previously unassigned from this task. You cannot be reassigned.`, { username });
+    throw logger.warn(`${username} you were previously unassigned from this task. You cannot be reassigned.`, { username });
   }
 
   return {
