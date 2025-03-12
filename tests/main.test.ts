@@ -44,7 +44,7 @@ describe("User start/stop", () => {
     await setupTests();
   });
 
-  test("User can't start a task priced more than their assigned priceMaxUSD", async () => {
+  test("User can't start a task priced more than their assigned usdPriceMax", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 8 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 

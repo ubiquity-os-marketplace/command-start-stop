@@ -22,7 +22,7 @@ describe("Configuration tests", () => {
       rolesWithReviewAuthority: [Role.OWNER, Role.ADMIN, Role.MEMBER],
       requiredLabelsToStart: PRIORITY_LABELS,
       taskAccessControl: {
-        priceMaxUSD: {
+        usdPriceMax: {
           collaborator: 10000,
           contributor: 1000,
         },
@@ -33,6 +33,12 @@ describe("Configuration tests", () => {
   it("Should give the collaborator limits of PRs", () => {
     const settings = Value.Default(pluginSettingsSchema, {
       requiredLabelsToStart: PRIORITY_LABELS,
+      taskAccessControl: {
+        usdPriceMax: {
+          collaborator: 10000,
+          contributor: 1000,
+        },
+      },
     }) as PluginSettings;
     console.dir([...Value.Errors(pluginSettingsSchema, settings)]);
     const decodedSettings = Value.Decode(pluginSettingsSchema, settings);

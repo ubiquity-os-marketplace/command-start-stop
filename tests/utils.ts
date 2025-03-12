@@ -67,7 +67,7 @@ export function createContext(
       rolesWithReviewAuthority: [Role.ADMIN, Role.OWNER, Role.MEMBER],
       requiredLabelsToStart,
       taskAccessControl: {
-        priceMaxUSD: {
+        usdPriceMax: {
           collaborator: 10000,
           contributor: 1000,
         },

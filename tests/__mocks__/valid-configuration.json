@@ -32,7 +32,7 @@
   "startRequiresWallet": true,
   "taskStaleTimeoutDuration": "30 Days",
   "taskAccessControl": {
-    "priceMaxUSD": {
+    "usdPriceMax": {
       "collaborator": 10000,
       "contributor": 1000
     }

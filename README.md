@@ -101,6 +101,9 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
     requiredLabelsToStart:
       - name: "Priority: 5 (Emergency)"
         allowedRoles: ["contributor", "collaborator"]
+    taskAccessControl:
+      usdPriceMax:
+        contributor: 1000
 ```
 
 ## Development

@@ -86,9 +86,9 @@ export const pluginSettingsSchema = T.Object(
     }),
     taskAccessControl: T.Object(
       {
-        priceMaxUSD: T.Object(
+        usdPriceMax: T.Object(
           {
-            collaborator: T.Number({ default: 10000 }),
+            collaborator: T.Number({ default: Infinity }),
             contributor: T.Number({ default: 200 }),
           },
           { default: {} }
