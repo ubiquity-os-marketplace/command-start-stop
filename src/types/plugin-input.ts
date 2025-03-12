@@ -91,7 +91,11 @@ export const pluginSettingsSchema = T.Object(
             collaborator: T.Number({ default: Infinity }),
             contributor: T.Number({ default: 0 }),
           },
-          { default: {} }
+          {
+            default: {},
+            description: "The maximum USD price a user can start a task with, based on their role.",
+            examples: [{ collaborator: 100, contributor: 0 }],
+          }
         ),
       },
       { default: {} }
