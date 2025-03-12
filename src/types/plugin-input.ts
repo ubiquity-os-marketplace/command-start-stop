@@ -89,7 +89,7 @@ export const pluginSettingsSchema = T.Object(
         usdPriceMax: T.Object(
           {
             collaborator: T.Number({ default: Infinity }),
-            contributor: T.Number({ default: 200 }),
+            contributor: T.Number({ default: 0 }),
           },
           { default: {} }
         ),
