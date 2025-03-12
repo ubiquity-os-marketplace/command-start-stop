@@ -166,6 +166,13 @@
         "properties": {
           "usdPriceMax": {
             "default": {},
+            "description": "The maximum USD price a user can start a task with, based on their role.",
+            "examples": [
+              {
+                "collaborator": 100,
+                "contributor": 0
+              }
+            ],
             "type": "object",
             "properties": {
               "collaborator": {
