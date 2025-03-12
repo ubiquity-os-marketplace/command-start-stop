@@ -29,7 +29,10 @@ const rolesWithReviewAuthority = T.Array(T.Enum(Role), {
 });
 
 const maxConcurrentTasks = T.Object(
-  { collaborator: T.Number({ default: 10 }), contributor: T.Number({ default: 2 }) },
+  {
+    collaborator: T.Number({ default: 10 }),
+    contributor: T.Number({ default: 2 }),
+  },
   {
     description: "The maximum number of tasks a user can have assigned to them at once, based on their role.",
     examples: [{ collaborator: 10, contributor: 2 }],
