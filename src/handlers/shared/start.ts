@@ -9,7 +9,7 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-async function checkRequirements(
+export async function checkRequirements(
   context: Context,
   issue: Context<"issue_comment.created">["payload"]["issue"],
   userRole: ReturnType<typeof getTransformedRole>
