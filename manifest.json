@@ -176,14 +176,21 @@
             "type": "object",
             "properties": {
               "collaborator": {
-                "default": null,
-                "type": "number"
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
               },
               "contributor": {
                 "default": 0,
                 "type": "number"
               }
-            }
+            },
+            "required": ["collaborator"]
           }
         }
       }
