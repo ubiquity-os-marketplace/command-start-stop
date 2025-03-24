@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { HttpStatusCode } from "../src/handlers/result-types";
 import { userStartStop, userUnassigned } from "../src/handlers/user-start-stop";
-import { Context, envSchema, Sender } from "../src/types";
+import { Context, Env, envSchema, Sender } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
@@ -44,16 +44,28 @@ describe("User start/stop", () => {
     await setupTests();
   });
 
+  test("Collaborator can assign with string Infinity", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+
+    const context = createContext(issue, sender, "/start", "Infinity") as Context<"issue_comment.created">;
+
+    context.adapters = createAdapters(getSupabase(), context);
+    const { content } = await userStartStop(context);
+
+    expect(content).toEqual(SUCCESS_MESSAGE);
+  });
+
   test("User can't start a task priced more than their assigned usdPriceMax", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 8 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "3") as Context<"issue_comment.created">;
+    const context = createContext(issue, sender, "/start") as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "While we appreciate your enthusiasm, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
+        raw: "While we appreciate your enthusiasm user3, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
       },
       metadata: {
         userRole: "collaborator",
@@ -208,7 +220,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "2", true) as Context<"issue_comment.created">;
+    const context = createContext(issue, sender, "/start", "Infinity", true) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(false), context);
     await expect(userStartStop(context)).rejects.toBeInstanceOf(LogReturn);
@@ -290,8 +302,8 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "testing-one");
-    const env = { ...context.env };
+    const context = createContext(issue, sender, "/start", "Infinity");
+    const env: Env = { ...context.env, BOT_USER_ID: "Not a number" as unknown as number, APP_ID: "1" };
 
     let err: unknown = null;
     try {
@@ -310,7 +322,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "1", false, [
+    const context = createContext(issue, sender, "/start", "Infinity", false, [
       { name: priority3LabelName, allowedRoles: ["collaborator", "contributor"] },
       { name: priority4LabelName, allowedRoles: ["collaborator", "contributor"] },
       { name: priority5LabelName, allowedRoles: ["collaborator", "contributor"] },
@@ -336,7 +348,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "1", false, [
+    const context = createContext(issue, sender, "/start", "Infinity", false, [
       { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator"] },
       { name: "Priority: 2 (Medium)", allowedRoles: ["collaborator"] },
       { name: priority3LabelName, allowedRoles: ["collaborator"] },

@@ -38,7 +38,7 @@ export function createContext(
   issue: Record<string, unknown>,
   sender: Record<string, unknown> | undefined,
   body = "/start",
-  appId: string | null = "1",
+  collabUsdLimit: string | number = 10000,
   startRequiresWallet = false,
   requiredLabelsToStart = PRIORITY_LABELS
 ): Context {
@@ -68,7 +68,7 @@ export function createContext(
       requiredLabelsToStart,
       taskAccessControl: {
         usdPriceMax: {
-          collaborator: 10000,
+          collaborator: collabUsdLimit,
           contributor: 1000,
         },
       },
@@ -77,11 +77,11 @@ export function createContext(
     eventName: "issue_comment.created" as SupportedEvents,
     organizations: ["ubiquity"],
     env: {
-      APP_ID: appId,
+      APP_ID: 1,
       APP_PRIVATE_KEY: "private_key",
       SUPABASE_KEY: "key",
       SUPABASE_URL: "url",
-      BOT_USER_ID: appId as unknown as number,
+      BOT_USER_ID: 1,
     },
     command: null,
     commentHandler: new CommentHandler(),

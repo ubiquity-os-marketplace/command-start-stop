@@ -23,7 +23,7 @@ describe("Configuration tests", () => {
       requiredLabelsToStart: PRIORITY_LABELS,
       taskAccessControl: {
         usdPriceMax: {
-          collaborator: 10000,
+          collaborator: "Infinity",
           contributor: 1000,
         },
       },
@@ -35,7 +35,7 @@ describe("Configuration tests", () => {
       requiredLabelsToStart: PRIORITY_LABELS,
       taskAccessControl: {
         usdPriceMax: {
-          collaborator: 10000,
+          collaborator: "Infinity",
           contributor: 1000,
         },
       },

@@ -33,7 +33,7 @@
   "taskStaleTimeoutDuration": "30 Days",
   "taskAccessControl": {
     "usdPriceMax": {
-      "collaborator": 10000,
+      "collaborator": "Infinity",
       "contributor": 1000
     }
   }
