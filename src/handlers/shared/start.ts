@@ -8,7 +8,7 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
-async function checkRequirements(
+export async function checkRequirements(
   context: Context,
   issue: Context<"issue_comment.created">["payload"]["issue"],
   userRole: ReturnType<typeof getTransformedRole>
@@ -278,7 +278,7 @@ async function handleTaskLimitChecks({ context, logger, sender, username }: { us
   }
 
   if (await hasUserBeenUnassigned(context, username)) {
-    throw logger.error(`${username} you were previously unassigned from this task. You cannot be reassigned.`, { username });
+    throw logger.warn(`${username} you were previously unassigned from this task. You cannot be reassigned.`, { username });
   }
 
   return {
