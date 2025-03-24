@@ -38,7 +38,7 @@ export function createContext(
   issue: Record<string, unknown>,
   sender: Record<string, unknown> | undefined,
   body = "/start",
-  collabUsdLimit: string | number = 10000,
+  collaboratorUsdLimit: string | number = 10000,
   startRequiresWallet = false,
   requiredLabelsToStart = PRIORITY_LABELS
 ): Context {
@@ -68,7 +68,7 @@ export function createContext(
       requiredLabelsToStart,
       taskAccessControl: {
         usdPriceMax: {
-          collaborator: collabUsdLimit,
+          collaborator: collaboratorUsdLimit,
           contributor: 1000,
         },
       },
