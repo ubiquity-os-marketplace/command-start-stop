@@ -165,7 +165,7 @@ export async function start(
       const price = parseFloat(value);
       if (price > userAllowedMaxPrice) {
         throw logger.warn(
-          `While we appreciate your enthusiasm ${user}, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`,
+          `While we appreciate your enthusiasm @${user}, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`,
           {
             userRole,
             price,
