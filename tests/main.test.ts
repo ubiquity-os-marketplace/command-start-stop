@@ -65,7 +65,7 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
     await expect(userStartStop(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "While we appreciate your enthusiasm user3, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
+        raw: "While we appreciate your enthusiasm @user3, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
       },
       metadata: {
         userRole: "collaborator",
