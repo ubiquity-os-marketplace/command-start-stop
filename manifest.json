@@ -181,6 +181,7 @@
                     "type": "number"
                   },
                   {
+                    "const": "Infinity",
                     "type": "string"
                   }
                 ]
