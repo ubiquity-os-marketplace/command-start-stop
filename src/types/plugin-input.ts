@@ -91,7 +91,7 @@ export const pluginSettingsSchema = T.Object(
       {
         usdPriceMax: T.Object(
           {
-            collaborator: T.Transform(T.Union([T.Number(), T.String()]))
+            collaborator: T.Transform(T.Union([T.Number(), T.Literal("Infinity")]))
               .Decode((value) => {
                 if (typeof value === "number") {
                   return value;
@@ -103,7 +103,7 @@ export const pluginSettingsSchema = T.Object(
                   return Infinity;
                 }
               })
-              .Encode((value) => value.toString()),
+              .Encode((value) => value),
             contributor: T.Number({ default: 0 }),
           },
           {
