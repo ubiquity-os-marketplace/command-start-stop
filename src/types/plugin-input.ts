@@ -52,6 +52,20 @@ const requiredLabel = T.Object({
   }),
 });
 
+const transformedRole = T.Transform(T.Union([T.Number(), T.Literal("Infinity")]))
+  .Decode((value) => {
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (!isNaN(parseFloat(value))) {
+      return parseFloat(value);
+    } else {
+      return Infinity;
+    }
+  })
+  .Encode((value) => value);
+
 export const pluginSettingsSchema = T.Object(
   {
     reviewDelayTolerance: T.String({
@@ -91,25 +105,13 @@ export const pluginSettingsSchema = T.Object(
       {
         usdPriceMax: T.Object(
           {
-            collaborator: T.Transform(T.Union([T.Number(), T.Literal("Infinity")]))
-              .Decode((value) => {
-                if (typeof value === "number") {
-                  return value;
-                }
-
-                if (!isNaN(parseFloat(value))) {
-                  return parseFloat(value);
-                } else {
-                  return Infinity;
-                }
-              })
-              .Encode((value) => value),
-            contributor: T.Number({ default: 0 }),
+            collaborator: transformedRole,
+            contributor: transformedRole,
           },
           {
             default: {},
             description: "The maximum USD price a user can start a task with, based on their role.",
-            examples: [{ collaborator: 100, contributor: 0 }],
+            examples: [{ collaborator: "Infinity", contributor: 0 }],
           }
         ),
       },
