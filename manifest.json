@@ -159,6 +159,48 @@
           },
           "required": ["name"]
         }
+      },
+      "taskAccessControl": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "usdPriceMax": {
+            "default": {},
+            "description": "The maximum USD price a user can start a task with, based on their role.",
+            "examples": [
+              {
+                "collaborator": "Infinity",
+                "contributor": 0
+              }
+            ],
+            "type": "object",
+            "properties": {
+              "collaborator": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": "Infinity",
+                    "type": "string"
+                  }
+                ]
+              },
+              "contributor": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "const": "Infinity",
+                    "type": "string"
+                  }
+                ]
+              }
+            },
+            "required": ["collaborator", "contributor"]
+          }
+        }
       }
     }
   },

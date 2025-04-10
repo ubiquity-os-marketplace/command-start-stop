@@ -21,12 +21,24 @@ describe("Configuration tests", () => {
       maxConcurrentTasks: { collaborator: 10, contributor: 2 },
       rolesWithReviewAuthority: [Role.OWNER, Role.ADMIN, Role.MEMBER],
       requiredLabelsToStart: PRIORITY_LABELS,
+      taskAccessControl: {
+        usdPriceMax: {
+          collaborator: "Infinity",
+          contributor: 1000,
+        },
+      },
     }) as PluginSettings;
     expect(settings).toEqual(cfg);
   });
   it("Should give the collaborator limits of PRs", () => {
     const settings = Value.Default(pluginSettingsSchema, {
       requiredLabelsToStart: PRIORITY_LABELS,
+      taskAccessControl: {
+        usdPriceMax: {
+          collaborator: "Infinity",
+          contributor: 1000,
+        },
+      },
     }) as PluginSettings;
     console.dir([...Value.Errors(pluginSettingsSchema, settings)]);
     const decodedSettings = Value.Decode(pluginSettingsSchema, settings);

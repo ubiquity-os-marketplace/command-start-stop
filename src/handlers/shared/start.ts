@@ -1,5 +1,4 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
-import { isUserCollaborator } from "../../utils/get-user-association";
 import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
@@ -65,7 +64,7 @@ export async function start(
   teammates: string[]
 ): Promise<Result> {
   const { logger, config } = context;
-  const { taskStaleTimeoutDuration } = config;
+  const { taskStaleTimeoutDuration, taskAccessControl } = config;
 
   if (!sender) {
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
@@ -137,7 +136,7 @@ export async function start(
   let assignedIssues: AssignedIssue[] = [];
   // check max assigned issues
   for (const user of teammates) {
-    const { isWithinLimit, issues } = await handleTaskLimitChecks(user, context, logger, sender.login);
+    const { isWithinLimit, issues, role } = await handleTaskLimitChecks({ context, logger, sender: sender.login, username: user });
     if (isWithinLimit) {
       toAssign.push(user);
     } else {
@@ -147,6 +146,34 @@ export async function start(
           html_url: issue.html_url,
         });
       });
+    }
+
+    if (priceLabel && role !== "admin") {
+      const { usdPriceMax } = taskAccessControl;
+      const min = Math.min(...Object.values(usdPriceMax));
+      const userAllowedMaxPrice = !role ? min : usdPriceMax[role as keyof typeof usdPriceMax];
+
+      const priceRegex = /Price:\s*([\d.]+)/;
+      const match = priceLabel.name.match(priceRegex);
+      if (!match) {
+        throw logger.error("Price label is not in the correct format", { priceLabel: priceLabel.name });
+      }
+      const value = match[1];
+      if (isNaN(parseFloat(value))) {
+        throw logger.error("Price label is not in the correct format", { priceLabel: priceLabel.name });
+      }
+      const price = parseFloat(value);
+      if (price > userAllowedMaxPrice) {
+        throw logger.warn(
+          `While we appreciate your enthusiasm @${user}, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`,
+          {
+            userRole,
+            price,
+            userAllowedMaxPrice,
+            issueNumber: issue.number,
+          }
+        );
+      }
     }
   }
 
@@ -178,21 +205,7 @@ ${issues}
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
   }
 
-  // Checks if non-collaborators can be assigned to the issue
-  for (const label of labels) {
-    if (label.description?.toLowerCase().includes("collaborator only")) {
-      for (const user of toAssign) {
-        if (!(await isUserCollaborator(context, user))) {
-          throw logger.error("Only collaborators can be assigned to this issue.", {
-            username: user,
-          });
-        }
-      }
-    }
-  }
-
   const toAssignIds = await fetchUserIds(context, toAssign);
-
   const assignmentComment = await generateAssignmentComment(context, issue.created_at, issue.number, sender.id, null);
   const logMessage = logger.info("Task assigned successfully", {
     taskDeadline: assignmentComment.deadline,
@@ -245,10 +258,10 @@ async function fetchUserIds(context: Context, username: string[]) {
   return ids;
 }
 
-async function handleTaskLimitChecks(username: string, context: Context, logger: Context["logger"], sender: string) {
+async function handleTaskLimitChecks({ context, logger, sender, username }: { username: string; context: Context; logger: Context["logger"]; sender: string }) {
   const openedPullRequests = await getPendingOpenedPullRequests(context, username);
   const assignedIssues = await getAssignedIssues(context, username);
-  const { limit } = await getUserRoleAndTaskLimit(context, username);
+  const { limit, role } = await getUserRoleAndTaskLimit(context, username);
 
   // check for max and enforce max
   if (Math.abs(assignedIssues.length - openedPullRequests.length) >= limit) {
@@ -271,5 +284,6 @@ async function handleTaskLimitChecks(username: string, context: Context, logger:
   return {
     isWithinLimit: true,
     issues: [],
+    role,
   };
 }

@@ -14,6 +14,7 @@ export function isCollaboratorRole(role: string) {
 }
 
 export function getTransformedRole(role: string) {
+  role = role.toLowerCase();
   if (isAdminRole(role)) {
     return "admin";
   } else if (isCollaboratorRole(role)) {
@@ -75,7 +76,7 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
     });
     limit = getUserTaskLimit(maxConcurrentTasks, role);
 
-    return { role, limit };
+    return { role: getTransformedRole(role), limit };
   } catch (err) {
     logger.error("Could not get user role", { err });
     return { role: "unknown", limit: maxConcurrentTasks.contributor };

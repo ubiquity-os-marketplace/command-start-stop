@@ -1,13 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import dotenv from "dotenv";
-import { createAdapters } from "../src/adapters";
-import { start } from "../src/handlers/shared/start";
 import { Context } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
-import { createContext, getSupabase } from "./main.test";
+import { createContext } from "./utils";
 
 dotenv.config();
 
@@ -59,26 +57,6 @@ describe("Collaborator tests", () => {
     jest.resetModules();
     jest.resetAllMocks();
     await setupTests();
-  });
-
-  it("Should return error if user trying to assign is not a collaborator", async () => {
-    db.users.create({
-      id: 3,
-      login: "user1",
-      role: "contributor",
-    });
-    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "/start");
-    context.adapters = createAdapters(getSupabase(), context);
-    await expect(start(context, issue, sender, [])).rejects.toMatchObject({
-      logMessage: {
-        diff: expect.stringContaining("Only collaborators can be assigned to this issue"),
-        level: "error",
-        raw: "Only collaborators can be assigned to this issue.",
-        type: "error",
-      },
-    });
   });
 
   it("should assign the author of the pull-request and not the sender of the edit", async () => {
