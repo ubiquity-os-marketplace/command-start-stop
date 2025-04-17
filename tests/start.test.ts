@@ -19,6 +19,8 @@ const commandStartStop = "command-start-stop";
 const ubiquityOsMarketplace = "ubiquity-os-marketplace";
 
 const modulePath = "../src/handlers/shared/start";
+const supabaseModulePath = "@supabase/supabase-js";
+const adaptersModulePath = "../src/adapters";
 
 beforeAll(() => {
   server.listen();
@@ -113,10 +115,10 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+    jest.unstable_mockModule(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule("../src/adapters", () => ({
+    jest.unstable_mockModule(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
     const start = jest.fn();
@@ -149,6 +151,12 @@ describe("Collaborator tests", () => {
   });
 
   it("should block bounty tasks when price limit is negative", async () => {
+    jest.unstable_mockModule(supabaseModulePath, () => ({
+      createClient: jest.fn(),
+    }));
+    jest.unstable_mockModule(adaptersModulePath, () => ({
+      createAdapters: jest.fn(),
+    }));
     db.users.create({
       id: TEST_USER_ID,
       login: "test-user",
@@ -165,21 +173,26 @@ describe("Collaborator tests", () => {
         node_id: "1",
         url: "https://api.github.com/labels/1",
       },
+      {
+        name: "Priority: 1 (Normal)",
+        color: "000000",
+        default: false,
+        description: null,
+        id: 2,
+        node_id: "2",
+        url: "https://api.github.com/labels/2",
+      },
     ];
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "") as Context<"issue_comment.created">;
+    const context = { ...createContext(issue, sender, "/start"), issue: {} } as Context<"issue_comment.created">;
     context.config.taskAccessControl.usdPriceMax = {
       collaborator: -1,
       contributor: -1,
     };
-
-    const start = jest.fn();
-    jest.unstable_mockModule(modulePath, () => ({
-      start,
-    }));
-
     const { startStopTask } = await import("../src/plugin");
-    await expect(startStopTask(context)).rejects.toThrowError("we are currently prioritizing core operations");
+    await expect(startStopTask(context)).rejects.toMatchObject({
+      logMessage: { raw: "@test-user, we are currently prioritizing core operations. Tasks cannot be started by contributors at this time." },
+    });
   });
 
   it("should successfully assign if the PR and linked issue are in different organizations", async () => {
@@ -235,10 +248,10 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+    jest.unstable_mockModule(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule("../src/adapters", () => ({
+    jest.unstable_mockModule(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
     const start = jest.fn();
