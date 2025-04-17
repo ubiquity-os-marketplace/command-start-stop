@@ -10,12 +10,15 @@ import { createContext } from "./utils";
 dotenv.config();
 
 const userLogin = "ubiquity-os-author";
+const TEST_USER_ID = 3;
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
 const commandStartStop = "command-start-stop";
 const ubiquityOsMarketplace = "ubiquity-os-marketplace";
+
+const modulePath = "../src/handlers/shared/start";
 
 beforeAll(() => {
   server.listen();
@@ -61,12 +64,12 @@ describe("Collaborator tests", () => {
 
   it("should assign the author of the pull-request and not the sender of the edit", async () => {
     db.users.create({
-      id: 3,
+      id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
     const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
@@ -117,7 +120,7 @@ describe("Collaborator tests", () => {
       createAdapters: jest.fn(),
     }));
     const start = jest.fn();
-    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
+    jest.unstable_mockModule(modulePath, () => ({
       start,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
@@ -145,14 +148,48 @@ describe("Collaborator tests", () => {
     start.mockClear();
   });
 
+  it("should block bounty tasks when price limit is negative", async () => {
+    db.users.create({
+      id: TEST_USER_ID,
+      login: "test-user",
+      role: "contributor",
+    });
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    issue.labels = [
+      {
+        name: "Price: 100",
+        color: "000000",
+        default: false,
+        description: null,
+        id: 1,
+        node_id: "1",
+        url: "https://api.github.com/labels/1",
+      },
+    ];
+    const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
+    const context = createContext(issue, sender, "") as Context<"issue_comment.created">;
+    context.config.taskAccessControl.usdPriceMax = {
+      collaborator: -1,
+      contributor: -1,
+    };
+
+    const start = jest.fn();
+    jest.unstable_mockModule(modulePath, () => ({
+      start,
+    }));
+
+    const { startStopTask } = await import("../src/plugin");
+    await expect(startStopTask(context)).rejects.toThrowError("we are currently prioritizing core operations");
+  });
+
   it("should successfully assign if the PR and linked issue are in different organizations", async () => {
     db.users.create({
-      id: 3,
+      id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
     const repository = db.repo.findFirst({ where: { id: { equals: 1 } } });
 
     const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
@@ -205,7 +242,7 @@ describe("Collaborator tests", () => {
       createAdapters: jest.fn(),
     }));
     const start = jest.fn();
-    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
+    jest.unstable_mockModule(modulePath, () => ({
       start,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
