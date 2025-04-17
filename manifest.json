@@ -166,11 +166,15 @@
         "properties": {
           "usdPriceMax": {
             "default": {},
-            "description": "The maximum USD price a user can start a task with, based on their role.",
+            "description": "The maximum USD price a user can start a task with, based on their role. Set to a negative value to indicate only core operations (only collaborators) can be started.",
             "examples": [
               {
                 "collaborator": "Infinity",
                 "contributor": 0
+              },
+              {
+                "collaborator": "Infinity",
+                "contributor": -1
               }
             ],
             "type": "object",
