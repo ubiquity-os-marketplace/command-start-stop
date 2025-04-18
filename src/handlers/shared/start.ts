@@ -164,7 +164,7 @@ export async function start(
       }
       const price = parseFloat(value);
       if (userAllowedMaxPrice < 0) {
-        throw logger.warn(`@${user}, we are currently prioritizing core operations. Tasks cannot be started by contributors at this time.`, {
+        throw logger.warn(`External contributors are not eligible for rewards at this time. We are preserving resources for core team only.` {
           userRole,
           price,
           userAllowedMaxPrice,
