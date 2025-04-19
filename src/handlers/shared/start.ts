@@ -163,7 +163,14 @@ export async function start(
         throw logger.error("Price label is not in the correct format", { priceLabel: priceLabel.name });
       }
       const price = parseFloat(value);
-      if (price > userAllowedMaxPrice) {
+      if (userAllowedMaxPrice < 0) {
+        throw logger.warn(`External contributors are not eligible for rewards at this time. We are preserving resources for core team only.`, {
+          userRole,
+          price,
+          userAllowedMaxPrice,
+          issueNumber: issue.number,
+        });
+      } else if (price > userAllowedMaxPrice) {
         throw logger.warn(
           `While we appreciate your enthusiasm @${user}, the price of this task exceeds your allowed limit. Please choose a task with a price of $${userAllowedMaxPrice} or less.`,
           {

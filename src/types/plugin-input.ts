@@ -110,8 +110,12 @@ export const pluginSettingsSchema = T.Object(
           },
           {
             default: {},
-            description: "The maximum USD price a user can start a task with, based on their role.",
-            examples: [{ collaborator: "Infinity", contributor: 0 }],
+            description:
+              "The maximum USD price a user can start a task with, based on their role. Set to a negative value to indicate only core operations (only collaborators) can be started.",
+            examples: [
+              { collaborator: "Infinity", contributor: 0 },
+              { collaborator: "Infinity", contributor: -1 },
+            ],
           }
         ),
       },

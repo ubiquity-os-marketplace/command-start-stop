@@ -10,12 +10,17 @@ import { createContext } from "./utils";
 dotenv.config();
 
 const userLogin = "ubiquity-os-author";
+const TEST_USER_ID = 3;
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
 const commandStartStop = "command-start-stop";
 const ubiquityOsMarketplace = "ubiquity-os-marketplace";
+
+const modulePath = "../src/handlers/shared/start";
+const supabaseModulePath = "@supabase/supabase-js";
+const adaptersModulePath = "../src/adapters";
 
 beforeAll(() => {
   server.listen();
@@ -61,12 +66,12 @@ describe("Collaborator tests", () => {
 
   it("should assign the author of the pull-request and not the sender of the edit", async () => {
     db.users.create({
-      id: 3,
+      id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
     const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
@@ -110,14 +115,14 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+    jest.unstable_mockModule(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule("../src/adapters", () => ({
+    jest.unstable_mockModule(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
     const start = jest.fn();
-    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
+    jest.unstable_mockModule(modulePath, () => ({
       start,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
@@ -147,12 +152,12 @@ describe("Collaborator tests", () => {
 
   it("should successfully assign if the PR and linked issue are in different organizations", async () => {
     db.users.create({
-      id: 3,
+      id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
     const repository = db.repo.findFirst({ where: { id: { equals: 1 } } });
 
     const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
@@ -198,14 +203,14 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+    jest.unstable_mockModule(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule("../src/adapters", () => ({
+    jest.unstable_mockModule(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
     const start = jest.fn();
-    jest.unstable_mockModule("../src/handlers/shared/start", () => ({
+    jest.unstable_mockModule(modulePath, () => ({
       start,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({

@@ -104,7 +104,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
     taskAccessControl:
       usdPriceMax:
         collaborator: 5000
-        contributor: 1000
+        contributor: 1000 # Set to -1 to disable collaborator tasks (only allow core operations)
 ```
 
 ## Development
