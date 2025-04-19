@@ -94,7 +94,7 @@ describe("test", () => {
     };
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: { raw: "@test-user, we are currently prioritizing core operations. Tasks cannot be started by contributors at this time." },
+      logMessage: { raw: "External contributors are not eligible for rewards at this time. We are preserving resources for core team only." },
     });
   });
 });
