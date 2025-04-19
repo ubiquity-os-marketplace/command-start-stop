@@ -29,7 +29,10 @@ const rolesWithReviewAuthority = T.Array(T.Enum(Role), {
 });
 
 const maxConcurrentTasks = T.Object(
-  { collaborator: T.Number({ default: 10 }), contributor: T.Number({ default: 2 }) },
+  {
+    collaborator: T.Number({ default: 10 }),
+    contributor: T.Number({ default: 2 }),
+  },
   {
     description: "The maximum number of tasks a user can have assigned to them at once, based on their role.",
     examples: [{ collaborator: 10, contributor: 2 }],
@@ -48,6 +51,20 @@ const requiredLabel = T.Object({
     examples: [["collaborator", "contributor"]],
   }),
 });
+
+const transformedRole = T.Transform(T.Union([T.Number(), T.Literal("Infinity")]))
+  .Decode((value) => {
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (!isNaN(parseFloat(value))) {
+      return parseFloat(value);
+    } else {
+      return Infinity;
+    }
+  })
+  .Encode((value) => value);
 
 export const pluginSettingsSchema = T.Object(
   {
@@ -84,6 +101,26 @@ export const pluginSettingsSchema = T.Object(
       description: "If set, a task must have at least one of these labels to be started.",
       examples: [["Priority: 5 (Emergency)"], ["Good First Issue"]],
     }),
+    taskAccessControl: T.Object(
+      {
+        usdPriceMax: T.Object(
+          {
+            collaborator: transformedRole,
+            contributor: transformedRole,
+          },
+          {
+            default: {},
+            description:
+              "The maximum USD price a user can start a task with, based on their role. Set to a negative value to indicate only core operations (only collaborators) can be started.",
+            examples: [
+              { collaborator: "Infinity", contributor: 0 },
+              { collaborator: "Infinity", contributor: -1 },
+            ],
+          }
+        ),
+      },
+      { default: {} }
+    ),
   },
   {
     default: {},

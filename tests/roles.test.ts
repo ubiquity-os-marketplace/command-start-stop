@@ -39,11 +39,11 @@ describe("Role tests", () => {
     ctx.octokit = {
       rest: {
         repos: {
-          getCollaboratorPermissionLevel: jest.fn(() => ({ data: { role_name: "read" } })),
+          getCollaboratorPermissionLevel: jest.fn(() => ({ data: { role_name: "contributor" } })),
         },
       },
     } as unknown as Context["octokit"];
     result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
-    expect(result).toEqual({ limit: 1, role: "read" });
+    expect(result).toEqual({ limit: 1, role: "contributor" });
   });
 });
