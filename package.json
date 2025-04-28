@@ -2,7 +2,8 @@
   "name": "@ubiquity-os/command-start-stop",
   "version": "1.0.0",
   "description": "Enables the assignment and graceful unassignment of tasks to contributors.",
-  "main": "src/index.ts",
+  "main": "dist/*.js",
+  "type": "module",
   "author": "Ubiquity DAO",
   "license": "MIT",
   "engines": {
@@ -17,7 +18,10 @@
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "husky install",
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
-    "worker": "wrangler dev --env dev --port 4000"
+    "worker": "wrangler dev --env dev --port 4000",
+    "start": "bun run build && func start --port 4000",
+    "prebuild": "rimraf dist",
+    "build": "tsup"
   },
   "keywords": [
     "typescript",
@@ -27,6 +31,8 @@
     "open-source"
   ],
   "dependencies": {
+    "@azure/functions": "^4.7.0",
+    "@marplex/hono-azurefunc-adapter": "^1.0.1",
     "@octokit/auth-app": "^7.1.4",
     "@octokit/graphql-schema": "15.25.0",
     "@octokit/plugin-rest-endpoint-methods": "^13.2.6",
@@ -52,6 +58,7 @@
     "@types/jest": "29.5.12",
     "@types/ms": "^0.7.34",
     "@types/node": "20.14.5",
+    "azure-functions-core-tools": "^4.0.7030",
     "cross-env": "^7.0.3",
     "cspell": "8.9.0",
     "eslint": "9.14.0",
@@ -69,6 +76,7 @@
     "prettier": "3.3.2",
     "ts-jest": "29.1.5",
     "ts-node": "^10.9.2",
+    "tsup": "^8.4.0",
     "tsx": "4.15.6",
     "typescript": "5.5.4",
     "typescript-eslint": "^8.18.1",

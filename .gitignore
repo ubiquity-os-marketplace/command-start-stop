@@ -17,3 +17,4 @@ script.ts
 .wrangler
 test-dashboard.md
 *.env.json
+local.settings.json
