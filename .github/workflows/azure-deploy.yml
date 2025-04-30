@@ -13,7 +13,7 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: "20.10.0"
-  FUNCTION_NAME: ${{ github.ref == 'refs/heads/main' && 'ubiquity-os-command-start-stop' || 'ubiquity-os-beta-command-start-stop' }}
+  FUNCTION_NAME: ubiquity-os-command-start-stop
 
 jobs:
   build:
@@ -112,7 +112,8 @@ jobs:
             az functionapp config appsettings set \
               --name ${{ env.FUNCTION_NAME }} \
               --resource-group ubiquity-os_group \
-              --settings @local.settings.json
+              --settings @local.settings.json${{ github.ref != 'refs/heads/main' && ' \
+              --slot development' || '' }}
 
   deploy:
     environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
@@ -143,5 +144,5 @@ jobs:
         id: fa
         with:
           app-name: "${{ env.FUNCTION_NAME }}"
-          slot-name: "Production"
+          slot-name: ${{ github.ref == 'refs/heads/main' && 'Production' || 'development' }}
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
