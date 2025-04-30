@@ -11,7 +11,7 @@ import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
 
 export default {
-  async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
+  async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
@@ -26,7 +26,7 @@ export default {
         postCommentOnError: true,
         settingsSchema: pluginSettingsSchema,
         logLevel: (env.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
-        kernelPublicKey: env.KERNEL_PUBLIC_KEY,
+        kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
         bypassSignatureVerification: process.env.NODE_ENV === "local",
       }
     );
