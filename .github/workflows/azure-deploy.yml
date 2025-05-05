@@ -58,46 +58,46 @@ jobs:
             echo "slot_name=development" >> $GITHUB_OUTPUT
           fi
 
-#  build:
-#    needs: setup
-#    if: needs.setup.outputs.should_run == 'true'
-#    environment: ${{ needs.setup.outputs.environment_name }}
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: "Checkout GitHub Action"
-#        uses: actions/checkout@v4
-#        with:
-#          ref: ${{ needs.setup.outputs.ref_to_checkout }}
-#
-#      - name: Setup Node ${{ env.NODE_VERSION }} Environment
-#        uses: actions/setup-node@v4
-#        with:
-#          node-version: ${{ env.NODE_VERSION }}
-#
-#      - uses: oven-sh/setup-bun@v2
-#
-#      - name: "Resolve Project Dependencies Using Bun"
-#        shell: pwsh
-#        run: |
-#          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-#          bun install --frozen-lockfile
-#          bun run jest:test
-#          bun run build
-#          bun rimraf node_modules
-#          bun install --frozen-lockfile --production
-#          popd
-#
-#      - name: Zip artifact for deployment
-#        run: zip release.zip ./* -r
-#
-#      - name: Upload artifact for deployment job
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: node-app
-#          path: release.zip
+  build:
+    needs: setup
+    if: needs.setup.outputs.should_run == 'true'
+    environment: ${{ needs.setup.outputs.environment_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.ref_to_checkout }}
+
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: "Resolve Project Dependencies Using Bun"
+        shell: pwsh
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          bun install --frozen-lockfile
+          bun run jest:test
+          bun run build
+          bun rimraf node_modules
+          bun install --frozen-lockfile --production
+          popd
+
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: release.zip
 
   update-environment:
-    needs: [setup]
+    needs: [setup, build]
     if: needs.setup.outputs.should_run == 'true'
     environment: ${{ needs.setup.outputs.environment_name }}
     runs-on: ubuntu-latest
@@ -150,7 +150,7 @@ jobs:
               --slot development' || '' }}
 
   deploy:
-    needs: [setup]
+    needs: [setup, build]
     if: needs.setup.outputs.should_run == 'true'
     environment: ${{ needs.setup.outputs.environment_name }}
     runs-on: ubuntu-latest
@@ -158,20 +158,13 @@ jobs:
       id-token: write #This is required for requesting the JWT
 
     steps:
-#      - name: Download artifact from build job
-#        uses: actions/download-artifact@v4
-#        with:
-#          name: node-app
-#
-#      - name: Unzip artifact for deployment
-#        run: unzip release.zip
-      - name: "Checkout GitHub Action"
-        uses: actions/checkout@v4
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ needs.setup.outputs.ref_to_checkout }}
+          name: node-app
 
-      - name: Rename dist file
-        run: mv dist/index.js dist/http-trigger.js
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
 
       - name: Login to Azure
         uses: azure/login@v2
