@@ -48,7 +48,7 @@ jobs:
 
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
           echo "ref_to_checkout=$REF_TO_CHECKOUT" >> $GITHUB_OUTPUT
-          echo "should_run=true" >> $GITHUB_OUTPUT # If the 'if' condition passed, we should run
+          echo "should_run=true" >> $GITHUB_OUTPUT
 
           if [ "$BRANCH_NAME" == "main" ]; then
             echo "environment_name=main" >> $GITHUB_OUTPUT
@@ -130,7 +130,6 @@ jobs:
             fi
           done
           echo "$settings" | jq '.' > local.settings.json
-
 
       - uses: azure/login@v2
         with:
