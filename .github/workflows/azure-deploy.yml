@@ -58,16 +58,16 @@ jobs:
             echo "slot_name=development" >> $GITHUB_OUTPUT
           fi
 
-#  build:
-#    needs: setup
-#    if: needs.setup.outputs.should_run == 'true'
-#    environment: ${{ needs.setup.outputs.environment_name }}
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: "Checkout GitHub Action"
-#        uses: actions/checkout@v4
-#        with:
-#          ref: ${{ needs.setup.outputs.ref_to_checkout }}
+  build:
+    needs: setup
+    if: needs.setup.outputs.should_run == 'true'
+    environment: ${{ needs.setup.outputs.environment_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.ref_to_checkout }}
 #
 #      - name: Setup Node ${{ env.NODE_VERSION }} Environment
 #        uses: actions/setup-node@v4
@@ -97,7 +97,7 @@ jobs:
 #          path: release.zip
 
   update-environment:
-    needs: [setup]
+    needs: [setup, build]
     if: needs.setup.outputs.should_run == 'true'
     environment: ${{ needs.setup.outputs.environment_name }}
     runs-on: ubuntu-latest
@@ -150,7 +150,7 @@ jobs:
               --slot development' || '' }}
 
   deploy:
-    needs: [setup]
+    needs: [setup, build]
     if: needs.setup.outputs.should_run == 'true'
     environment: ${{ needs.setup.outputs.environment_name }}
     runs-on: ubuntu-latest
