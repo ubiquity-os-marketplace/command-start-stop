@@ -15,8 +15,8 @@ jobs:
         uses: ubiquity-os/action-deploy-plugin@main
         with:
           treatAsEsm: true
-          sourcemap: true
-          pluginEntry: ${{ github.workspace }}/src/index.ts
+          sourcemap: false
+          pluginEntry: ${{ github.workspace }}/src/functions/http-trigger.ts
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
