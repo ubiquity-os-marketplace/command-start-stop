@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.10.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.9.0...v1.10.0) (2025-05-07)
+
+
+### Features
+
+* add Azure Functions integration and deployment workflows ([6f62c13](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/6f62c130db7650edebf2a7d6243a37af62b3f267))
+* add task access control configuration with price limits and refactor context creation ([5e82f61](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/5e82f61be02dd189e008c07bb910aca530690daf))
+* add transformedRole for handling Infinity in collaborator and contributor roles ([737b578](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/737b578975cf9a2ebcb2f4c4146dbfb121feddee))
+* implement task access control with price limits and add tests for default values ([6192aaf](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/6192aaf0ba0e8454c0a9ae38d1ee0dc109eb9b40))
+* Task Access Control ([5c7da5b](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/5c7da5b0edef641037e045d37a5892c7059e9d6a))
+* used ubiquity's knip-reporter ([30456d1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/30456d19d0f4a654dd54cd4e3f33b51927453b2b))
+* used ubiquity's knip-reporter ([ac5603c](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ac5603cba276f0bac040e7d16e54d8dc1ab2aa74))
+
+
+### Bug Fixes
+
+* disable start command for contributors ([d8c522a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/d8c522aff2cd57e5ef34e679f3c04c1c612e2d7a))
+* disable start with different message on negative setting ([224611a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/224611a0bb95f5bb31a337c86baded8d9ee78523))
+* improve price label parsing and enhance task access control validation ([e5330ac](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e5330ac5b1923b84e3a5bbd1cd5ab18c4dc027cf))
+* messages telling the user it cannot be using `/start` are now displayed as `warnings` ([ea95869](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ea9586931d674685cf2b73c38ec1d7821d359e06))
+* update role transformation and logging for task limits ([e2a5da0](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e2a5da08c3e389489da1e1395f70d10538a2048e))
+
 ## [1.9.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.8.0...v1.9.0) (2025-02-09)
 
 
