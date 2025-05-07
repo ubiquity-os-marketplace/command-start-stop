@@ -1,0 +1,182 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js project to Azure Function App - ubiquity-os-command-start-stop
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Update Configuration and Build"]
+    types:
+      - completed
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: "20.10.0"
+  FUNCTION_NAME: ubiquity-os-command-start-stop
+
+jobs:
+  # Gatekeeper job to check conditions and set outputs. We make sure it doesn't run on other branches than development
+  # and main because we currently only support two slots within Azure.
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      branch_name: ${{ steps.vars.outputs.branch_name }}
+      environment_name: ${{ steps.vars.outputs.environment_name }}
+      slot_name: ${{ steps.vars.outputs.slot_name }}
+      ref_to_checkout: ${{ steps.vars.outputs.ref_to_checkout }}
+      should_run: ${{ steps.vars.outputs.should_run }}
+    if: >
+      (github.event_name == 'workflow_dispatch' && (github.ref_name == 'main' || github.ref_name == 'development')) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'development'))
+    steps:
+      - name: Determine variables based on trigger
+        id: vars
+        run: |
+          BRANCH_NAME=""
+          REF_TO_CHECKOUT=""
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+            REF_TO_CHECKOUT="${{ github.event.workflow_run.head_sha }}"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            BRANCH_NAME="${{ github.ref_name }}"
+            REF_TO_CHECKOUT="${{ github.ref }}"
+          fi
+
+          echo "Determined branch name: $BRANCH_NAME"
+          echo "Determined ref to checkout: $REF_TO_CHECKOUT"
+
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "ref_to_checkout=$REF_TO_CHECKOUT" >> $GITHUB_OUTPUT
+          echo "should_run=true" >> $GITHUB_OUTPUT
+
+          if [ "$BRANCH_NAME" == "main" ]; then
+            echo "environment_name=main" >> $GITHUB_OUTPUT
+            echo "slot_name=Production" >> $GITHUB_OUTPUT
+          else
+            echo "environment_name=development" >> $GITHUB_OUTPUT
+            echo "slot_name=development" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: setup
+    if: needs.setup.outputs.should_run == 'true'
+    environment: ${{ needs.setup.outputs.environment_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.ref_to_checkout }}
+
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: "Resolve Project Dependencies Using Bun"
+        shell: pwsh
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          bun install --frozen-lockfile
+          bun run jest:test
+          bun run build
+          bun rimraf node_modules
+          bun install --frozen-lockfile --production
+          popd
+
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: release.zip
+
+  update-environment:
+    needs: [setup, build]
+    if: needs.setup.outputs.should_run == 'true'
+    environment: ${{ needs.setup.outputs.environment_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Generate local.settings.json
+        env:
+          GITHUB_SECRETS: ${{ toJson(secrets) }}
+        shell: bash
+        run: |
+          secrets=$(echo "$GITHUB_SECRETS" | jq -c '.')
+          settings=$(jq -n '{
+            "IsEncrypted": false,
+            "Values": {}
+          }')
+          excluded_prefixes=("GITHUB_" "ACTIONS_" "AZUREAPPSERVICE_")
+          for secret_name in $(echo "$secrets" | jq -r 'keys[]'); do
+            include=true
+            for prefix in "${excluded_prefixes[@]}"; do
+              if [[ "$secret_name" == "$prefix"* ]]; then
+                include=false
+                break
+              fi
+            done
+            if [ "$include" = true ]; then
+              secret_value=$(echo "$secrets" | jq -r ".[\"$secret_name\"]")
+              settings=$(echo "$settings" | jq --arg name "$secret_name" --arg value "$secret_value" '.[$name] = $value')
+            fi
+          done
+          echo "$settings" | jq '.' > local.settings.json
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
+
+      - name: Azure CLI script to upload environment
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az account show
+            az functionapp config appsettings set \
+              --name ${{ env.FUNCTION_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --settings @local.settings.json${{ needs.setup.outputs.branch_name != 'main' && ' \
+              --slot development' || '' }}
+
+  deploy:
+    needs: [setup, build]
+    if: needs.setup.outputs.should_run == 'true'
+    environment: ${{ needs.setup.outputs.environment_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write #This is required for requesting the JWT
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
+
+      - name: "Run Azure Functions Action"
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: "${{ env.FUNCTION_NAME }}"
+          slot-name: ${{ needs.setup.outputs.slot_name }}
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}

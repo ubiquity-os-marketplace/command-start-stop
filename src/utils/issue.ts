@@ -3,7 +3,7 @@ import { Endpoints } from "@octokit/types";
 import ms from "ms";
 import { AssignedIssueScope, Role } from "../types";
 import { Context } from "../types/context";
-import { GitHubIssueSearch, RepoIssues, Review } from "../types/payload";
+import { GitHubIssueSearch, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 
@@ -12,7 +12,7 @@ export function isParentIssue(body: string) {
   return body.match(parentPattern);
 }
 
-export async function getAssignedIssues(context: Context, username: string): Promise<GitHubIssueSearch["items"] | RepoIssues> {
+export async function getAssignedIssues(context: Context, username: string) {
   let repoOrgQuery = "";
   if (context.config.assignedIssueScope === AssignedIssueScope.REPO) {
     repoOrgQuery = `repo:${context.payload.repository.full_name}`;
