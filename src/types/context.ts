@@ -1,8 +1,8 @@
-import { Context as PluginContext } from "@ubiquity-os/plugin-sdk";
-import { createAdapters } from "../adapters";
-import { Command } from "./command";
-import { Env } from "./env";
-import { PluginSettings } from "./plugin-input";
+import { Context as PluginContext } from "npm:@ubiquity-os/plugin-sdk";
+import { createAdapters } from "../adapters/index.ts";
+import { Command } from "./command.ts";
+import { Env } from "./env.ts";
+import { PluginSettings } from "./plugin-input.ts";
 
 export type SupportedEvents = "issue_comment.created" | "pull_request.opened" | "pull_request.edited" | "issues.unassigned";
 
