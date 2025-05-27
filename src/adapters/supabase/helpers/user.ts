@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../../../types/context";
-import { Super } from "./supabase";
+import { Context } from "../../../types/context.ts";
+import { Super } from "./supabase.ts";
 
 type Wallet = {
   address: string;

@@ -1,6 +1,6 @@
-import { Assignee, Context, Sender } from "../../types";
-import { closePullRequestForAnIssue } from "../../utils/issue";
-import { HttpStatusCode, Result } from "../result-types";
+import { Assignee, Context, Sender } from "../../types/index.ts";
+import { closePullRequestForAnIssue } from "../../utils/issue.ts";
+import { HttpStatusCode, Result } from "../result-types.ts";
 
 export async function stop(
   context: Context,
