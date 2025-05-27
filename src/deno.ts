@@ -1,6 +1,6 @@
-import { createPlugin } from "npm:@ubiquity-os/plugin-sdk";
-import { Manifest } from "npm:@ubiquity-os/plugin-sdk/manifest";
-import { LOG_LEVEL, LogLevel } from "npm:@ubiquity-os/ubiquity-os-logger";
+import { createPlugin } from "@ubiquity-os/plugin-sdk";
+import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
+import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "npm:hono";
 import manifest from "../manifest.json" with { type: "json" };
 import { createAdapters } from "./adapters/index.ts";
@@ -12,7 +12,9 @@ import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input.ts";
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
-    const nodeEnv = (env.NODE_ENV as string) || "production";
+    const nodeEnv = (env.NODE_ENV as string) || "development";
+
+    console.log("env:", nodeEnv);
 
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
