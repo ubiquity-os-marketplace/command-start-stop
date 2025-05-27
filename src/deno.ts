@@ -12,7 +12,7 @@ import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input.ts";
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
-    const nodeEnv = (env.NODE_ENV as string) || "development";
+    const nodeEnv = (Deno.env.get("NODE_ENV") as string) || "development";
 
     console.log("env:", nodeEnv);
 
