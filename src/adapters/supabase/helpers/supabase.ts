@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../../../types/context";
+import { Context } from "../../../types/context.ts";
 
 export class Super {
   protected supabase: SupabaseClient;
