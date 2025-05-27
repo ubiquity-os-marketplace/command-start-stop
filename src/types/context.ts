@@ -1,4 +1,4 @@
-import { Context as PluginContext } from "npm:@ubiquity-os/plugin-sdk";
+import { Context as PluginContext } from "@ubiquity-os/plugin-sdk";
 import { createAdapters } from "../adapters/index.ts";
 import { Command } from "./command.ts";
 import { Env } from "./env.ts";

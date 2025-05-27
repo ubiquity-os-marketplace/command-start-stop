@@ -1,4 +1,4 @@
-import { RestEndpointMethodTypes } from "npm:@octokit/plugin-rest-endpoint-methods";
+import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Context } from "../types/index.ts";
 
 function isHttpError(error: unknown): error is { status: number; message: string } {
