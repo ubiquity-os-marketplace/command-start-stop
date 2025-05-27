@@ -1,4 +1,4 @@
-import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
+import { RestEndpointMethodTypes } from "npm:@octokit/plugin-rest-endpoint-methods";
 
 export type Issue = RestEndpointMethodTypes["issues"]["get"]["response"]["data"];
 export type Label = RestEndpointMethodTypes["issues"]["listLabelsOnIssue"]["response"]["data"][0];
