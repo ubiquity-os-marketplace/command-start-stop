@@ -98,9 +98,9 @@ jobs:
 
       - name: Fix Import Extensions
         run: |
-          find src -name "*.ts" -type f -exec sed -i.bak -E \
-            's|((import|export)[^"'\'']*from[[:space:]]*["\x27])(\.[^"'\'']*[^"'\'']+)(["\x27])|\1\3.ts\4|g; s|\.json\.ts|.json|g; s|\.css\.ts|.css|g; s|\.html\.ts|.html|g; s|\.svg\.ts|.svg|g; s|\.png\.ts|.png|g; s|\.jpg\.ts|.jpg|g; s|\.ts\.ts|.ts|g' \
-            {} \;
+          find src -name "*.ts" -type f -exec sh -c '
+            sed -i.bak "s/from \"\.\([^\"]*\)\"/from \".\1.ts\"/g; s/from '"'"'\.\([^'"'"']*\)'"'"'/from '"'"'.\1.ts'"'"'/g; s/\.json\.ts/.json/g; s/\.css\.ts/.css/g; s/\.svg\.ts/.svg/g; s/\.ts\.ts/.ts/g" "$1"
+          ' _ {} \;
           find src -name "*.ts.bak" -delete
 
       - name: Deploy to Deno
