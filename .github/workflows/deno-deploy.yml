@@ -82,7 +82,7 @@ jobs:
 
           echo "PROJECT_URL=$PROJECT_URL" >> $GITHUB_ENV
 
-      - name: Sync Environment Variables
+      - name: Deploy to Deno
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
@@ -91,15 +91,6 @@ jobs:
             --project=$PROJECT_NAME \
             --env-file=.env \
             --entrypoint=src/deno.ts
-
-      - name: Deploy Application
-        uses: denoland/deployctl@v1
-        id: deno_deploy
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        with:
-          project: ${{ env.PROJECT_NAME }}
-          entrypoint: src/deno.ts
 
       - name: Generate Deployment URL
         id: deployment_url
