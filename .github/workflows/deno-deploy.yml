@@ -38,52 +38,7 @@ jobs:
           echo "PROJECT_NAME=$project_name" >> $GITHUB_ENV
           echo "IS_MAIN_BRANCH=${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'true' || 'false' }}" >> $GITHUB_ENV
 
-      - name: Create or Get Deno Deploy Project
-        id: deno_project
-        run: |
-          set -e
-          
-          response=$(curl -s -w "\n%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://api.deno.com/v1/projects/$PROJECT_NAME")
-          
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n -1)
-          
-          if [ "$http_code" = "200" ]; then
-            echo "Project $PROJECT_NAME already exists"
-            project_id=$(echo "$body" | jq -r '.id')
-          elif [ "$http_code" = "404" ]; then
-            echo "Creating new project: $PROJECT_NAME"
-            create_response=$(curl -s -w "\n%{http_code}" \
-              -X POST \
-              -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\":\"$PROJECT_NAME\"}" \
-              "https://api.deno.com/v1/organizations/${{ secrets.DENO_ORG_ID }}/projects")
-          
-            create_http_code=$(echo "$create_response" | tail -n1)
-            create_body=$(echo "$create_response" | head -n -1)
-          
-            if [ "$create_http_code" = "201" ] || [ "$create_http_code" = "200" ]; then
-              echo "Project created successfully"
-              project_id=$(echo "$create_body" | jq -r '.id')
-            else
-              echo "Failed to create project. HTTP Code: $create_http_code"
-              echo "Response: $create_body"
-              exit 1
-            fi
-          else
-            echo "Unexpected response when checking project. HTTP Code: $http_code"
-            echo "Response: $body"
-            exit 1
-          fi
-          
-          echo "PROJECT_ID=$project_id" >> $GITHUB_ENV
-          echo "project_id=$project_id" >> $GITHUB_OUTPUT
-
-      - name: Set Environment Variables in Deno Deploy
+      - name: Generate .env File
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
@@ -93,35 +48,51 @@ jobs:
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          set -e
-          
-          env | while IFS='=' read -r var value; do
-            case "$var" in
-              GITHUB_*|RUNNER_*|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_*|TZ|DENO_*|PROJECT_*|BRANCH_*|IS_MAIN_*) 
-                continue
-                ;;
-              *)
-                if [ -n "$value" ]; then
-                  echo "Setting environment variable: $var"
-                  curl -s -X PATCH \
-                    -H "Authorization: Bearer ${{ secrets.DENO_DEPLOY_TOKEN }}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"key\":\"$var\",\"value\":\"$value\"}" \
-                    "https://api.deno.com/v1/projects/$PROJECT_ID/env" || echo "Warning: Failed to set $var"
-                else
-                  echo "Skipping empty environment variable: $var"
-                fi
-                ;;
-            esac
-          done
+          deno run --allow-env --allow-write=.env <<'EOT'
+          const envVars = Deno.env.toObject();
+          const filtered = Object.entries(envVars)
+            .filter(([k]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_)/.test(k))
+            .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
 
-      - name: Deploy to Deno Deploy
+          await Deno.writeTextFile(".env", 
+            Object.entries(filtered)
+              .map(([k,v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
+              .join("\n")
+          );
+          EOT
+
+      - name: Manage Deno Deploy Project
+        id: deno_project
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_ORG_ID: ${{ secrets.DENO_ORG_ID }}
+        run: |
+          deno run --allow-env --allow-net=api.deno.com deployctl project create \
+            --token=$DENO_DEPLOY_TOKEN \
+            --org=$DENO_ORG_ID \
+            --name=$PROJECT_NAME \
+            --ensure
+
+          echo "PROJECT_ID=$(deno run --allow-env deployctl project ls --token=$DENO_DEPLOY_TOKEN --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
+
+      - name: Sync Environment Variables
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deno run --allow-env --allow-read=.env deployctl env push \
+            --token=$DENO_DEPLOY_TOKEN \
+            --project=$PROJECT_ID \
+            --file=.env
+
+      - name: Deploy Application
         uses: denoland/deployctl@v1
         id: deno_deploy
         with:
           project: ${{ env.PROJECT_NAME }}
           entrypoint: src/deno.ts
           root: .
+          include: "**/*.ts,static/**/*"
+          exclude: "**/*.test.ts"
 
       - name: Generate Deployment URL
         id: deployment_url
