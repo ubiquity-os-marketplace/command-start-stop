@@ -95,6 +95,8 @@ jobs:
       - name: Deploy Application
         uses: denoland/deployctl@v1
         id: deno_deploy
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         with:
           project: ${{ env.PROJECT_NAME }}
           entrypoint: src/deno.ts
