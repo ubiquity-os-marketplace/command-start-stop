@@ -74,7 +74,7 @@ jobs:
           deployctl projects create \
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_NAME \
-            --force
+            --force \
             --color=never
 
           echo "PROJECT_ID=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
