@@ -75,8 +75,7 @@ jobs:
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_NAME \
             --force \
-            --color=never \
-            --db=preview || true
+            --color=never || true
 
           PROJECT_INFO=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never)
           PROJECT_URL=$(echo "$PROJECT_INFO" | grep "Domain(s):" | awk '{print $2}')
@@ -108,7 +107,8 @@ jobs:
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_NAME \
             --env-file=.env \
-            --entrypoint=src/deno.ts
+            --entrypoint=src/deno.ts \
+            --prod
 
       - name: Get GitHub App token
         if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
