@@ -60,6 +60,7 @@ jobs:
           );
           EOF
           deno run --allow-env --allow-write=.env generate-env.ts
+          rm generate-env.ts
 
       - name: Manage Deno Deploy Project
         id: deno_project
@@ -67,13 +68,12 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DENO_ORG_ID: ${{ secrets.DENO_ORG_ID }}
         run: |
-          deno run --allow-env --allow-net=api.deno.com deployctl project create \
+          deployctl project create \
             --token=$DENO_DEPLOY_TOKEN \
-            --org=$DENO_ORG_ID \
             --name=$PROJECT_NAME \
             --ensure
 
-          echo "PROJECT_ID=$(deno run --allow-env deployctl project ls --token=$DENO_DEPLOY_TOKEN --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
+          echo "PROJECT_ID=$(deployctl project ls --token=$DENO_DEPLOY_TOKEN --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
 
       - name: Sync Environment Variables
         env:
