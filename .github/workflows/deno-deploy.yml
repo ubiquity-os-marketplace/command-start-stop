@@ -35,8 +35,9 @@ jobs:
 
       - name: Prepare Environment Variables
         run: |
-          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
+          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
           project_name="${{ github.event.repository.name }}"
+          new_name="${project_name}-${branch_name}"
           echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
           echo "PROJECT_NAME=$project_name" >> $GITHUB_ENV
           echo "IS_MAIN_BRANCH=${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'true' || 'false' }}" >> $GITHUB_ENV
@@ -49,12 +50,11 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           cat > generate-env.ts <<'EOF'
           const envVars = Deno.env.toObject();
           const filtered = Object.entries(envVars)
-            .filter(([k]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_)/.test(k))
+            .filter(([k]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_|ACTIONS_)/.test(k))
             .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
           await Deno.writeTextFile(".env", 
             Object.entries(filtered)
@@ -82,28 +82,7 @@ jobs:
           PROJECT_URL=$(echo "$PROJECT_INFO" | grep "Domain(s):" | awk '{print $2}')
 
           echo "PROJECT_URL=$PROJECT_URL" >> $GITHUB_ENV
-
-      - name: Deploy to Deno
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          deployctl deploy \
-            --token=$DENO_DEPLOY_TOKEN \
-            --project=$PROJECT_NAME \
-            --env-file=.env \
-            --entrypoint=src/deno.ts
-
-      - name: Generate Deployment URL
-        id: deployment_url
-        run: |
-          if [ "$IS_MAIN_BRANCH" = "true" ]; then
-            deployment_url="https://$PROJECT_NAME.deno.dev"
-          else
-            safe_branch_name=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]')
-            deployment_url="https://$safe_branch_name--$PROJECT_NAME.deno.dev"
-          fi
-          echo "deployment_url=$deployment_url" >> $GITHUB_OUTPUT
-          echo "Deployment URL: $deployment_url"
+          echo "deployment_url=$PROJECT_URL" >> $GITHUB_OUTPUT
 
       - name: Update manifest.json with deployment URL
         uses: actions/github-script@v7
@@ -115,11 +94,21 @@ jobs:
             const manifestPath = path.resolve("${{ github.workspace }}", './manifest.json');
             const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 
-            manifest["homepage_url"] = "${{ steps.deployment_url.outputs.deployment_url }}";
+            manifest["homepage_url"] = "${{ steps.deno_project.outputs.deployment_url }}";
 
             const updatedManifest = JSON.stringify(manifest, null, 2);
             fs.writeFileSync(manifestPath, updatedManifest);
             console.log('Updated manifest:', updatedManifest);
+
+      - name: Deploy to Deno
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deployctl deploy \
+            --token=$DENO_DEPLOY_TOKEN \
+            --project=$PROJECT_NAME \
+            --env-file=.env \
+            --entrypoint=src/deno.ts
 
       - name: Get GitHub App token
         if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
@@ -147,4 +136,4 @@ jobs:
       - name: Write Deployment URL to Summary
         run: |
           echo "### Deployment URL" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.deployment_url.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.deno_project.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
