@@ -75,7 +75,8 @@ jobs:
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_NAME \
             --force \
-            --color=never || true
+            --color=never \
+            --db=preview || true
 
           PROJECT_INFO=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never)
           PROJECT_URL=$(echo "$PROJECT_INFO" | grep "Domain(s):" | awk '{print $2}')

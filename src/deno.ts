@@ -15,6 +15,8 @@ export default {
     const nodeEnv = (Deno.env.get("NODE_ENV") as string) || "development";
 
     console.log("env:", nodeEnv);
+    console.log("pubkey:", Deno.env.get("KERNEL_PUBLIC_KEY"));
+    console.log("loglevel:", Deno.env.get("LOG_LEVEL"));
 
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
@@ -29,9 +31,9 @@ export default {
         envSchema: envSchema,
         postCommentOnError: true,
         settingsSchema: pluginSettingsSchema,
-        logLevel: (env.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
-        kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
-        bypassSignatureVerification: true,
+        logLevel: (Deno.env.get("LOG_LEVEL") as LogLevel) ?? LOG_LEVEL.INFO,
+        kernelPublicKey: Deno.env.get("KERNEL_PUBLIC_KEY") as string,
+        bypassSignatureVerification: Deno.env.get("NODE_ENV") === "local",
       }
     );
 
