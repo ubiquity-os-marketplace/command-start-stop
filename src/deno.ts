@@ -1,7 +1,7 @@
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
-import { ExecutionContext } from "npm:hono";
+import { ExecutionContext } from "hono";
 import manifest from "../manifest.json" with { type: "json" };
 import { createAdapters } from "./adapters/index.ts";
 import { startStopTask } from "./plugin.ts";
