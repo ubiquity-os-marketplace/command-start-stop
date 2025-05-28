@@ -75,17 +75,18 @@ jobs:
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_NAME \
             --force
+            --color=never
 
-          echo "PROJECT_ID=$(deployctl projects list --token=$DENO_DEPLOY_TOKEN --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
+          echo "PROJECT_ID=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
 
       - name: Sync Environment Variables
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         run: |
-          deno run --allow-env --allow-read=.env deployctl env push \
+          deployctl deploy \
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_ID \
-            --file=.env
+            --env-file=.env
 
       - name: Deploy Application
         uses: denoland/deployctl@v1
