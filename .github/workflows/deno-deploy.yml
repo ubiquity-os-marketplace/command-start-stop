@@ -99,7 +99,7 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
         with:
           project: ${{ env.PROJECT_NAME }}
-          entrypoint: src/deno.ts
+          entrypoint: deno.ts
           root: .
 
       - name: Generate Deployment URL
