@@ -63,13 +63,6 @@ jobs:
           deno run --allow-env --allow-write=.env generate-env.ts
           rm generate-env.ts
 
-      - name: Fix Import Extensions
-        run: |
-          find src -name "*.ts" -type f -exec sed -i.bak -E \
-            's|(import[^"'\'']*from[[:space:]]*["\x27])(\.[^"'\'']*[^"'\'']+)(["\x27])|\1\2.ts\3|g; s|\.json\.ts|.json|g; s|\.css\.ts|.css|g; s|\.html\.ts|.html|g; s|\.svg\.ts|.svg|g; s|\.png\.ts|.png|g; s|\.jpg\.ts|.jpg|g; s|\.ts\.ts|.ts|g' \
-            {} \;
-          find src -name "*.ts.bak" -delete
-
       - name: Manage Deno Deploy Project
         id: deno_project
         env:
@@ -102,6 +95,14 @@ jobs:
             const updatedManifest = JSON.stringify(manifest, null, 2);
             fs.writeFileSync(manifestPath, updatedManifest);
             console.log('Updated manifest:', updatedManifest);
+
+      - name: Fix Import Extensions
+        run: |
+          find src -name "*.ts" -type f -exec sed -i.bak -E \
+            's|(import[^"'\'']*from[[:space:]]*["\x27])(\.[^"'\'']*[^"'\'']+)(["\x27])|\1\2.ts\3|g; s|\.json\.ts|.json|g; s|\.css\.ts|.css|g; s|\.html\.ts|.html|g; s|\.svg\.ts|.svg|g; s|\.png\.ts|.png|g; s|\.jpg\.ts|.jpg|g; s|\.ts\.ts|.ts|g' \
+            {} \;
+          find src -name "*.ts.bak" -delete
+          cat src/deno.ts
 
       - name: Deploy to Deno
         env:
