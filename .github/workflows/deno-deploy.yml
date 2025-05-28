@@ -2,10 +2,7 @@ name: Deno Deploy
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Update Configuration and Build"]
-    types:
-      - completed
+  push:
 
 env:
   APP_ID: ${{ secrets.APP_ID }}
