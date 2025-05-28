@@ -20,6 +20,7 @@
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
     "worker": "wrangler dev --env dev --port 4000",
     "start": "bun run build && func start --port 4000",
+    "start:deno": "deno serve --watch --allow-net --allow-env --allow-read --unstable-sloppy-imports --port 4000 src/deno.ts",
     "prebuild": "rimraf dist",
     "build": "tsup"
   },
