@@ -1,3 +1,5 @@
-import handler from "./deno.ts";
+import { app } from "@azure/functions";
 
-Deno.serve(handler.fetch);
+app.setup({
+  enableHttpStream: true,
+});
