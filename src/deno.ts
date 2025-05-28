@@ -12,12 +12,6 @@ import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input.ts";
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
-    const nodeEnv = (Deno.env.get("NODE_ENV") as string) || "development";
-
-    console.log("env:", nodeEnv);
-    console.log("pubkey:", Deno.env.get("KERNEL_PUBLIC_KEY"));
-    console.log("loglevel:", Deno.env.get("LOG_LEVEL"));
-
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
