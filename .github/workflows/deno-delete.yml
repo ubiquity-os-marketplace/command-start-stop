@@ -11,7 +11,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Delete Deno Project
-    environment: ${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
+    environment: ${{ github.event.ref == 'refs/heads/main' && 'main' || 'development' }}
     permissions:
       contents: write
       id-token: write
