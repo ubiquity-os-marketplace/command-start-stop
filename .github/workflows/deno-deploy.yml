@@ -75,9 +75,12 @@ jobs:
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_NAME \
             --force \
-            --color=never
+            --color=never || true
 
-          echo "PROJECT_ID=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
+          PROJECT_INFO=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never)
+          PROJECT_URL=$(echo "$PROJECT_INFO" | grep "Domain(s):" | awk '{print $2}')
+
+          echo "PROJECT_URL=$PROJECT_URL" >> $GITHUB_ENV
 
       - name: Sync Environment Variables
         env:
