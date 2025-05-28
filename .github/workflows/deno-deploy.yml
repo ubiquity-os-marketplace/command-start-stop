@@ -91,8 +91,8 @@ jobs:
             --project=$PROJECT_NAME \
             --env-file=.env \
             --entrypoint=src/deno.ts
-            --include="**/*.ts,static/**/*" \
-            --exclude="**/*.ts,static/**/*"
+            --include="src/**/*.ts" \
+            --exclude="**/*.test.ts"
 
       - name: Deploy Application
         uses: denoland/deployctl@v1
@@ -101,8 +101,8 @@ jobs:
           project: ${{ env.PROJECT_NAME }}
           entrypoint: src/deno.ts
           root: .
-          include: "**/*.ts,static/**/*"
-          exclude: "**/*.ts,static/**/*"
+          include: "src/**/*.ts"
+          exclude: "**/*.test.ts"
 
       - name: Generate Deployment URL
         id: deployment_url
