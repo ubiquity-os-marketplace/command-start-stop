@@ -48,18 +48,18 @@ jobs:
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          deno run --allow-env --allow-write=.env <<'EOT'
+          cat > generate-env.ts <<'EOF'
           const envVars = Deno.env.toObject();
           const filtered = Object.entries(envVars)
             .filter(([k]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_)/.test(k))
             .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
-
           await Deno.writeTextFile(".env", 
             Object.entries(filtered)
               .map(([k,v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
               .join("\n")
           );
-          EOT
+          EOF
+          deno run --allow-env --allow-write=.env generate-env.ts
 
       - name: Manage Deno Deploy Project
         id: deno_project
