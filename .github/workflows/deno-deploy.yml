@@ -120,7 +120,7 @@ jobs:
         id: deno_deploy
         with:
           project: ${{ env.PROJECT_NAME }}
-          entrypoint: main.ts
+          entrypoint: deno.ts
           root: .
 
       - name: Generate Deployment URL
