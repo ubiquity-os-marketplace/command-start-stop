@@ -30,6 +30,9 @@ jobs:
         with:
           deno-version: v2.x
 
+      - name: Install CLI
+        run: deno install -gArf jsr:@deno/deployctl
+
       - name: Prepare Environment Variables
         run: |
           branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
@@ -68,12 +71,12 @@ jobs:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
           DENO_ORG_ID: ${{ secrets.DENO_ORG_ID }}
         run: |
-          deployctl project create \
+          deployctl projects create \
             --token=$DENO_DEPLOY_TOKEN \
-            --name=$PROJECT_NAME \
-            --ensure
+            --project=$PROJECT_NAME \
+            --force
 
-          echo "PROJECT_ID=$(deployctl project ls --token=$DENO_DEPLOY_TOKEN --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
+          echo "PROJECT_ID=$(deployctl projects list --token=$DENO_DEPLOY_TOKEN --json | jq -r '.[] | select(.name == env.PROJECT_NAME).id')" >> $GITHUB_ENV
 
       - name: Sync Environment Variables
         env:
