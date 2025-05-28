@@ -27,7 +27,7 @@ jobs:
 
       - name: Prepare Environment Variables
         run: |
-          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
+          branch_name=$(echo '${{ github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
           project_name="${{ github.event.repository.name }}"
           new_name="${project_name}-${branch_name}"
           # Deno project names cannot exceed 26 characters
