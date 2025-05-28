@@ -89,7 +89,10 @@ jobs:
           deployctl deploy \
             --token=$DENO_DEPLOY_TOKEN \
             --project=$PROJECT_ID \
-            --env-file=.env
+            --env-file=.env \
+            --entrypoint=src/deno.ts
+            --include="**/*.ts,static/**/*" \
+            --exclude="**/*.ts,static/**/*"
 
       - name: Deploy Application
         uses: denoland/deployctl@v1
@@ -99,7 +102,7 @@ jobs:
           entrypoint: src/deno.ts
           root: .
           include: "**/*.ts,static/**/*"
-          exclude: "**/*.test.ts"
+          exclude: "**/*.ts,static/**/*"
 
       - name: Generate Deployment URL
         id: deployment_url
