@@ -112,6 +112,7 @@ jobs:
             --project=$PROJECT_NAME \
             --env-file=.env \
             --entrypoint=src/deno.ts \
+            --exclude "./tests" \
             --prod
 
       - name: Get GitHub App token
