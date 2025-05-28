@@ -38,9 +38,8 @@ jobs:
           branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
           project_name="${{ github.event.repository.name }}"
           new_name="${project_name}-${branch_name}"
-          echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
+          echo "BRANCH_NAME=$new_name" >> $GITHUB_ENV
           echo "PROJECT_NAME=$project_name" >> $GITHUB_ENV
-          echo "IS_MAIN_BRANCH=${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'true' || 'false' }}" >> $GITHUB_ENV
 
       - name: Generate .env File
         env:
