@@ -96,6 +96,19 @@ jobs:
             fs.writeFileSync(manifestPath, updatedManifest);
             console.log('Updated manifest:', updatedManifest);
 
+      - name: Create Deno Entry Point
+        run: |
+          mkdir -p src
+          cat << 'EOF' > src/deno.ts
+          import worker from "./worker";
+          export default {
+            async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+              Object.assign(env, Deno.env.toObject());
+              return worker.fetch(request, env, executionCtx);
+            },
+          };
+          EOF
+
       - name: Fix Import Extensions
         run: |
           find src -name "*.ts" -type f -exec sh -c '
