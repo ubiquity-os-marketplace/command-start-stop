@@ -1,6 +1,6 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import ms from "ms";
-import { AssignedIssueScope, Role } from "../types/index.ts";
+import { AssignedIssueScope, PrState, Role } from "../types/index.ts";
 import { Context } from "../types/context.ts";
 import { GitHubIssueSearch, Review } from "../types/payload.ts";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs.ts";
@@ -181,7 +181,7 @@ async function getAllPullRequests(context: Context, state = "open", username: st
   }
 }
 
-export async function getAllPullRequestsWithRetry(context: Context, state: string, username: string) {
+export async function getAllPullRequestsWithRetry(context: Context, state: PrState, username: string) {
   try {
     return await getAllPullRequests(context, state, username);
   } catch (error) {

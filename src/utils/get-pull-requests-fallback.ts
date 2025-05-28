@@ -1,5 +1,5 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
-import { Context } from "../types/index.ts";
+import { Context, PrState } from "../types/index.ts";
 
 function isHttpError(error: unknown): error is { status: number; message: string } {
   return typeof error === "object" && error !== null && "status" in error && "message" in error;
@@ -7,9 +7,9 @@ function isHttpError(error: unknown): error is { status: number; message: string
 
 /**
  * Fetches all open pull requests within a specified organization created by a particular user.
- * This method is slower than using a search query, but should work even if the user has his activity set to private.
+ * This method is slower than using a search query but should work even if the user has his activity set to private.
  */
-export async function getAllPullRequestsFallback(context: Context, state: string, username: string) {
+export async function getAllPullRequestsFallback(context: Context, state: PrState, username: string) {
   const { octokit, logger } = context;
   const organization = context.payload.repository.owner.login;
 
