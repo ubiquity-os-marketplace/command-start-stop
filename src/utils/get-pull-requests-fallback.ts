@@ -1,5 +1,5 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
-import { Context, PrState } from "../types/index.ts";
+import { Context, PrState } from "../types/index";
 
 function isHttpError(error: unknown): error is { status: number; message: string } {
   return typeof error === "object" && error !== null && "status" in error && "message" in error;

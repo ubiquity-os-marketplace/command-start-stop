@@ -1,6 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../types/context.ts";
-import { User } from "./supabase/helpers/user.ts";
+import { Context } from "../types/context";
+import { User } from "./supabase/helpers/user";
 
 export function createAdapters(supabaseClient: SupabaseClient, context: Context) {
   return {

@@ -1,12 +1,12 @@
-import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index.ts";
-import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue.ts";
-import { HttpStatusCode, Result } from "../result-types.ts";
-import { hasUserBeenUnassigned } from "./check-assignments.ts";
-import { checkTaskStale } from "./check-task-stale.ts";
-import { generateAssignmentComment } from "./generate-assignment-comment.ts";
-import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-limit-and-role.ts";
-import structuredMetadata from "./structured-metadata.ts";
-import { assignTableComment } from "./table.ts";
+import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
+import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
+import { HttpStatusCode, Result } from "../result-types";
+import { hasUserBeenUnassigned } from "./check-assignments";
+import { checkTaskStale } from "./check-task-stale";
+import { generateAssignmentComment } from "./generate-assignment-comment";
+import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-limit-and-role";
+import structuredMetadata from "./structured-metadata";
+import { assignTableComment } from "./table";
 
 export async function checkRequirements(
   context: Context,

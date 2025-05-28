@@ -1,4 +1,4 @@
-import { AssignedIssueScope, Context, GitHubIssueSearch } from "../types/index.ts";
+import { AssignedIssueScope, Context, GitHubIssueSearch } from "../types/index";
 
 export async function listOrganizations(context: Context): Promise<string[]> {
   const {

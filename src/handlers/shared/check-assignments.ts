@@ -1,6 +1,6 @@
-import { Context } from "../../types/index.ts";
-import { getOwnerRepoFromHtmlUrl } from "../../utils/issue.ts";
-import { getAssignmentPeriods } from "./user-assigned-timespans.ts";
+import { Context } from "../../types/index";
+import { getOwnerRepoFromHtmlUrl } from "../../utils/issue";
+import { getAssignmentPeriods } from "./user-assigned-timespans";
 
 export async function hasUserBeenUnassigned(context: Context, username: string): Promise<boolean> {
   if ("issue" in context.payload) {

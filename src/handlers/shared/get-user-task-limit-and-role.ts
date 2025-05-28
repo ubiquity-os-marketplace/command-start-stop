@@ -1,4 +1,4 @@
-import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../../types/index.ts";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../../types/index";
 
 interface MatchingUserProps {
   role: string;

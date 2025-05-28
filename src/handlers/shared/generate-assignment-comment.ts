@@ -1,5 +1,5 @@
-import { Context } from "../../types/index.ts";
-import { calculateDurations } from "../../utils/shared.ts";
+import { Context } from "../../types/index";
+import { calculateDurations } from "../../utils/shared";
 
 export const options: Intl.DateTimeFormatOptions = {
   weekday: "short",
