@@ -36,7 +36,7 @@ jobs:
           project_name="${{ github.event.repository.name }}"
           new_name="${project_name}-${branch_name}"
           # Deno project names cannot exceed 26 characters
-          new_name=$(echo "$new_name" | cut -c 1-25)
+          new_name=$(echo "$new_name" | cut -c 1-26)
           echo "PROJECT_NAME=$new_name" >> $GITHUB_ENV
 
       - name: Generate .env File
@@ -66,7 +66,6 @@ jobs:
         id: deno_project
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          DENO_ORG_ID: ${{ secrets.DENO_ORG_ID }}
         run: |
           deployctl projects create \
             --token=$DENO_DEPLOY_TOKEN \
