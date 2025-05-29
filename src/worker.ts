@@ -9,7 +9,7 @@ import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
 
-const manifest = await import("../manifest.json");
+const manifest = (await import("../manifest.json")).default;
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
