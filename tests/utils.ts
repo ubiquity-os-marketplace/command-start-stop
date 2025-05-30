@@ -1,6 +1,6 @@
 import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-import { createAdapters } from "../src/adapters";
+import { createAdapters } from "../src/adapters/index";
 import { AssignedIssueScope, Context, Role, SupportedEvents } from "../src/types";
 import { db } from "./__mocks__/db";
 

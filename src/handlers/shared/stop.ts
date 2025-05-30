@@ -1,4 +1,4 @@
-import { Assignee, Context, Sender } from "../../types";
+import { Assignee, Context, Sender } from "../../types/index";
 import { closePullRequestForAnIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 

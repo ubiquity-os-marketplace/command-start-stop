@@ -1,4 +1,4 @@
-import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types";
+import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
 import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";

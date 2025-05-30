@@ -1,4 +1,4 @@
-import { Context } from "../../types";
+import { Context } from "../../types/index";
 import { getOwnerRepoFromHtmlUrl } from "../../utils/issue";
 import { getAssignmentPeriods } from "./user-assigned-timespans";
 
