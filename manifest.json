@@ -1,7 +1,12 @@
 {
   "name": "Start | Stop",
   "description": "Assign or un-assign yourself from an issue/task.",
-  "ubiquity:listeners": ["issue_comment.created", "issues.unassigned", "pull_request.opened", "pull_request.edited"],
+  "ubiquity:listeners": [
+    "issue_comment.created",
+    "issues.unassigned",
+    "pull_request.opened",
+    "pull_request.edited"
+  ],
   "commands": {
     "start": {
       "ubiquity:example": "/start",
@@ -35,13 +40,19 @@
     "properties": {
       "reviewDelayTolerance": {
         "default": "1 Day",
-        "examples": ["1 Day", "5 Days"],
+        "examples": [
+          "1 Day",
+          "5 Days"
+        ],
         "description": "When considering a user for a task: if they have existing PRs with no reviews, how long should we wait before 'increasing' their assignable task limit?",
         "type": "string"
       },
       "taskStaleTimeoutDuration": {
         "default": "30 Days",
-        "examples": ["1 Day", "5 Days"],
+        "examples": [
+          "1 Day",
+          "5 Days"
+        ],
         "description": "When displaying the '/start' response, how long should we wait before considering a task 'stale' and provide a warning?",
         "type": "string"
       },
@@ -74,7 +85,11 @@
       "assignedIssueScope": {
         "default": "org",
         "description": "When considering a user for a task: should we consider their assigned issues at the org, repo, or network level?",
-        "examples": ["org", "repo", "network"],
+        "examples": [
+          "org",
+          "repo",
+          "network"
+        ],
         "anyOf": [
           {
             "const": "org",
@@ -96,12 +111,23 @@
         "type": "string"
       },
       "rolesWithReviewAuthority": {
-        "default": ["OWNER", "ADMIN", "MEMBER", "COLLABORATOR"],
+        "default": [
+          "OWNER",
+          "ADMIN",
+          "MEMBER",
+          "COLLABORATOR"
+        ],
         "uniqueItems": true,
         "description": "When considering a user for a task: which roles should be considered as having review authority? All others are ignored.",
         "examples": [
-          ["OWNER", "ADMIN"],
-          ["MEMBER", "COLLABORATOR"]
+          [
+            "OWNER",
+            "ADMIN"
+          ],
+          [
+            "MEMBER",
+            "COLLABORATOR"
+          ]
         ],
         "type": "array",
         "items": {
@@ -128,7 +154,14 @@
       "requiredLabelsToStart": {
         "default": [],
         "description": "If set, a task must have at least one of these labels to be started.",
-        "examples": [["Priority: 5 (Emergency)"], ["Good First Issue"]],
+        "examples": [
+          [
+            "Priority: 5 (Emergency)"
+          ],
+          [
+            "Good First Issue"
+          ]
+        ],
         "type": "array",
         "items": {
           "type": "object",
@@ -141,7 +174,12 @@
               "description": "The list of allowed roles to start the task with the given label.",
               "uniqueItems": true,
               "default": [],
-              "examples": [["collaborator", "contributor"]],
+              "examples": [
+                [
+                  "collaborator",
+                  "contributor"
+                ]
+              ],
               "type": "array",
               "items": {
                 "anyOf": [
@@ -157,7 +195,9 @@
               }
             }
           },
-          "required": ["name"]
+          "required": [
+            "name"
+          ]
         }
       },
       "taskAccessControl": {
@@ -202,11 +242,14 @@
                 ]
               }
             },
-            "required": ["collaborator", "contributor"]
+            "required": [
+              "collaborator",
+              "contributor"
+            ]
           }
         }
       }
     }
   },
-  "homepage_url": "https://ubiquity-os-command-start-stop-main.ubiquity.workers.dev"
+  "homepage_url": "https://command-start-stop-develop.deno.dev"
 }
