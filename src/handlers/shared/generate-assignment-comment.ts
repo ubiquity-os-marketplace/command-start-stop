@@ -1,4 +1,4 @@
-import { Context } from "../../types";
+import { Context } from "../../types/index";
 import { calculateDurations } from "../../utils/shared";
 
 export const options: Intl.DateTimeFormatOptions = {

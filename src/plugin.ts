@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
-import { createAdapters } from "./adapters";
+import { createAdapters } from "./adapters/index";
 import { HttpStatusCode } from "./handlers/result-types";
 import { commandHandler, userPullRequest, userStartStop, userUnassigned } from "./handlers/user-start-stop";
-import { Context } from "./types";
+import { Context } from "./types/index";
 import { listOrganizations } from "./utils/list-organizations";
 
 export async function startStopTask(context: Context) {

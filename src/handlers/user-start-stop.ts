@@ -1,7 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Repository } from "@octokit/graphql-schema";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
-import { Context, isIssueCommentEvent } from "../types";
+import { Context, isIssueCommentEvent } from "../types/index";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, closePullRequestForAnIssue, getOwnerRepoFromHtmlUrl } from "../utils/issue";
 import { HttpStatusCode, Result } from "./result-types";

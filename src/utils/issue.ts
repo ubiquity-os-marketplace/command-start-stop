@@ -1,7 +1,6 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
-import { Endpoints } from "@octokit/types";
 import ms from "ms";
-import { AssignedIssueScope, Role } from "../types";
+import { AssignedIssueScope, PrState, Role } from "../types/index";
 import { Context } from "../types/context";
 import { GitHubIssueSearch, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
@@ -158,7 +157,7 @@ export async function addAssignees(context: Context, issueNo: number, assignees:
   await confirmMultiAssignment(context, issueNo, assignees);
 }
 
-async function getAllPullRequests(context: Context, state: Endpoints["GET /repos/{owner}/{repo}/pulls"]["parameters"]["state"] = "open", username: string) {
+async function getAllPullRequests(context: Context, state = "open", username: string) {
   let repoOrgQuery = "";
   if (context.config.assignedIssueScope === AssignedIssueScope.REPO) {
     repoOrgQuery = `repo:${context.payload.repository.full_name}`;
@@ -182,11 +181,7 @@ async function getAllPullRequests(context: Context, state: Endpoints["GET /repos
   }
 }
 
-export async function getAllPullRequestsWithRetry(
-  context: Context,
-  state: Endpoints["GET /repos/{owner}/{repo}/pulls"]["parameters"]["state"],
-  username: string
-) {
+export async function getAllPullRequestsWithRetry(context: Context, state: PrState, username: string) {
   try {
     return await getAllPullRequests(context, state, username);
   } catch (error) {
