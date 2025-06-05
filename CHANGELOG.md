@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.10.0...v1.11.0) (2025-06-03)
+
+
+### Features
+
+* deno ([ffe0906](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ffe0906e16613260aaf8789ca1cfd9ea6f407715))
+
 ## [1.10.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.9.0...v1.10.0) (2025-05-07)
 
 
