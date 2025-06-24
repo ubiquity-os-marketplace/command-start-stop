@@ -8,6 +8,7 @@ import { HttpStatusCode, Result } from "./result-types";
 import { getDeadline } from "./shared/generate-assignment-comment";
 import { start } from "./shared/start";
 import { stop } from "./shared/stop";
+import { time } from "./shared/time";
 
 export async function commandHandler(context: Context): Promise<Result> {
   if (!isIssueCommentEvent(context)) {
@@ -18,13 +19,19 @@ export async function commandHandler(context: Context): Promise<Result> {
   }
   const { issue, sender, repository } = context.payload;
 
-  if (context.command.name === "stop") {
-    return await stop(context, issue, sender, repository);
-  } else if (context.command.name === "start") {
-    const teammates = context.command.parameters.teammates ?? [];
-    return await start(context, issue, sender, teammates);
-  } else {
-    return { status: HttpStatusCode.BAD_REQUEST };
+  switch (context.command.name) {
+    case "stop":
+      return await stop(context, issue, sender, repository);
+    case "start": {
+      const teammates = context.command.parameters.teammates ?? [];
+      return await start(context, issue, sender, teammates);
+    }
+    case "time": {
+      const duration = context.command.parameters.duration;
+      return await time(context, issue, duration);
+    }
+    default:
+      return { status: HttpStatusCode.BAD_REQUEST };
   }
 }
 
@@ -39,12 +46,14 @@ export async function userStartStop(context: Context): Promise<Result> {
     .slice(1)
     .map((teamMate) => teamMate.split(" ")[0]);
 
-  if (slashCommand === "stop") {
-    return await stop(context, issue, sender, repository);
-  } else if (slashCommand === "start") {
-    return await start(context, issue, sender, teamMates);
+  switch (slashCommand) {
+    case "stop":
+      return await stop(context, issue, sender, repository);
+    case "start":
+      return await start(context, issue, sender, teamMates);
+    case "time":
+      return await time(context, issue, comment.body.split(" ")[1]);
   }
-
   return { status: HttpStatusCode.NOT_MODIFIED };
 }
 

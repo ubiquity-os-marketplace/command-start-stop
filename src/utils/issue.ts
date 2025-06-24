@@ -1,7 +1,7 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import ms from "ms";
-import { AssignedIssueScope, PrState, Role } from "../types/index";
 import { Context } from "../types/context";
+import { AssignedIssueScope, PrState, Role } from "../types/index";
 import { GitHubIssueSearch, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
@@ -9,6 +9,33 @@ import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pul
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
   return body.match(parentPattern);
+}
+
+export async function addLabels(context: Context, issueNumber: number, labels: string[]) {
+  try {
+    await context.octokit.rest.issues.addLabels({
+      owner: context.payload.repository.owner.login,
+      repo: context.payload.repository.name,
+      issue_number: issueNumber,
+      labels,
+    });
+  } catch (error) {
+    throw context.logger.error("Failed to add labels", { error: error as Error });
+  }
+}
+
+export async function removeLabel(context: Context, issueNumber: number, label: string) {
+  try {
+    await context.octokit.rest.issues.removeLabel({
+      owner: context.payload.repository.owner.login,
+      repo: context.payload.repository.name,
+      issue_number: issueNumber,
+      name: label,
+    });
+  } catch (error) {
+    context.logger.error("Failed to remove label", { error: error as Error });
+    throw error;
+  }
 }
 
 export async function getAssignedIssues(context: Context, username: string) {
