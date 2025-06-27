@@ -180,6 +180,7 @@
             "type": "object",
             "properties": {
               "collaborator": {
+                "default": "Infinity",
                 "anyOf": [
                   {
                     "type": "number"
@@ -191,6 +192,7 @@
                 ]
               },
               "contributor": {
+                "default": "Infinity",
                 "anyOf": [
                   {
                     "type": "number"
@@ -201,8 +203,7 @@
                   }
                 ]
               }
-            },
-            "required": ["collaborator", "contributor"]
+            }
           }
         }
       }
