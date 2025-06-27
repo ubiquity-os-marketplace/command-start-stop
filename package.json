@@ -36,7 +36,7 @@
     "@octokit/auth-app": "^7.1.4",
     "@octokit/graphql-schema": "15.25.0",
     "@octokit/plugin-rest-endpoint-methods": "^13.2.6",
-    "@sinclair/typebox": "0.34.3",
+    "@sinclair/typebox": "0.34.37",
     "@supabase/supabase-js": "2.42.0",
     "@ubiquity-os/plugin-sdk": "^3.1.8",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
