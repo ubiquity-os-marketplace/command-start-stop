@@ -52,7 +52,7 @@ const requiredLabel = T.Object({
   }),
 });
 
-const transformedRole = T.Transform(T.Union([T.Number(), T.Literal("Infinity")]))
+const transformedRole = T.Transform(T.Union([T.Number(), T.Literal("Infinity")], { default: "Infinity" }))
   .Decode((value) => {
     if (typeof value === "number") {
       return value;
