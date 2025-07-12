@@ -20,6 +20,9 @@ const mockOctokit = {
     repos: {
       listForOrg: jest.fn(() => mockPullRequestData),
     },
+    users: {
+      getByUsername: jest.fn(() => ({ data: { login: username } })),
+    },
   },
 };
 
