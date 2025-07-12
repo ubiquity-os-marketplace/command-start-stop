@@ -5,6 +5,32 @@ function isHttpError(error: unknown): error is { status: number; message: string
   return typeof error === "object" && error !== null && "status" in error && "message" in error;
 }
 
+async function getRepositories(context: Context) {
+  const owner = context.payload.repository.owner.login;
+  let repositories;
+
+  // Check if the owner is an organization or a user. This will affect how we retrieve the repository list.
+  const ownerInfo = await context.octokit.rest.users.getByUsername({ username: owner });
+  const isOrganization = ownerInfo.data.type === "Organization";
+
+  if (isOrganization) {
+    repositories = await context.octokit.paginate(context.octokit.rest.repos.listForOrg, {
+      org: owner,
+      type: "sources", // excludes forked repos
+      per_page: 100,
+    });
+  } else {
+    repositories = await context.octokit.paginate(context.octokit.rest.repos.listForUser, {
+      username: owner,
+      type: "owner", // excluded non-owned repos
+      per_page: 100,
+    });
+  }
+
+  console.log(repositories.map((repo) => repo.name).join("\n"));
+  return repositories;
+}
+
 /**
  * Fetches all open pull requests within a specified organization created by a particular user.
  * This method is slower than using a search query but should work even if the user has his activity set to private.
@@ -14,25 +40,7 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
   const owner = context.payload.repository.owner.login;
 
   try {
-    // Check if the owner is an organization or a user. This will affect how we retrieve the repository list.
-    const ownerInfo = await context.octokit.rest.users.getByUsername({ username: owner });
-    const isOrganization = ownerInfo.data.type === "Organization";
-
-    let repositories;
-
-    if (isOrganization) {
-      repositories = await context.octokit.paginate(context.octokit.rest.repos.listForOrg, {
-        org: owner,
-        type: "all",
-        per_page: 100,
-      });
-    } else {
-      repositories = await context.octokit.paginate(context.octokit.rest.repos.listForUser, {
-        username: owner,
-        type: "all",
-        per_page: 100,
-      });
-    }
+    const repositories = await getRepositories(context);
 
     const allPrs: RestEndpointMethodTypes["pulls"]["list"]["response"]["data"] = [];
 
@@ -70,11 +78,7 @@ export async function getAssignedIssuesFallback(context: Context, username: stri
   const assignedIssues = [];
 
   try {
-    const repositories = await context.octokit.paginate(context.octokit.rest.repos.listForOrg, {
-      org,
-      type: "all",
-      per_page: 100,
-    });
+    const repositories = await getRepositories(context);
 
     for (const repo of repositories) {
       const issues = await context.octokit.paginate(context.octokit.rest.issues.listForRepo, {
