@@ -11,21 +11,35 @@ function isHttpError(error: unknown): error is { status: number; message: string
  */
 export async function getAllPullRequestsFallback(context: Context, state: PrState, username: string) {
   const { octokit, logger } = context;
-  const organization = context.payload.repository.owner.login;
+  const owner = context.payload.repository.owner.login;
 
   try {
-    const repositories = await octokit.paginate(octokit.rest.repos.listForOrg, {
-      org: organization,
-      per_page: 100,
-      type: "all",
-    });
+    // Check if the owner is an organization or a user. This will affect how we retrieve the repository list.
+    const ownerInfo = await context.octokit.rest.users.getByUsername({ username: owner });
+    const isOrganization = ownerInfo.data.type === "Organization";
+
+    let repositories;
+
+    if (isOrganization) {
+      repositories = await context.octokit.paginate(context.octokit.rest.repos.listForOrg, {
+        org: owner,
+        type: "all",
+        per_page: 100,
+      });
+    } else {
+      repositories = await context.octokit.paginate(context.octokit.rest.repos.listForUser, {
+        username: owner,
+        type: "all",
+        per_page: 100,
+      });
+    }
 
     const allPrs: RestEndpointMethodTypes["pulls"]["list"]["response"]["data"] = [];
 
     const tasks = repositories.map(async (repo) => {
       try {
         const prs = await octokit.paginate(octokit.rest.pulls.list, {
-          owner: organization,
+          owner,
           repo: repo.name,
           state,
           per_page: 100,
