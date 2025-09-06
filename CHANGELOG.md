@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.1](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.11.0...v1.11.1) (2025-09-06)
+
+
+### Bug Fixes
+
+* release please issue permission ([cdb1011](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/cdb101185a5000ac7f6861a85dd4c8a9c4a03c62))
+* release please issue permission ([b468670](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/b468670eea5a5b77c342b9b36f42e8068c8e7b85))
+
 ## [1.11.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.10.0...v1.11.0) (2025-07-12)
 
 
