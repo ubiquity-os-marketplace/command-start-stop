@@ -1,7 +1,7 @@
 import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../../types/index";
 
 interface MatchingUserProps {
-  role: string;
+  role: ReturnType<typeof getTransformedRole>;
   limit: number;
 }
 
@@ -53,8 +53,9 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
         username: user,
       });
       role = response.data.role.toLowerCase();
-      limit = getUserTaskLimit(maxConcurrentTasks, role);
-      return { role, limit };
+      const normalizedRole = getTransformedRole(role);
+      limit = getUserTaskLimit(maxConcurrentTasks, normalizedRole);
+      return { role: normalizedRole, limit };
     } catch (err) {
       logger.error("Could not get user membership", { err });
     }
@@ -74,11 +75,12 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       role,
       data: permissionLevel.data,
     });
-    limit = getUserTaskLimit(maxConcurrentTasks, role);
+    const normalizedRole = getTransformedRole(role);
+    limit = getUserTaskLimit(maxConcurrentTasks, normalizedRole);
 
-    return { role: getTransformedRole(role), limit };
+    return { role: normalizedRole, limit };
   } catch (err) {
     logger.error("Could not get user role", { err });
-    return { role: "unknown", limit: maxConcurrentTasks.contributor };
+    return { role: "contributor", limit: maxConcurrentTasks.contributor };
   }
 }
