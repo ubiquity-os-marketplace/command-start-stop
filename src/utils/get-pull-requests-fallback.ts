@@ -27,7 +27,6 @@ async function getRepositories(context: Context) {
     });
   }
 
-  console.log(repositories.map((repo) => repo.name).join("\n"));
   return repositories;
 }
 
