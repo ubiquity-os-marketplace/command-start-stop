@@ -151,7 +151,7 @@ export async function start(
     if (priceLabel && role !== "admin") {
       const { usdPriceMax } = taskAccessControl;
       const min = Math.min(...Object.values(usdPriceMax));
-      const allowed = role ? usdPriceMax[role as keyof typeof usdPriceMax] : undefined;
+      const allowed = role && role in usdPriceMax ? usdPriceMax[role as keyof typeof usdPriceMax] : undefined;
       const userAllowedMaxPrice = typeof allowed === "number" ? allowed : min;
 
       const priceRegex = /Price:\s*([\d.]+)/;
