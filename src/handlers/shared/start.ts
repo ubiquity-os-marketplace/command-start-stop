@@ -73,7 +73,7 @@ export async function start(
   const labels = issue.labels ?? [];
   const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
   const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
-  const userRole = getTransformedRole(userAssociation.role);
+  const userRole = userAssociation.role;
 
   const startErrors: Error[] = [];
 
@@ -151,7 +151,8 @@ export async function start(
     if (priceLabel && role !== "admin") {
       const { usdPriceMax } = taskAccessControl;
       const min = Math.min(...Object.values(usdPriceMax));
-      const userAllowedMaxPrice = !role ? min : usdPriceMax[role as keyof typeof usdPriceMax];
+      const allowed = role && role in usdPriceMax ? usdPriceMax[role as keyof typeof usdPriceMax] : undefined;
+      const userAllowedMaxPrice = typeof allowed === "number" ? allowed : min;
 
       const priceRegex = /Price:\s*([\d.]+)/;
       const match = priceLabel.name.match(priceRegex);
