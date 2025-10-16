@@ -35,6 +35,12 @@
     "usdPriceMax": {
       "collaborator": "Infinity",
       "contributor": 1000
+    },
+    "accountRequiredAge": {
+      "minimumDays": 0
+    },
+    "experience": {
+      "priorityThresholds": []
     }
   }
 }

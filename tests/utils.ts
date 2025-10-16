@@ -71,6 +71,12 @@ export function createContext(
           collaborator: collaboratorUsdLimit,
           contributor: 1000,
         },
+        accountRequiredAge: {
+          minimumDays: 0,
+        },
+        experience: {
+          priorityThresholds: [],
+        },
       },
     },
     octokit: new octokit.Octokit(),

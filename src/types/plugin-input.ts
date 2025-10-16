@@ -52,6 +52,50 @@ const requiredLabel = T.Object({
   }),
 });
 
+const accountRequiredAge = T.Object(
+  {
+    minimumDays: T.Number({
+      default: 0,
+      minimum: 0,
+      description: "Minimum number of days a GitHub account must exist before starting a task.",
+      examples: [0, 30],
+    }),
+  },
+  {
+    default: { minimumDays: 0 },
+  }
+);
+
+const experiencePriorityThreshold = T.Object({
+  label: T.String({
+    description: "Issue label to match for experience gating.",
+    examples: ["Priority: 1 (Normal)", "prio 1"],
+  }),
+  minimumXp: T.Number({
+    default: 0,
+    description: "Minimum XP required to start a task with the associated label.",
+    examples: [-2000, 0, 3000],
+  }),
+});
+
+const experienceAccessControl = T.Object(
+  {
+    priorityThresholds: T.Array(experiencePriorityThreshold, {
+      default: [],
+      description: "Mappings between priority labels and minimum XP required to start tasks with those labels.",
+      examples: [
+        [
+          { label: "Priority: 0", minimumXp: -2000 },
+          { label: "Priority: 5 (Emergency)", minimumXp: 3000 },
+        ],
+      ],
+    }),
+  },
+  {
+    default: { priorityThresholds: [] },
+  }
+);
+
 const transformedRole = T.Transform(T.Union([T.Number(), T.Literal("Infinity")], { default: "Infinity" }))
   .Decode((value) => {
     if (typeof value === "number") {
@@ -118,6 +162,8 @@ export const pluginSettingsSchema = T.Object(
             ],
           }
         ),
+        accountRequiredAge: T.Optional(accountRequiredAge),
+        experience: T.Optional(experienceAccessControl),
       },
       { default: {} }
     ),

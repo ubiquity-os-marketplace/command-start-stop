@@ -30,6 +30,9 @@ async function setupTests() {
     id: 1,
     login: "user1",
     role: "contributor",
+    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+    xp: 5000,
+    wallet: null,
   });
   db.issue.create({
     ...issueTemplate,

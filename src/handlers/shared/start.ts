@@ -1,4 +1,5 @@
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
+import { getUserExperience } from "../../utils/get-user-experience";
 import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
 import { hasUserBeenUnassigned } from "./check-assignments";
@@ -70,12 +71,25 @@ export async function start(
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
   }
 
-  const labels = issue.labels ?? [];
-  const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
+  const labels = (issue.labels ?? []) as Label[];
+  const priceLabel = labels.find((label) => label.name.startsWith("Price: "));
   const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
   const userRole = userAssociation.role;
 
   const startErrors: Error[] = [];
+  const accountRequiredAgeDays = taskAccessControl.accountRequiredAge?.minimumDays ?? 0;
+  const experienceThresholds = taskAccessControl.experience?.priorityThresholds ?? [];
+  const issueLabelsLower = labels.map((label) => label.name.toLowerCase());
+  const requiredExperience = experienceThresholds
+    .filter((threshold) => issueLabelsLower.includes(threshold.label.toLowerCase()))
+    .reduce<number | null>((accumulator, current) => {
+      if (accumulator === null) {
+        return current.minimumXp;
+      }
+      return Math.max(accumulator, current.minimumXp);
+    }, null);
+  const participants = Array.from(new Set([...teammates, sender.login]));
+  const userProfiles = new Map<string, { id: number; login: string; created_at?: string }>();
 
   // Collaborators and admins can start un-priced tasks
   if (!priceLabel && userRole === "contributor") {
@@ -87,6 +101,81 @@ export async function start(
   const checkRequirementsError = await checkRequirements(context, issue, userRole);
   if (checkRequirementsError) {
     startErrors.push(checkRequirementsError);
+  }
+
+  if (accountRequiredAgeDays > 0 || requiredExperience !== null) {
+    for (const username of participants) {
+      const normalizedUsername = username.toLowerCase();
+      if (userProfiles.has(normalizedUsername)) {
+        continue;
+      }
+      try {
+        const { data } = await context.octokit.rest.users.getByUsername({ username });
+        const profile = { id: data.id, login: data.login, created_at: data.created_at };
+        userProfiles.set(normalizedUsername, profile);
+        userProfiles.set(data.login.toLowerCase(), profile);
+      } catch (error) {
+        const message = `Unable to load GitHub profile for ${username}.`;
+        logger.error(message, { username, error: error as Error });
+        startErrors.push(new Error(message));
+      }
+    }
+  }
+
+  if (accountRequiredAgeDays > 0) {
+    const now = Date.now();
+    const accountAgeMessages: string[] = [];
+    const ageMetadata: Array<Record<string, unknown>> = [];
+    for (const username of participants) {
+      const profile = userProfiles.get(username.toLowerCase());
+      if (!profile?.created_at) {
+        accountAgeMessages.push(`@${username} cannot start this task because the account creation date could not be verified.`);
+        ageMetadata.push({ username, reason: "missing_created_at" });
+        continue;
+      }
+      const createdAtMs = Date.parse(profile.created_at);
+      if (Number.isNaN(createdAtMs)) {
+        accountAgeMessages.push(`@${username} cannot start this task because the account creation date could not be verified.`);
+        ageMetadata.push({ username, reason: "invalid_created_at", rawCreatedAt: profile.created_at });
+        continue;
+      }
+      const accountAge = Math.floor((now - createdAtMs) / (1000 * 60 * 60 * 24));
+      if (accountAge < accountRequiredAgeDays) {
+        accountAgeMessages.push(`@${username} needs an account at least ${accountRequiredAgeDays} days old (currently ${accountAge} days).`);
+        ageMetadata.push({ username, accountAge });
+      }
+    }
+    if (accountAgeMessages.length) {
+      const message = accountAgeMessages.join("\n");
+      const warning = logger.warn(message, { accountRequiredAgeDays, ageMetadata });
+      await context.commentHandler.postComment(context, warning);
+      startErrors.push(new Error(message));
+    }
+  }
+
+  if (requiredExperience !== null) {
+    const xpServiceBaseUrl = context.env.XP_SERVICE_BASE_URL ?? "https://os-daemon-xp.ubq.fi";
+    const xpMessages: string[] = [];
+    const xpMetadata: Array<{ username: string; xp: number }> = [];
+    for (const username of participants) {
+      try {
+        const xp = await getUserExperience(xpServiceBaseUrl, username);
+        xpMetadata.push({ username, xp });
+        if (xp < requiredExperience) {
+          xpMessages.push(`@${username} needs at least ${requiredExperience} XP to start this task (currently ${xp}).`);
+        }
+      } catch (error) {
+        const message = `Unable to verify XP for ${username}.`;
+        logger.error(message, { username, error: error as Error });
+        startErrors.push(new Error(message));
+      }
+    }
+    if (xpMessages.length) {
+      const message = xpMessages.join("\n");
+      const warning = logger.warn(message, { requiredExperience, xpMetadata });
+      await context.commentHandler.postComment(context, warning);
+      startErrors.push(new Error(message));
+    }
   }
 
   if (startErrors.length) {
@@ -213,7 +302,7 @@ ${issues}
     return { content: error, status: HttpStatusCode.NOT_MODIFIED };
   }
 
-  const toAssignIds = await fetchUserIds(context, toAssign);
+  const toAssignIds = await fetchUserIds(context, toAssign, userProfiles);
   const assignmentComment = await generateAssignmentComment(context, issue.created_at, issue.number, sender.id, null);
   const logMessage = logger.info("Task assigned successfully", {
     taskDeadline: assignmentComment.deadline,
@@ -248,15 +337,25 @@ ${issues}
   return { content: "Task assigned successfully", status: HttpStatusCode.OK };
 }
 
-async function fetchUserIds(context: Context, username: string[]) {
+async function fetchUserIds(context: Context, username: string[], userProfiles?: Map<string, { id: number; login: string; created_at?: string }>) {
   const ids = [];
 
   for (const user of username) {
+    const cachedProfile = userProfiles?.get(user.toLowerCase());
+    if (cachedProfile?.id) {
+      ids.push(cachedProfile.id);
+      continue;
+    }
     const { data } = await context.octokit.rest.users.getByUsername({
       username: user,
     });
 
     ids.push(data.id);
+    if (userProfiles) {
+      const profile = { id: data.id, login: data.login, created_at: data.created_at };
+      userProfiles.set(user.toLowerCase(), profile);
+      userProfiles.set(data.login.toLowerCase(), profile);
+    }
   }
 
   if (ids.filter((id) => !id).length > 0) {

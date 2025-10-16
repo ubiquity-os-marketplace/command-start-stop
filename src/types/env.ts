@@ -1,5 +1,4 @@
-import { Type as T } from "@sinclair/typebox";
-import { StaticDecode } from "@sinclair/typebox";
+import { StaticDecode, Type as T } from "@sinclair/typebox";
 
 const ERROR_MSG = "Invalid BOT_USER_ID";
 export const envSchema = T.Object({
@@ -28,6 +27,7 @@ export const envSchema = T.Object({
     }),
   KERNEL_PUBLIC_KEY: T.Optional(T.String()),
   LOG_LEVEL: T.Optional(T.String()),
+  XP_SERVICE_BASE_URL: T.Optional(T.String()),
 });
 
 export type Env = StaticDecode<typeof envSchema>;
