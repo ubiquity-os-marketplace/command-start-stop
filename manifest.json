@@ -207,27 +207,77 @@
           },
           "accountRequiredAge": {
             "default": {
-              "minimumDays": 0
+              "minimumDays": 360
             },
             "type": "object",
             "properties": {
               "minimumDays": {
-                "default": 0,
+                "default": 360,
                 "minimum": 0,
                 "description": "Minimum number of days a GitHub account must exist before starting a task.",
-                "examples": [0, 30],
+                "examples": [0, 30, 360],
                 "type": "number"
               }
             }
           },
           "experience": {
             "default": {
-              "priorityThresholds": []
+              "priorityThresholds": [
+                {
+                  "label": "Priority: 0 (Regression)",
+                  "minimumXp": -2000
+                },
+                {
+                  "label": "Priority: 1 (Normal)",
+                  "minimumXp": -1000
+                },
+                {
+                  "label": "Priority: 2 (Medium)",
+                  "minimumXp": 0
+                },
+                {
+                  "label": "Priority: 3 (High)",
+                  "minimumXp": 1000
+                },
+                {
+                  "label": "Priority: 4 (Urgent)",
+                  "minimumXp": 2000
+                },
+                {
+                  "label": "Priority: 5 (Emergency)",
+                  "minimumXp": 3000
+                }
+              ]
             },
             "type": "object",
             "properties": {
               "priorityThresholds": {
-                "default": [],
+                "default": [
+                  {
+                    "label": "Priority: 0 (Regression)",
+                    "minimumXp": -2000
+                  },
+                  {
+                    "label": "Priority: 1 (Normal)",
+                    "minimumXp": -1000
+                  },
+                  {
+                    "label": "Priority: 2 (Medium)",
+                    "minimumXp": 0
+                  },
+                  {
+                    "label": "Priority: 3 (High)",
+                    "minimumXp": 1000
+                  },
+                  {
+                    "label": "Priority: 4 (Urgent)",
+                    "minimumXp": 2000
+                  },
+                  {
+                    "label": "Priority: 5 (Emergency)",
+                    "minimumXp": 3000
+                  }
+                ],
                 "description": "Mappings between priority labels and minimum XP required to start tasks with those labels.",
                 "examples": [
                   [
