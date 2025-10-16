@@ -69,7 +69,7 @@ To start a task, a hunter should use the `/start` command. This will assign them
 - The issue is not already assigned
 - The hunter has not reached the maximum number of concurrent tasks
 - The command is not disabled at the repository or organization level
-- TODO: If the hunter meets the required XP requirements
+- The hunter meets any configured account age and XP requirements
 
 ### Stop a task
 
@@ -105,6 +105,14 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
       usdPriceMax:
         collaborator: 5000
         contributor: 1000 # Set to -1 to disable collaborator tasks (only allow core operations)
+      accountRequiredAge:
+        minimumDays: 30
+      experience:
+        priorityThresholds:
+          - label: "Priority: 3 (High)"
+            minimumXp: 500
+          - label: "Priority: 4 (Urgent)"
+            minimumXp: 1000
 ```
 
 ## Development
@@ -158,7 +166,7 @@ bun run format
 - `@octokit/*`: GitHub API integration
 - `hono`: Web server framework
 
-### Development
+### Developer Tooling
 
 - TypeScript for type safety
 - Jest for testing

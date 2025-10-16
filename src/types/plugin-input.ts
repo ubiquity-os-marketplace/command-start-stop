@@ -42,6 +42,8 @@ const maxConcurrentTasks = T.Object(
 
 const roles = T.KeyOf(maxConcurrentTasks);
 
+const PRIORITY_EMERGENCY_LABEL = "Priority: 5 (Emergency)";
+
 const requiredLabel = T.Object({
   name: T.String({ description: "The name of the required labels to start the task." }),
   allowedRoles: T.Array(roles, {
@@ -55,16 +57,25 @@ const requiredLabel = T.Object({
 const accountRequiredAge = T.Object(
   {
     minimumDays: T.Number({
-      default: 0,
+      default: 360,
       minimum: 0,
       description: "Minimum number of days a GitHub account must exist before starting a task.",
-      examples: [0, 30],
+      examples: [0, 30, 360],
     }),
   },
   {
-    default: { minimumDays: 0 },
+    default: { minimumDays: 360 },
   }
 );
+
+export const DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS = [
+  { label: "Priority: 0 (Regression)", minimumXp: -2000 },
+  { label: "Priority: 1 (Normal)", minimumXp: -1000 },
+  { label: "Priority: 2 (Medium)", minimumXp: 0 },
+  { label: "Priority: 3 (High)", minimumXp: 1000 },
+  { label: "Priority: 4 (Urgent)", minimumXp: 2000 },
+  { label: PRIORITY_EMERGENCY_LABEL, minimumXp: 3000 },
+] as const;
 
 const experiencePriorityThreshold = T.Object({
   label: T.String({
@@ -81,18 +92,18 @@ const experiencePriorityThreshold = T.Object({
 const experienceAccessControl = T.Object(
   {
     priorityThresholds: T.Array(experiencePriorityThreshold, {
-      default: [],
+      default: DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS,
       description: "Mappings between priority labels and minimum XP required to start tasks with those labels.",
       examples: [
         [
           { label: "Priority: 0", minimumXp: -2000 },
-          { label: "Priority: 5 (Emergency)", minimumXp: 3000 },
+          { label: PRIORITY_EMERGENCY_LABEL, minimumXp: 3000 },
         ],
       ],
     }),
   },
   {
-    default: { priorityThresholds: [] },
+    default: { priorityThresholds: DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS },
   }
 );
 
@@ -143,7 +154,7 @@ export const pluginSettingsSchema = T.Object(
     requiredLabelsToStart: T.Array(requiredLabel, {
       default: [],
       description: "If set, a task must have at least one of these labels to be started.",
-      examples: [["Priority: 5 (Emergency)"], ["Good First Issue"]],
+      examples: [[PRIORITY_EMERGENCY_LABEL], ["Good First Issue"]],
     }),
     taskAccessControl: T.Object(
       {

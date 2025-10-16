@@ -81,6 +81,9 @@ describe("Pull-request tests", () => {
         pulls: {
           update: jest.fn(),
         },
+        issues: {
+          createComment: jest.fn(),
+        },
       },
       graphql: {
         paginate: jest.fn(() =>
@@ -127,6 +130,9 @@ describe("Pull-request tests", () => {
         },
       }),
     }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
@@ -155,6 +161,9 @@ describe("Pull-request tests", () => {
       rest: {
         pulls: {
           update: jest.fn(),
+        },
+        issues: {
+          createComment: jest.fn(),
         },
       },
       graphql: {
@@ -204,10 +213,13 @@ describe("Pull-request tests", () => {
         },
       }),
     }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
-        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
+        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`\n\nUnable to load GitHub profile for ubiquity-os-author.\n\n@ubiquity-os-author cannot start this task because the account creation date could not be verified.",
       },
     });
   });
