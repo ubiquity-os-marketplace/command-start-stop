@@ -9,6 +9,8 @@ import { getTransformedRole, getUserRoleAndTaskLimit } from "./get-user-task-lim
 import structuredMetadata from "./structured-metadata";
 import { assignTableComment } from "./table";
 
+type RoleAndLimit = Awaited<ReturnType<typeof getUserRoleAndTaskLimit>>;
+
 export async function checkRequirements(
   context: Context,
   issue: Context<"issue_comment.created">["payload"]["issue"],
@@ -90,6 +92,21 @@ export async function start(
     }, null);
   const participants = Array.from(new Set([...teammates, sender.login]));
   const userProfiles = new Map<string, { id: number; login: string; created_at?: string }>();
+  const participantRoleAndLimits: Map<string, RoleAndLimit> = new Map();
+  participantRoleAndLimits.set(sender.login.toLowerCase(), userAssociation);
+  const roleFetches = participants
+    .filter((username) => !participantRoleAndLimits.has(username.toLowerCase()))
+    .map(async (username) => {
+      const association = await getUserRoleAndTaskLimit(context, username);
+      participantRoleAndLimits.set(username.toLowerCase(), association);
+    });
+  if (roleFetches.length) {
+    await Promise.all(roleFetches);
+  }
+  const accessControlledParticipants = participants.filter((username) => {
+    const role = participantRoleAndLimits.get(username.toLowerCase())?.role ?? "contributor";
+    return role !== "collaborator" && role !== "admin";
+  });
 
   // Collaborators and admins can start un-priced tasks
   if (!priceLabel && userRole === "contributor") {
@@ -104,8 +121,8 @@ export async function start(
   }
 
   console.log(accountRequiredAgeDays, requiredExperience);
-  if (accountRequiredAgeDays > 0 || requiredExperience !== null) {
-    for (const username of participants) {
+  if (accountRequiredAgeDays > 0 && accessControlledParticipants.length) {
+    for (const username of accessControlledParticipants) {
       const normalizedUsername = username.toLowerCase();
       if (userProfiles.has(normalizedUsername)) {
         continue;
@@ -121,13 +138,11 @@ export async function start(
         startErrors.push(new Error(message));
       }
     }
-  }
 
-  if (accountRequiredAgeDays > 0) {
     const now = Date.now();
     const accountAgeMessages: string[] = [];
     const ageMetadata: Array<Record<string, unknown>> = [];
-    for (const username of participants) {
+    for (const username of accessControlledParticipants) {
       const profile = userProfiles.get(username.toLowerCase());
       if (!profile?.created_at) {
         accountAgeMessages.push(`@${username} cannot start this task because the account creation date could not be verified.`);
@@ -155,12 +170,13 @@ export async function start(
     }
   }
 
-  if (requiredExperience !== null) {
+  if (requiredExperience !== null && accessControlledParticipants.length) {
     const xpServiceBaseUrl = context.env.XP_SERVICE_BASE_URL ?? "https://os-daemon-xp.ubq.fi";
     const xpMessages: string[] = [];
     const xpMetadata: Array<{ username: string; xp: number }> = [];
-    for (const username of participants) {
+    for (const username of accessControlledParticipants) {
       try {
+        context.logger.debug(`Trying to fetch XP for the user ${username}`);
         const xp = await getUserExperience(context, xpServiceBaseUrl, username);
         xpMetadata.push({ username, xp });
         if (xp < requiredExperience) {
@@ -227,7 +243,13 @@ export async function start(
   let assignedIssues: AssignedIssue[] = [];
   // check max assigned issues
   for (const user of teammates) {
-    const { isWithinLimit, issues, role } = await handleTaskLimitChecks({ context, logger, sender: sender.login, username: user });
+    const { isWithinLimit, issues, role } = await handleTaskLimitChecks({
+      context,
+      logger,
+      sender: sender.login,
+      username: user,
+      roleAndLimit: participantRoleAndLimits.get(user.toLowerCase()),
+    });
     if (isWithinLimit) {
       toAssign.push(user);
     } else {
@@ -367,10 +389,22 @@ async function fetchUserIds(context: Context, username: string[], userProfiles?:
   return ids;
 }
 
-async function handleTaskLimitChecks({ context, logger, sender, username }: { username: string; context: Context; logger: Context["logger"]; sender: string }) {
+async function handleTaskLimitChecks({
+  context,
+  logger,
+  sender,
+  username,
+  roleAndLimit,
+}: {
+  username: string;
+  context: Context;
+  logger: Context["logger"];
+  sender: string;
+  roleAndLimit?: RoleAndLimit;
+}) {
   const openedPullRequests = await getPendingOpenedPullRequests(context, username);
   const assignedIssues = await getAssignedIssues(context, username);
-  const { limit, role } = await getUserRoleAndTaskLimit(context, username);
+  const { limit, role } = roleAndLimit ?? (await getUserRoleAndTaskLimit(context, username));
 
   // check for max and enforce max
   if (Math.abs(assignedIssues.length - openedPullRequests.length) >= limit) {

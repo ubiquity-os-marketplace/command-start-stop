@@ -1,4 +1,20 @@
+import { StaticDecode, Type as T } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 import { Context } from "../types";
+
+const xpUserSchema = T.Object({
+  login: T.String({ minLength: 1 }),
+  id: T.Number(),
+  hasData: T.Boolean(),
+  total: T.Number(),
+  permitCount: T.Number(),
+});
+
+const xpResponseSchema = T.Object({
+  users: T.Array(xpUserSchema),
+});
+
+type XpResponse = StaticDecode<typeof xpResponseSchema>;
 
 export async function getUserExperience(context: Context, baseUrl: string, user: string): Promise<number> {
   let url: URL;
@@ -12,7 +28,6 @@ export async function getUserExperience(context: Context, baseUrl: string, user:
   url.pathname = `${trimmedPath}/xp`;
   url.searchParams.set("user", user);
 
-  console.log("url", url.toString());
   const response = await fetch(url.toString());
   if (!response.ok) {
     throw context.logger.error(`Failed to fetch XP for ${user}`, {
@@ -28,43 +43,29 @@ export async function getUserExperience(context: Context, baseUrl: string, user:
     throw context.logger.error(`Failed to parse XP response for ${user}`, { err });
   }
 
-  const xp = resolveExperienceValue(payload);
+  const xpPayload = decodeXpPayload(context, user, payload);
+  const xp = getXpFromPayload(xpPayload, user);
   if (xp === null || Number.isNaN(xp)) {
-    throw context.logger.error(`XP value missing for ${user}`, { xp });
+    context.logger.info(`XP value missing for ${user}`, { payload: xpPayload });
+    return 0;
   }
 
   return xp;
 }
 
-function resolveExperienceValue(data: unknown): number | null {
-  if (typeof data === "number") {
-    return data;
+function decodeXpPayload(context: Context, user: string, data: unknown): XpResponse {
+  if (!isXpResponse(data)) {
+    throw context.logger.error(`Invalid XP payload for ${user}`, { data });
   }
+  return data;
+}
 
-  if (typeof data === "string") {
-    const parsed = Number(data);
-    return Number.isNaN(parsed) ? null : parsed;
-  }
+function getXpFromPayload(payload: XpResponse, username: string): number | null {
+  const normalizedUsername = username.toLowerCase();
+  const match = payload.users.find((entry) => entry.login.toLowerCase() === normalizedUsername);
+  return match?.total ?? null;
+}
 
-  if (Array.isArray(data)) {
-    for (const entry of data) {
-      const value = resolveExperienceValue(entry);
-      if (value !== null) {
-        return value;
-      }
-    }
-    return null;
-  }
-
-  if (typeof data === "object" && data) {
-    const record = data as Record<string, unknown>;
-    if (record.xp !== undefined) {
-      return resolveExperienceValue(record.xp);
-    }
-    if (record.data !== undefined) {
-      return resolveExperienceValue(record.data);
-    }
-  }
-
-  return null;
+function isXpResponse(value: unknown): value is XpResponse {
+  return Value.Check(xpResponseSchema, value);
 }
