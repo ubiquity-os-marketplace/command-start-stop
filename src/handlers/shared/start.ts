@@ -103,6 +103,7 @@ export async function start(
     startErrors.push(checkRequirementsError);
   }
 
+  console.log(accountRequiredAgeDays, requiredExperience);
   if (accountRequiredAgeDays > 0 || requiredExperience !== null) {
     for (const username of participants) {
       const normalizedUsername = username.toLowerCase();
@@ -144,6 +145,7 @@ export async function start(
         accountAgeMessages.push(`@${username} needs an account at least ${accountRequiredAgeDays} days old (currently ${accountAge} days).`);
         ageMetadata.push({ username, accountAge });
       }
+      console.log("+++", accountAge);
     }
     if (accountAgeMessages.length) {
       const message = accountAgeMessages.join("\n");
@@ -159,14 +161,14 @@ export async function start(
     const xpMetadata: Array<{ username: string; xp: number }> = [];
     for (const username of participants) {
       try {
-        const xp = await getUserExperience(xpServiceBaseUrl, username);
+        const xp = await getUserExperience(context, xpServiceBaseUrl, username);
         xpMetadata.push({ username, xp });
         if (xp < requiredExperience) {
           xpMessages.push(`@${username} needs at least ${requiredExperience} XP to start this task (currently ${xp}).`);
         }
-      } catch (error) {
+      } catch (err) {
         const message = `Unable to verify XP for ${username}.`;
-        logger.error(message, { username, error: error as Error });
+        logger.error(message, { username, err });
         startErrors.push(new Error(message));
       }
     }

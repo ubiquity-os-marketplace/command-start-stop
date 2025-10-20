@@ -1,30 +1,36 @@
-export async function getUserExperience(baseUrl: string, user: string): Promise<number> {
+import { Context } from "../types";
+
+export async function getUserExperience(context: Context, baseUrl: string, user: string): Promise<number> {
   let url: URL;
   try {
     url = new URL(baseUrl);
   } catch {
-    throw new Error("XP service base URL is invalid");
+    throw context.logger.error("XP service base URL is invalid");
   }
 
   const trimmedPath = url.pathname.replace(/\/$/, "");
   url.pathname = `${trimmedPath}/xp`;
   url.searchParams.set("user", user);
 
+  console.log("url", url.toString());
   const response = await fetch(url.toString());
   if (!response.ok) {
-    throw new Error(`Failed to fetch XP for ${user}`);
+    throw context.logger.error(`Failed to fetch XP for ${user}`, {
+      statusNumber: response.status,
+      statusText: response.statusText,
+    });
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
-  } catch {
-    throw new Error(`Failed to parse XP response for ${user}`);
+  } catch (err) {
+    throw context.logger.error(`Failed to parse XP response for ${user}`, { err });
   }
 
   const xp = resolveExperienceValue(payload);
   if (xp === null || Number.isNaN(xp)) {
-    throw new Error(`XP value missing for ${user}`);
+    throw context.logger.error(`XP value missing for ${user}`, { xp });
   }
 
   return xp;
