@@ -1,4 +1,4 @@
-import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
+import { AssignedIssue, Context, ISSUE_TYPE } from "../../types/index";
 import { getUserExperience } from "../../utils/get-user-experience";
 import { addAssignees, getAssignedIssues, getPendingOpenedPullRequests, getTimeValue, isParentIssue } from "../../utils/issue";
 import { HttpStatusCode, Result } from "../result-types";
@@ -73,7 +73,7 @@ export async function start(
     throw logger.error(`Skipping '/start' since there is no sender in the context.`);
   }
 
-  const labels = (issue.labels ?? []) as Label[];
+  const labels = issue.labels ?? [];
   const priceLabel = labels.find((label) => label.name.startsWith("Price: "));
   const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
   const userRole = userAssociation.role;
@@ -120,7 +120,6 @@ export async function start(
     startErrors.push(checkRequirementsError);
   }
 
-  console.log(accountRequiredAgeDays, requiredExperience);
   if (accountRequiredAgeDays > 0 && accessControlledParticipants.length) {
     for (const username of accessControlledParticipants) {
       const normalizedUsername = username.toLowerCase();
@@ -132,9 +131,9 @@ export async function start(
         const profile = { id: data.id, login: data.login, created_at: data.created_at };
         userProfiles.set(normalizedUsername, profile);
         userProfiles.set(data.login.toLowerCase(), profile);
-      } catch (error) {
+      } catch (err) {
         const message = `Unable to load GitHub profile for ${username}.`;
-        logger.error(message, { username, error: error as Error });
+        logger.error(message, { username, err });
         startErrors.push(new Error(message));
       }
     }
@@ -160,7 +159,6 @@ export async function start(
         accountAgeMessages.push(`@${username} needs an account at least ${accountRequiredAgeDays} days old (currently ${accountAge} days).`);
         ageMetadata.push({ username, accountAge });
       }
-      console.log("+++", accountAge);
     }
     if (accountAgeMessages.length) {
       const message = accountAgeMessages.join("\n");
