@@ -10,14 +10,29 @@ export const handlers = [
     const url = new URL(request.url);
     const identifier = url.searchParams.get("user");
     if (!identifier) {
-      return HttpResponse.json({ xp: 0 });
+      return HttpResponse.json({ users: [] });
     }
     const normalized = identifier.toLowerCase();
-    const byLogin =
-      db.users.findFirst({ where: { login: { equals: identifier } } }) || db.users.findFirst({ where: { login: { equals: normalized } } }) || null;
-    const byWallet = db.users.findFirst({ where: { wallet: { equals: identifier } } }) || null;
-    const xp = byLogin?.xp ?? byWallet?.xp ?? 0;
-    return HttpResponse.json({ xp });
+    const account =
+      db.users.findFirst({ where: { login: { equals: identifier } } }) ||
+      db.users.findFirst({ where: { login: { equals: normalized } } }) ||
+      db.users.findFirst({ where: { wallet: { equals: identifier } } }) ||
+      null;
+    if (!account) {
+      return HttpResponse.json({ users: [] });
+    }
+    const xp = Number.isFinite(account.xp) ? account.xp : 0;
+    return HttpResponse.json({
+      users: [
+        {
+          login: account.login,
+          id: account.id,
+          hasData: true,
+          total: xp,
+          permitCount: 0,
+        },
+      ],
+    });
   }),
   // get repo
   http.get("https://api.github.com/repos/:owner/:repo", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) => {
