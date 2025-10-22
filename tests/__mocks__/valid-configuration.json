@@ -37,7 +37,7 @@
       "contributor": 1000
     },
     "accountRequiredAge": {
-      "minimumDays": 360
+      "minimumDays": 365.25
     },
     "experience": {
       "priorityThresholds": [

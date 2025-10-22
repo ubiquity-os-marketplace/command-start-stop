@@ -57,14 +57,14 @@ const requiredLabel = T.Object({
 const accountRequiredAge = T.Object(
   {
     minimumDays: T.Number({
-      default: 360,
+      default: 365.25,
       minimum: 0,
       description: "Minimum number of days a GitHub account must exist before starting a task.",
-      examples: [0, 30, 360],
+      examples: [0, 30, 365.25],
     }),
   },
   {
-    default: { minimumDays: 360 },
+    default: { minimumDays: 365.25 },
   }
 );
 
