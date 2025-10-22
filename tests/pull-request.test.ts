@@ -127,7 +127,7 @@ describe("Pull-request tests", () => {
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
-        raw: expect.stringContaining("No price label is set to calculate the duration"),
+        raw: expect.stringContaining("The task cannot be started because the price label is missing."),
       },
     });
   });
