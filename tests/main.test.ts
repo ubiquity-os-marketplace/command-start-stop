@@ -212,7 +212,9 @@ describe("User start/stop", () => {
       expect(error).toBeInstanceOf(AggregateError);
       const aggregateError = error as AggregateError;
       const errorMessages = aggregateError.errors.map((error) => error.message);
-      expect(errorMessages).toEqual(expect.arrayContaining(["The task cannot be started because the price label is missing."]));
+      expect(errorMessages).toEqual(
+        expect.arrayContaining(["You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing."])
+      );
     }
   });
 
