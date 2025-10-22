@@ -69,7 +69,7 @@ To start a task, a hunter should use the `/start` command. This will assign them
 - The issue is not already assigned
 - The hunter has not reached the maximum number of concurrent tasks
 - The command is not disabled at the repository or organization level
-- The hunter meets any configured account age and XP requirements
+- The contributor meets any configured account age and XP requirements
 
 ### Stop a task
 
