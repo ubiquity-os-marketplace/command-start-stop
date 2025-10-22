@@ -207,15 +207,15 @@
           },
           "accountRequiredAge": {
             "default": {
-              "minimumDays": 360
+              "minimumDays": 365.25
             },
             "type": "object",
             "properties": {
               "minimumDays": {
-                "default": 360,
+                "default": 365.25,
                 "minimum": 0,
                 "description": "Minimum number of days a GitHub account must exist before starting a task.",
-                "examples": [0, 30, 360],
+                "examples": [0, 30, 365.25],
                 "type": "number"
               }
             }
