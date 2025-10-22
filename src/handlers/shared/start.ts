@@ -79,7 +79,7 @@ export async function start(
 
   // Collaborators and admins can start un-priced tasks
   if (!priceLabel && userRole === "contributor") {
-    const errorMessage = "No price label is set to calculate the duration";
+    const errorMessage = "The task cannot be started because the price label is missing.";
     logger.error(errorMessage, { issueNumber: issue.number });
     startErrors.push(new Error(errorMessage));
   }
