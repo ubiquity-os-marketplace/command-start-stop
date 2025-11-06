@@ -15,7 +15,17 @@ async function hasUserBeenUnassigned(context: Context, username: string): Promis
   return false;
 }
 
-export async function handleTaskLimitChecks({ context, logger, sender, username }: { username: string; context: Context; logger: Context["logger"]; sender: string }) {
+export async function handleTaskLimitChecks({
+  context,
+  logger,
+  sender,
+  username,
+}: {
+  username: string;
+  context: Context;
+  logger: Context["logger"];
+  sender: string;
+}) {
   // Check for unassignment first - this should take precedence over task limit
   if (await hasUserBeenUnassigned(context, username)) {
     throw logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", username), { username });
