@@ -18,6 +18,7 @@ const ERROR_MESSAGES = {
   PARENT_ISSUES: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.",
   CLOSED: "This issue is closed, please choose another.",
   ALREADY_ASSIGNED: "You are already assigned to this task. Please choose another unassigned task.",
+  ISSUE_ALREADY_ASSIGNED: "This issue is already assigned. Please choose another unassigned task.",
   PRICE_LABEL_REQUIRED: "You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing.",
   PRICE_LIMIT_EXCEEDED:
     "While we appreciate your enthusiasm @{{user}}, the price of this task exceeds your allowed limit. Please choose a task with a price of ${{userAllowedMaxPrice}} or less.",
@@ -280,7 +281,12 @@ export async function evaluateStartEligibility(
 
   const assignees = issue?.assignees ?? [];
   if (assignees.length) {
-    errors.push(context.logger.error(ERROR_MESSAGES.ALREADY_ASSIGNED));
+    // Check if the sender is already assigned to this issue
+    const isSenderAssigned = assignees.some((assignee) => assignee?.login?.toLowerCase() === sender.login.toLowerCase());
+    const errorMessage = isSenderAssigned 
+      ? ERROR_MESSAGES.ALREADY_ASSIGNED 
+      : ERROR_MESSAGES.ISSUE_ALREADY_ASSIGNED;
+    errors.push(context.logger.error(errorMessage));
   }
 
   const allUsers = [...new Set([sender.login, ...teammates])];

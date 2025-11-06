@@ -332,18 +332,11 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    try {
-      await userStartStop(context);
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      const aggregateError = error as AggregateError;
-      const errorMessages = aggregateError.errors.map((error) => error.message);
-      expect(errorMessages).toEqual(
-        expect.arrayContaining([
-          "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
-        ])
-      );
-    }
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
+      },
+    });
   });
 
   test("Should not allow a user to start if the user role is not listed", async () => {
@@ -360,14 +353,11 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    try {
-      await userStartStop(context);
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      const aggregateError = error as AggregateError;
-      const errorMessages = aggregateError.errors.map((error) => error.message);
-      expect(errorMessages).toEqual(expect.arrayContaining(["You must be a core team member, or an administrator to start this task"]));
-    }
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "You must be a core team member, or an administrator to start this task",
+      },
+    });
   });
 });
 
@@ -719,6 +709,46 @@ async function setupTests() {
     created_at: new Date().toISOString(),
     event: "unassigned",
     issue_number: 2,
+    owner: "ubiquity",
+    repo: "test-repo",
+  });
+
+  // Events for issue 6 (number 5) - user2 was assigned then unassigned by admin
+  db.event.create({
+    id: 7,
+    actor: {
+      id: 1,
+      login: "ubiquity-os[bot]",
+      type: "Bot",
+    },
+    assignee: {
+      login: "user2",
+    },
+    created_at: new Date(Date.now() - 2000).toISOString(),
+    event: "assigned",
+    issue_number: 5,
+    owner: "ubiquity",
+    repo: "test-repo",
+  });
+
+  db.event.create({
+    id: 8,
+    actor: {
+      id: 1,
+      login: "ubiquity",
+      type: "User",
+    },
+    assignee: {
+      login: "user2",
+    },
+    assigner: {
+      id: 1,
+      login: "ubiquity",
+      type: "User",
+    },
+    created_at: new Date(Date.now() - 1000).toISOString(),
+    event: "unassigned",
+    issue_number: 5,
     owner: "ubiquity",
     repo: "test-repo",
   });

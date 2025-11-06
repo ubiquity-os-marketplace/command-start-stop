@@ -31,6 +31,11 @@ async function setupTests() {
     login: "user1",
     role: "contributor",
   });
+  db.users.create({
+    id: 2,
+    login: userLogin,
+    role: "contributor",
+  });
   db.issue.create({
     ...issueTemplate,
     labels: [{ name: "Priority: 1 (Normal)", description: "collaborator only" }, ...issueTemplate.labels],
@@ -179,16 +184,29 @@ describe("Pull-request tests", () => {
       createClient: jest.fn(),
     }));
     jest.unstable_mockModule("../src/adapters", () => ({
-      createAdapters: jest.fn(),
+      createAdapters: jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      })),
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
+        paginate: jest.fn(() => Promise.resolve([])),
         rest: {
           apps: {
             getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
           },
           issues: {
             get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: "Time: <1 Hour" }] } })),
+            listEvents: jest.fn(() => Promise.resolve({ data: [] })),
+            listComments: jest.fn(() => Promise.resolve({ data: [] })),
+            listForRepo: jest.fn(() => Promise.resolve({ data: [] })),
+          },
+          search: {
+            issuesAndPullRequests: jest.fn(() => Promise.resolve({ data: { items: [] } })),
           },
           repos: {
             get: jest.fn(() => Promise.resolve({ data: repo })),

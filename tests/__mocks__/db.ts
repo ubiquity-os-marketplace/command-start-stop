@@ -152,6 +152,11 @@ export const db = factory({
     assignee: {
       login: String,
     },
+    assigner: nullable({
+      id: Number,
+      type: String,
+      login: String,
+    }),
     source: nullable({
       issue: {
         number: Number,

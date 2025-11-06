@@ -58,7 +58,13 @@ describe("test", () => {
       createClient: jest.fn(),
     }));
     jest.unstable_mockModule(adaptersModulePath, () => ({
-      createAdapters: jest.fn(),
+      createAdapters: jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      })),
     }));
     db.users.create({
       id: TEST_USER_ID,
