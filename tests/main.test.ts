@@ -5,14 +5,15 @@ import { createClient } from "@supabase/supabase-js";
 import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
-import { HttpStatusCode } from "../src/handlers/result-types";
-import { userStartStop, userUnassigned } from "../src/handlers/user-start-stop";
+import { HttpStatusCode } from "../src/types/result-types";
+import { userStartStop } from "../src/handlers/start-command";
 import { Context, Env, envSchema, Sender } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
 import { createContext, MAX_CONCURRENT_DEFAULTS } from "./utils";
+import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
 
 dotenv.config();
 
@@ -156,7 +157,7 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    const { content } = await userUnassigned(context);
+    const { content } = await closeUserUnassignedPr(context);
 
     expect(content).toEqual("Linked pull-requests closed.");
     const logs = infoSpy.mock.calls.flat();

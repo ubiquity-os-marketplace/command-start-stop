@@ -1,5 +1,4 @@
-import { Context } from "../../types/index";
-import { calculateDurations } from "../../utils/shared";
+import { Context } from "../../../types/index";
 
 export const options: Intl.DateTimeFormatOptions = {
   weekday: "short",
@@ -10,17 +9,6 @@ export const options: Intl.DateTimeFormatOptions = {
   timeZone: "UTC",
   timeZoneName: "short",
 };
-
-export function getDeadline(labels: Context<"issue_comment.created">["payload"]["issue"]["labels"] | undefined | null): string | null {
-  if (!labels?.length) {
-    throw new Error("No labels are set.");
-  }
-  const startTime = new Date().getTime();
-  const duration: number = calculateDurations(labels).shift() ?? 0;
-  if (!duration) return null;
-  const endTime = new Date(startTime + duration * 1000);
-  return endTime.toLocaleString("en-US", options);
-}
 
 export async function generateAssignmentComment(context: Context, issueCreatedAt: string, issueNumber: number, senderId: number, deadline: string | null) {
   const startTime = new Date().getTime();

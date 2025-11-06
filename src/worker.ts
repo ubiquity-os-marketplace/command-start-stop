@@ -9,9 +9,10 @@ import { Command } from "./types/command";
 import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
+import { handlePublicStart } from "./handlers/start/public-api";
 
 export default {
-  async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+  async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
@@ -30,6 +31,11 @@ export default {
         bypassSignatureVerification: process.env.NODE_ENV === "local",
       }
     );
+
+    // Public API route
+    honoApp.post("/public/start", async (c) => {
+      return await handlePublicStart(c.req.raw as Request, env);
+    });
 
     return honoApp.fetch(request, env, executionCtx);
   },

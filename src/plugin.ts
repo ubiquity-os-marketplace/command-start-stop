@@ -1,9 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { createAdapters } from "./adapters/index";
-import { HttpStatusCode } from "./handlers/result-types";
-import { commandHandler, userPullRequest, userStartStop, userUnassigned } from "./handlers/user-start-stop";
+import { HttpStatusCode } from "./types/result-types";
+import { commandHandler, userStartStop } from "./handlers/start-command";
 import { Context } from "./types/index";
 import { listOrganizations } from "./utils/list-organizations";
+import { closeUserUnassignedPr } from "./handlers/close-pull-on-unassign";
+import { newPullRequestOrEdit } from "./handlers/new-pull-request-or-edit";
 
 export async function startStopTask(context: Context) {
   context.adapters = createAdapters(createClient(context.env.SUPABASE_URL, context.env.SUPABASE_KEY), context as Context);
@@ -18,11 +20,10 @@ export async function startStopTask(context: Context) {
       case "issue_comment.created":
         return await userStartStop(context as Context<"issue_comment.created">);
       case "pull_request.opened":
-        return await userPullRequest(context as Context<"pull_request.opened">);
       case "pull_request.edited":
-        return await userPullRequest(context as Context<"pull_request.edited">);
+        return await newPullRequestOrEdit(context as Context<"pull_request.edited">);
       case "issues.unassigned":
-        return await userUnassigned(context as Context<"issues.unassigned">);
+        return await closeUserUnassignedPr(context as Context<"issues.unassigned">);
       default:
         context.logger.error(`Unsupported event: ${context.eventName}`);
         return { status: HttpStatusCode.BAD_REQUEST };

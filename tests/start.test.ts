@@ -18,7 +18,7 @@ type PayloadSender = Context["payload"]["sender"];
 const commandStartStop = "command-start-stop";
 const ubiquityOsMarketplace = "ubiquity-os-marketplace";
 
-const modulePath = "../src/handlers/shared/start";
+const modulePath = "../src/handlers/start-task";
 const supabaseModulePath = "@supabase/supabase-js";
 const adaptersModulePath = "../src/adapters";
 
@@ -121,9 +121,9 @@ describe("Collaborator tests", () => {
     jest.unstable_mockModule(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
-    const start = jest.fn();
+    const startTask = jest.fn();
     jest.unstable_mockModule(modulePath, () => ({
-      start,
+      startTask,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
@@ -146,8 +146,8 @@ describe("Collaborator tests", () => {
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // Make sure the author is the one who starts and not the sender who modified the comment
-    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
-    start.mockClear();
+    expect(startTask).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
+    startTask.mockClear();
   });
 
   it("should successfully assign if the PR and linked issue are in different organizations", async () => {
@@ -209,9 +209,9 @@ describe("Collaborator tests", () => {
     jest.unstable_mockModule(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
-    const start = jest.fn();
+    const startTask = jest.fn();
     jest.unstable_mockModule(modulePath, () => ({
-      start,
+      startTask,
     }));
     jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
@@ -233,10 +233,10 @@ describe("Collaborator tests", () => {
     }));
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
-    expect(start.mock.calls[0][0]).toMatchObject({ payload: { issue, repository, organization: repository?.owner } });
-    expect(start.mock.calls[0][1]).toMatchObject({ id: 1 });
-    expect(start.mock.calls[0][2]).toMatchObject({ id: 1, login: "whilefoo" });
-    expect(start.mock.calls[0][3]).toEqual([]);
-    start.mockReset();
+    expect(startTask.mock.calls[0][0]).toMatchObject({ payload: { issue, repository, organization: repository?.owner } });
+    expect(startTask.mock.calls[0][1]).toMatchObject({ id: 1 });
+    expect(startTask.mock.calls[0][2]).toMatchObject({ id: 1, login: "whilefoo" });
+    expect(startTask.mock.calls[0][3]).toEqual([]);
+    startTask.mockReset();
   });
 });

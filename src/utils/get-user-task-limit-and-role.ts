@@ -1,15 +1,15 @@
-import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../../types/index";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../types/index";
 
 interface MatchingUserProps {
   role: ReturnType<typeof getTransformedRole>;
   limit: number;
 }
 
-export function isAdminRole(role: string) {
+function isAdminRole(role: string) {
   return ADMIN_ROLES.includes(role.toLowerCase());
 }
 
-export function isCollaboratorRole(role: string) {
+function isCollaboratorRole(role: string) {
   return COLLABORATOR_ROLES.includes(role.toLowerCase());
 }
 
@@ -23,7 +23,7 @@ export function getTransformedRole(role: string) {
   return "contributor";
 }
 
-export function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks"], role: string) {
+function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks"], role: string) {
   if (isAdminRole(role)) {
     return Infinity;
   }

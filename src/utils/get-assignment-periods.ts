@@ -1,4 +1,4 @@
-import { Context } from "../../types/index";
+import { Context } from "../types/index";
 
 interface IssueParams {
   owner: string;
