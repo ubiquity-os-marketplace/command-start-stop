@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createAdapters } from "./adapters/index";
 import { HttpStatusCode } from "./types/result-types";
-import { commandHandler, userStartStop } from "./handlers/start-command";
+import { commandHandler, userStartStop } from "./handlers/command-handler";
 import { Context } from "./types/index";
 import { listOrganizations } from "./utils/list-organizations";
 import { closeUserUnassignedPr } from "./handlers/close-pull-on-unassign";

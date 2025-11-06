@@ -6,7 +6,7 @@ import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { HttpStatusCode } from "../src/types/result-types";
-import { userStartStop } from "../src/handlers/start-command";
+import { userStartStop } from "../src/handlers/command-handler";
 import { Context, Env, envSchema, Sender } from "../src/types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
