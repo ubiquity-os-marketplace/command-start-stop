@@ -6,6 +6,34 @@ import issueTemplate from "./issue-template";
  * Intercepts the routes and returns a custom payload
  */
 export const handlers = [
+  http.get("*/xp", ({ request }) => {
+    const url = new URL(request.url);
+    const identifier = url.searchParams.get("user");
+    if (!identifier) {
+      return HttpResponse.json({ users: [] });
+    }
+    const normalized = identifier.toLowerCase();
+    const account =
+      db.users.findFirst({ where: { login: { equals: identifier } } }) ||
+      db.users.findFirst({ where: { login: { equals: normalized } } }) ||
+      db.users.findFirst({ where: { wallet: { equals: identifier } } }) ||
+      null;
+    if (!account) {
+      return HttpResponse.json({ users: [] });
+    }
+    const xp = Number.isFinite(account.xp) ? account.xp : 0;
+    return HttpResponse.json({
+      users: [
+        {
+          login: account.login,
+          id: account.id,
+          hasData: true,
+          total: xp,
+          permitCount: 0,
+        },
+      ],
+    });
+  }),
   // get repo
   http.get("https://api.github.com/repos/:owner/:repo", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) => {
     const item = db.repo.findFirst({ where: { name: { equals: repo }, owner: { login: { equals: owner } } } });

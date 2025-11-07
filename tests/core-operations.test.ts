@@ -27,6 +27,9 @@ async function setupTests() {
     id: 1,
     login: "user1",
     role: "contributor",
+    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+    xp: 5000,
+    wallet: null,
   });
   db.issue.create({
     ...issueTemplate,
@@ -64,6 +67,9 @@ describe("test", () => {
       id: TEST_USER_ID,
       login: "test-user",
       role: "contributor",
+      created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+      xp: 5000,
+      wallet: null,
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     issue.labels = [
