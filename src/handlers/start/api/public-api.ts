@@ -25,15 +25,6 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
     const methodError = validateRequestMethod(request);
     if (methodError) return methodError;
 
-    // Authenticate request
-    const { user, error: authError } = await authenticateRequest(request, env);
-    if (authError) return authError;
-
-    // Verify user authorization
-    if (!user) {
-      return Response.json({ ok: false, reasons: ["Unauthorized"] }, { status: 401 });
-    }
-
     // Parse request body
     const { body, error: parseError } = await parseRequestBody(request);
     if (parseError) return parseError;
@@ -45,17 +36,21 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
 
     const { userId, issueUrl, mode = "validate", recommend } = body;
 
+    // Authenticate request
+    const { user, accessToken, error: authError } = await authenticateRequest(body, request, env);
+    if (authError) return authError;
+
+    // Verify user authorization
+    if (!user || !accessToken) {
+      return Response.json({ ok: false, reasons: ["Unauthorized"] }, { status: 401 });
+    }
+
     // Apply rate limiting
     const rateLimitError = applyRateLimit(request, userId, mode);
     if (rateLimitError) return rateLimitError;
 
-    // Extract user access token
-    const { token: userAccessToken, error: tokenError } = extractUserAccessToken(body, user);
-    if (tokenError) return tokenError;
-    if (!userAccessToken) return Response.json({ ok: false, reasons: ["Missing user access token"] }, { status: 401 });
-
     // Build context
-    const context = await buildShallowContextObject({ env, userAccessToken });
+    const context = await buildShallowContextObject({ env, accessToken });
 
     // Route to appropriate handler
     if (!issueUrl) {
@@ -64,6 +59,7 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
 
     return await handleValidateOrExecute({ context, mode, issueUrl });
   } catch (error) {
+    console.log("Error in handlePublicStart:", error);
     return handleError(error);
   }
 }
@@ -82,28 +78,25 @@ function validateRequestMethod(request: Request): Response | null {
  * Authenticates the request and returns the user if successful.
  * Returns null in development mode or if JWT verification succeeds.
  */
-async function authenticateRequest(request: Request, env: Env): Promise<{ user: User | null; error: Response | null }> {
+async function authenticateRequest(body: StartBody, request: Request, env: Env) {
   const jwt = extractJwtFromHeader(request);
   const isDev = isDevelopment();
 
   if (!jwt && !isDev) {
+    console.log("Unauthorized: !JWT provided in production");
     return {
       user: null,
+      accessToken: null,
       error: Response.json({ ok: false, reasons: ["Missing Authorization header"] }, { status: 401 }),
     };
   }
 
-  if (isDev) {
-    console.log("Development mode: Bypassing JWT verification");
-    return { user: null, error: null };
-  }
-
   if (jwt) {
-    const user = await verifySupabaseJwt(env, jwt);
-    return { user, error: null };
+    const { user, accessToken } = await verifySupabaseJwt(body, env, jwt);
+    return { user, accessToken, error: null };
   }
 
-  return { user: null, error: null };
+  return { user: null, accessToken: null, error: null };
 }
 
 /**
@@ -154,26 +147,6 @@ function applyRateLimit(request: Request, userId: number, mode: string): Respons
   return null;
 }
 
-/**
- * Extracts the user access token from the body or user metadata.
- */
-function extractUserAccessToken(body: StartBody, user: User | null): { token: string | null; error: Response | null } {
-  if (body.userAccessToken) {
-    return { token: body.userAccessToken, error: null };
-  }
-
-  if (user) {
-    const { access_token } = user.user_metadata as { access_token?: string };
-    if (access_token) {
-      return { token: access_token, error: null };
-    }
-  }
-
-  return {
-    token: null,
-    error: Response.json({ ok: false, reasons: ["Missing user access token"] }, { status: 401 }),
-  };
-}
 
 /**
  * Handles errors and returns an appropriate response.

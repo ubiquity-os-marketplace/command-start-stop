@@ -24,8 +24,8 @@ export type ShallowContext = Omit<Context<"issue_comment.created">, "repository"
  * DOES NOT load payload, repository, issue, organization.
  * These must be injected once you know them.
  */
-export async function buildShallowContextObject({ env, userAccessToken }: { env: Env; userAccessToken: string }): Promise<ShallowContext> {
-  const { octokit, supabase } = await initializeClients(env, userAccessToken);
+export async function buildShallowContextObject({ env, accessToken }: { env: Env; accessToken: string }): Promise<ShallowContext> {
+  const { octokit, supabase } = await initializeClients(env, accessToken);
   const userData = await octokit.rest.users.getAuthenticated();
 
   const ctx: ShallowContext = {
@@ -128,8 +128,8 @@ function createLogger(env: Env): Logs {
   return new Logs((env.LOG_LEVEL as LogLevel) ?? "info");
 }
 
-async function initializeClients(env: Env, userAccessToken: string) {
-  const octokit = await createUserOctokit(userAccessToken);
+async function initializeClients(env: Env, accessToken: string) {
+  const octokit = await createUserOctokit(accessToken);
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
   return { octokit, supabase };
 }
