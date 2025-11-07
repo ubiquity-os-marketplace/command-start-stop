@@ -152,7 +152,15 @@ describe("Collaborator tests", () => {
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // Make sure the author is the one who starts and not the sender who modified the comment
-    expect(startTask).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
+    expect(startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          pull_request: expect.objectContaining({
+            user: expect.objectContaining({ login: userLogin }),
+          }),
+        }),
+      })
+    );
     startTask.mockClear();
   });
 
@@ -183,7 +191,7 @@ describe("Collaborator tests", () => {
       id: 2,
       name: commandStartStop,
       owner: {
-        login: "ubiquity-os-marketplace",
+        login: ubiquityOsMarketplace,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["repository"];
     context.octokit = {
@@ -242,10 +250,18 @@ describe("Collaborator tests", () => {
     }));
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
-    expect(startTask.mock.calls[0][0]).toMatchObject({ payload: { issue, repository, organization: repository?.owner } });
-    expect(startTask.mock.calls[0][1]).toMatchObject({ id: 1 });
-    expect(startTask.mock.calls[0][2]).toMatchObject({ id: 1, login: "whilefoo" });
-    expect(startTask.mock.calls[0][3]).toEqual([]);
+    // expect the task to be assigned to whilefoo in the new organization
+    expect(startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          pull_request: expect.objectContaining({
+            user: expect.objectContaining({ login: "whilefoo" }),
+            html_url: expect.stringContaining(ubiquityOsMarketplace),
+          }),
+        }),
+      })
+    );
+
     startTask.mockReset();
   });
 });
