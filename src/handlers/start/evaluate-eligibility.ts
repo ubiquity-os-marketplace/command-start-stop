@@ -25,17 +25,15 @@ export type StartEligibilityResult = {
   };
 };
 
-export async function evaluateStartEligibility(
-  context: Context,
-  issue: Context<"issue_comment.created">["payload"]["issue"],
-  sender: Context<"issue_comment.created">["payload"]["sender"],
-  teammates: string[]
-): Promise<StartEligibilityResult> {
+export async function evaluateStartEligibility(context: Context<"issue_comment.created">): Promise<StartEligibilityResult> {
   const errors: LogReturn[] = [];
   const warnings: string[] = [];
   const assignedIssues: AssignedIssue[] = [];
+  const {
+    payload: { issue, sender },
+  } = context;
 
-  if (!sender) {
+  if ((typeof sender === "object" && !sender.login) || !sender) {
     errors.push(context.logger.error(ERROR_MESSAGES.MISSING_SENDER));
   }
 
@@ -70,7 +68,33 @@ export async function evaluateStartEligibility(
     errors.push(context.logger.error(errorMessage));
   }
 
-  const allUsers = [...new Set([sender.login, ...teammates])];
+  // TODO: Confirm when (command === `null` | `undefined`) is valid
+  // if (!context.command || !("parameters" in context.command)) {
+  //   errors.push(context.logger.error(ERROR_MESSAGES.MALFORMED_COMMAND));
+  //   return {
+  //     ok: errors.length === 0,
+  //     errors,
+  //     warnings,
+  //     computed: {
+  //       deadline: null,
+  //       isTaskStale: false,
+  //       wallet: null,
+  //       toAssign: [],
+  //       assignedIssues,
+  //       consideredCount: 0,
+  //       senderRole: userRole,
+  //     },
+  //   };
+  // }
+
+  const params =
+    context.command && "parameters" in context.command
+      ? context.command.parameters
+      : {
+          teammates: [],
+        };
+
+  const allUsers = [...new Set([sender.login, ...(params.teammates ?? []).map((u: string) => u.trim()).filter((u: string) => u.length > 0)])];
 
   // Build participant role mappings for access control checks
   const participantRoleAndLimits: Map<string, { role: ReturnType<typeof getTransformedRole> }> = new Map();

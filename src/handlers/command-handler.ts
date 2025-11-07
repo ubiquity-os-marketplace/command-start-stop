@@ -15,8 +15,7 @@ export async function commandHandler(context: Context): Promise<Result> {
   if (context.command.name === "stop") {
     return await stop(context, issue, sender, repository);
   } else if (context.command.name === "start") {
-    const teammates = context.command.parameters.teammates ?? [];
-    return await startTask(context, issue, sender, teammates);
+    return await startTask(context);
   } else {
     return { status: HttpStatusCode.BAD_REQUEST };
   }
@@ -36,7 +35,13 @@ export async function userStartStop(context: Context): Promise<Result> {
   if (slashCommand === "stop") {
     return await stop(context, issue, sender, repository);
   } else if (slashCommand === "start") {
-    return await startTask(context, issue, sender, teamMates);
+    context.command = context.command || {
+      name: "start",
+      parameters: {
+        teammates: teamMates,
+      },
+    };
+    return await startTask(context);
   }
 
   return { status: HttpStatusCode.NOT_MODIFIED };

@@ -76,18 +76,25 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
         })
       ).data;
     }
+    if (!pull_request.user) {
+      context.logger.info("Pull request has no user associated, skipping.");
+      continue;
+    }
+
     const newContext = {
       ...context,
+      eventName: "issue_comment.created" as const,
       octokit: repoOctokit,
       payload: {
-        ...context.payload,
+        ...(context.payload as unknown as Context<"issue_comment.created">["payload"]),
         issue: linkedIssue,
         repository,
         organization,
+        sender: pull_request.user,
       },
-    };
+    } satisfies Context<"issue_comment.created">;
     try {
-      return await startTask(newContext, linkedIssue, pull_request.user ?? payload.sender, []);
+      return await startTask(newContext);
     } catch (error) {
       await closePullRequest(context, { number: pull_request.number });
       throw error;
