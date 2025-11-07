@@ -1,123 +1,12 @@
 import { Env } from "../../../types/env";
-import { HttpStatusCode } from "../../../types/result-types";
-import { evaluateStartEligibility } from "../evaluate-eligibility";
-import { performAssignment } from "../perform-assignment";
-import { verifySupabaseJwt, resolveLoginFromSupabaseIssues } from "./helpers/auth";
+import { verifySupabaseJwt, extractJwtFromHeader } from "./helpers/auth";
 import { rateLimit, getClientId } from "./helpers/rate-limit";
-import { parseIssueUrl } from "./helpers/parsers";
-import { buildContext } from "./helpers/context-builder";
-import { getRecommendations } from "./helpers/recommendations";
+import { buildShallowContextObject } from "./helpers/context-builder";
 import { StartBody } from "./helpers/types";
-
-/**
- * Handles the recommendation flow when no issueUrl is provided.
- * Uses embeddings to find similar issues based on user's prior work.
- */
-async function handleRecommendations(env: Env, userId: number, recommend?: { topK?: number; threshold?: number }): Promise<Response> {
-  try {
-    const recommendations = await getRecommendations(env, userId, recommend);
-
-    if (recommendations.length === 0) {
-      return Response.json({ ok: true, recommendations: [], note: "No prior embeddings found for user" }, { status: 200 });
-    }
-
-    return Response.json({ ok: true, recommendations }, { status: 200 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Embeddings search failed";
-    return Response.json({ ok: false, reasons: [message] }, { status: 500 });
-  }
-}
-
-/**
- * Handles the validate or execute flow for a specific issue.
- * Validates eligibility and optionally performs assignment.
- */
-async function handleValidateOrExecute(
-  env: Env,
-  issueUrl: string,
-  userId: number,
-  teammates: string[],
-  mode: "validate" | "execute",
-  loginFromBody?: string
-): Promise<Response> {
-  const { owner, repo, issue_number } = parseIssueUrl(issueUrl);
-
-  // Resolve sender login from Supabase issues cache
-  let senderLogin = await resolveLoginFromSupabaseIssues(env, userId);
-
-  // In development, allow fallback to login from request body
-  if (!senderLogin && loginFromBody) {
-    senderLogin = loginFromBody;
-  }
-
-  if (!senderLogin) {
-    return Response.json({ ok: false, reasons: ["Unable to resolve GitHub login for userId. Provide 'login' in request body."] }, { status: 400 });
-  }
-
-  // Build context
-  const context = await buildContext(env, owner, repo, issue_number, senderLogin, userId);
-  const issue = context.payload.issue;
-  const sender = context.payload.sender;
-
-  // Evaluate eligibility
-  const preflight = await evaluateStartEligibility(context, issue, sender, teammates);
-
-  if (mode === "validate") {
-    const status = preflight.ok ? 200 : 400;
-    return Response.json(
-      {
-        ok: preflight.ok,
-        reasons: preflight.errors.map((e) => e.logMessage.raw),
-        warnings: preflight.warnings,
-        computed: preflight.computed,
-        assignedIssues: preflight.computed.assignedIssues,
-      },
-      { status }
-    );
-  }
-
-  // Execute mode - check eligibility first
-  if (!preflight.ok) {
-    return Response.json(
-      {
-        ok: false,
-        reasons: preflight.errors.map((e) => e.logMessage.raw),
-        warnings: preflight.warnings,
-        assignedIssues: preflight.computed.assignedIssues,
-        computed: preflight.computed,
-      },
-      { status: 400 }
-    );
-  }
-
-  // Perform assignment
-  try {
-    const result = await performAssignment(context, issue, sender, preflight.computed.toAssign);
-    return Response.json(
-      {
-        ok: result.status === HttpStatusCode.OK,
-        content: result.content,
-        metadata: preflight.computed,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : "Start failed";
-    return Response.json({ ok: false, reasons: [reason] }, { status: 400 });
-  }
-}
-
-/**
- * Extracts JWT token from Authorization header.
- * Returns null if header is missing or malformed.
- */
-function extractJwtFromHeader(request: Request): string | null {
-  const auth = request.headers.get("authorization") || request.headers.get("Authorization");
-  if (!auth || !auth.toLowerCase().startsWith("bearer ")) {
-    return null;
-  }
-  return auth.split(" ")[1];
-}
+import { isDevelopment } from "../../../utils/is-dev-env";
+import { User } from "@supabase/supabase-js";
+import { handleRecommendations } from "./directory-task-recommendations";
+import { handleValidateOrExecute } from "./validate-or-execute";
 
 /**
  * Main handler for the public start API endpoint.
@@ -132,55 +21,165 @@ function extractJwtFromHeader(request: Request): string | null {
  */
 export async function handlePublicStart(request: Request, env: Env): Promise<Response> {
   try {
-    // Method check
-    if (request.method !== "POST") {
-      return new Response(null, { status: 405 });
+    // Validate request method
+    const methodError = validateRequestMethod(request);
+    if (methodError) return methodError;
+
+    // Authenticate request
+    const { user, error: authError } = await authenticateRequest(request, env);
+    if (authError) return authError;
+
+    // Verify user authorization
+    if (!user) {
+      return Response.json({ ok: false, reasons: ["Unauthorized"] }, { status: 401 });
     }
 
-    // Authentication
-    const jwt = extractJwtFromHeader(request);
-    const isDev = true; // Hardcoded for development testing
+    // Parse request body
+    const { body, error: parseError } = await parseRequestBody(request);
+    if (parseError) return parseError;
+    if (!body) return Response.json({ ok: false, reasons: ["Invalid request body"] }, { status: 400 });
 
-    if (!jwt && !isDev) {
-      return Response.json({ ok: false, reasons: ["Missing Authorization header"] }, { status: 401 });
-    }
+    // Validate body fields
+    const validationError = validateBodyFields(body);
+    if (validationError) return validationError;
 
-    // Only verify JWT if provided (in dev, jwt can be optional)
-    if (jwt) {
-      await verifySupabaseJwt(env, jwt);
-    }
+    const { userId, issueUrl, mode = "validate", recommend } = body;
 
-    // Parse and validate body
-    let body: StartBody;
-    try {
-      body = (await request.json()) as StartBody;
-    } catch {
-      return Response.json({ ok: false, reasons: ["Invalid JSON body"] }, { status: 400 });
-    }
+    // Apply rate limiting
+    const rateLimitError = applyRateLimit(request, userId, mode);
+    if (rateLimitError) return rateLimitError;
 
-    const { userId, issueUrl, teammates = [], mode = "validate", recommend, login } = body;
-    if (!userId) {
-      return Response.json({ ok: false, reasons: ["userId is required"] }, { status: 400 });
-    }
+    // Extract user access token
+    const { token: userAccessToken, error: tokenError } = extractUserAccessToken(body, user);
+    if (tokenError) return tokenError;
+    if (!userAccessToken) return Response.json({ ok: false, reasons: ["Missing user access token"] }, { status: 401 });
 
-    // Rate limiting
-    const clientId = getClientId(request);
-    const key = `${clientId}|${userId}|${mode}`;
-    const limit = mode === "execute" ? 3 : 10;
-    const rl = rateLimit(key, limit, 60_000);
-    if (!rl.allowed) {
-      return Response.json({ ok: false, reasons: ["Rate limit exceeded"], resetAt: rl.resetAt }, { status: 429 });
-    }
+    // Build context
+    const context = await buildShallowContextObject({ env, userAccessToken });
 
     // Route to appropriate handler
     if (!issueUrl) {
-      return await handleRecommendations(env, userId, recommend);
+      return await handleRecommendations({ context, options: recommend });
     }
 
-    return await handleValidateOrExecute(env, issueUrl, userId, teammates, mode, login);
+    return await handleValidateOrExecute({ context, mode, issueUrl });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Internal error";
-    const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 500;
-    return Response.json({ ok: false, reasons: [message] }, { status });
+    return handleError(error);
   }
+}
+
+/**
+ * Validates that the request method is POST.
+ */
+function validateRequestMethod(request: Request): Response | null {
+  if (request.method !== "POST") {
+    return new Response(null, { status: 405 });
+  }
+  return null;
+}
+
+/**
+ * Authenticates the request and returns the user if successful.
+ * Returns null in development mode or if JWT verification succeeds.
+ */
+async function authenticateRequest(request: Request, env: Env): Promise<{ user: User | null; error: Response | null }> {
+  const jwt = extractJwtFromHeader(request);
+  const isDev = isDevelopment();
+
+  if (!jwt && !isDev) {
+    return {
+      user: null,
+      error: Response.json({ ok: false, reasons: ["Missing Authorization header"] }, { status: 401 }),
+    };
+  }
+
+  if (isDev) {
+    console.log("Development mode: Bypassing JWT verification");
+    return { user: null, error: null };
+  }
+
+  if (jwt) {
+    const user = await verifySupabaseJwt(env, jwt);
+    return { user, error: null };
+  }
+
+  return { user: null, error: null };
+}
+
+/**
+ * Parses and validates the request body.
+ */
+async function parseRequestBody(request: Request): Promise<{ body: StartBody | null; error: Response | null }> {
+  try {
+    const body = (await request.json()) as StartBody;
+    return { body, error: null };
+  } catch {
+    return {
+      body: null,
+      error: Response.json({ ok: false, reasons: ["Invalid JSON body"] }, { status: 400 }),
+    };
+  }
+}
+
+/**
+ * Validates the required fields in the request body.
+ */
+function validateBodyFields(body: StartBody): Response | null {
+  const { userId, issueUrl, mode = "validate" } = body;
+
+  if (!userId) {
+    return Response.json({ ok: false, reasons: ["userId is required"] }, { status: 400 });
+  }
+
+  if (!issueUrl && mode !== "validate" && mode !== "execute") {
+    return Response.json({ ok: false, reasons: ["mode must be 'validate' or 'execute' when issueUrl is provided"] }, { status: 400 });
+  }
+
+  return null;
+}
+
+/**
+ * Applies rate limiting based on client ID, user ID, and mode.
+ */
+function applyRateLimit(request: Request, userId: number, mode: string): Response | null {
+  const clientId = getClientId(request);
+  const key = `${clientId}|${userId}|${mode}`;
+  const limit = mode === "execute" ? 3 : 10;
+  const rl = rateLimit(key, limit, 60_000);
+
+  if (!rl.allowed) {
+    return Response.json({ ok: false, reasons: ["Rate limit exceeded"], resetAt: rl.resetAt }, { status: 429 });
+  }
+
+  return null;
+}
+
+/**
+ * Extracts the user access token from the body or user metadata.
+ */
+function extractUserAccessToken(body: StartBody, user: User | null): { token: string | null; error: Response | null } {
+  if (body.userAccessToken) {
+    return { token: body.userAccessToken, error: null };
+  }
+
+  if (user) {
+    const { access_token } = user.user_metadata as { access_token?: string };
+    if (access_token) {
+      return { token: access_token, error: null };
+    }
+  }
+
+  return {
+    token: null,
+    error: Response.json({ ok: false, reasons: ["Missing user access token"] }, { status: 401 }),
+  };
+}
+
+/**
+ * Handles errors and returns an appropriate response.
+ */
+function handleError(error: unknown): Response {
+  const message = error instanceof Error ? error.message : "Internal error";
+  const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 500;
+  return Response.json({ ok: false, reasons: [message] }, { status });
 }
