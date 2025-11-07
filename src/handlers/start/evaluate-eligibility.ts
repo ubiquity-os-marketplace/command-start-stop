@@ -7,6 +7,8 @@ import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { handleTaskLimitChecks } from "./helpers/check-assignments";
 import { checkTaskStale } from "./helpers/check-task-stale";
 import { getDeadline } from "./helpers/get-deadline";
+import { checkAccountAge, UserProfile } from "./helpers/check-account-age";
+import { checkExperience } from "./helpers/check-experience";
 
 export type StartEligibilityResult = {
   ok: boolean;
@@ -69,6 +71,58 @@ export async function evaluateStartEligibility(
   }
 
   const allUsers = [...new Set([sender.login, ...teammates])];
+
+  // Build participant role mappings for access control checks
+  const participantRoleAndLimits: Map<string, { role: ReturnType<typeof getTransformedRole> }> = new Map();
+  participantRoleAndLimits.set(sender.login.toLowerCase(), { role: userRole });
+
+  const roleFetches = allUsers
+    .filter((username) => !participantRoleAndLimits.has(username.toLowerCase()))
+    .map(async (username) => {
+      const association = await getUserRoleAndTaskLimit(context, username);
+      participantRoleAndLimits.set(username.toLowerCase(), { role: association.role });
+    });
+
+  if (roleFetches.length) {
+    await Promise.all(roleFetches);
+  }
+
+  // User profiles cache for account age checks
+  const userProfiles = new Map<string, UserProfile>();
+
+  // Check account age requirements
+  const accountRequiredAgeDays = context.config.taskAccessControl.accountRequiredAge?.minimumDays ?? 0;
+  if (accountRequiredAgeDays > 0) {
+    try {
+      const accountAgeResult = await checkAccountAge(context, allUsers, userProfiles, participantRoleAndLimits, accountRequiredAgeDays);
+
+      if (accountAgeResult.messages.length > 0) {
+        const message = accountAgeResult.messages.join("\n");
+        const warning = context.logger.warn(message, { accountRequiredAgeDays, ageMetadata: accountAgeResult.metadata });
+        errors.push(warning);
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        errors.push(context.logger.error(err.message));
+      }
+    }
+  }
+
+  // Check experience requirements
+  try {
+    const experienceResult = await checkExperience(context, allUsers, participantRoleAndLimits, labels);
+
+    if (experienceResult.messages.length > 0) {
+      const message = experienceResult.messages.join("\n");
+      const warning = context.logger.warn(message, { requiredExperience: experienceResult.requiredExperience, xpMetadata: experienceResult.metadata });
+      errors.push(warning);
+    }
+  } catch (err) {
+    if (err instanceof Error) {
+      errors.push(context.logger.error(err.message));
+    }
+  }
+
   const toAssign: string[] = [];
   for (const user of allUsers) {
     let role: ReturnType<typeof getTransformedRole> | undefined = undefined;
