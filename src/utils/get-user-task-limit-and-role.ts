@@ -61,24 +61,32 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
     }
 
     // If we failed to get organization membership, narrow down to repo role
-    const permissionLevel = await octokit.rest.repos.getCollaboratorPermissionLevel({
-      username: user,
-      owner: context.payload.repository.owner.login,
-      repo: context.payload.repository.name,
-    });
-    role = permissionLevel.data.role_name?.toLowerCase();
-    context.logger.debug(`Retrieved collaborator permission level for ${user}.`, {
-      user,
-      owner: context.payload.repository.owner.login,
-      repo: context.payload.repository.name,
-      isAdmin: permissionLevel.data.user?.permissions?.admin,
-      role,
-      data: permissionLevel.data,
-    });
-    const normalizedRole = getTransformedRole(role);
-    limit = getUserTaskLimit(maxConcurrentTasks, normalizedRole);
+    try {
+      const permissionLevel = await octokit.rest.repos.getCollaboratorPermissionLevel({
+        username: user,
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+      });
+      role = permissionLevel.data.role_name?.toLowerCase();
+      context.logger.debug(`Retrieved collaborator permission level for ${user}.`, {
+        user,
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        isAdmin: permissionLevel.data.user?.permissions?.admin,
+        role,
+        data: permissionLevel.data,
+      });
+      const normalizedRole = getTransformedRole(role);
+      limit = getUserTaskLimit(maxConcurrentTasks, normalizedRole);
 
-    return { role: normalizedRole, limit };
+      return { role: normalizedRole, limit };
+    } catch (err) {
+      logger.error("Could not get collaborator permission level", { err });
+    }
+
+    console.log("Max concurrent tasks", maxConcurrentTasks);
+
+    return { role: "contributor", limit: maxConcurrentTasks.contributor };
   } catch (err) {
     logger.error("Could not get user role", { err });
     return { role: "contributor", limit: maxConcurrentTasks.contributor };

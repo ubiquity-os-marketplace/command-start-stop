@@ -29,10 +29,9 @@ const PRIORITY_LABELS = [
   },
 ];
 
-export const MAX_CONCURRENT_DEFAULTS = {
-  collaborator: 6,
-  contributor: 4,
-};
+import { MAX_CONCURRENT_DEFAULTS } from "../src/utils/constants";
+
+export { MAX_CONCURRENT_DEFAULTS };
 
 export function createContext(
   issue: Record<string, unknown>,

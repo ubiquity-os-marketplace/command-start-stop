@@ -9,7 +9,7 @@ import { Command } from "./types/command";
 import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
-import { handlePublicStart } from "./handlers/start/public-api";
+import { handlePublicStart } from "./handlers/start/api/public-api";
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
