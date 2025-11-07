@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { Env } from "../../../../types/env";
 import { Context } from "../../../../types/context";
-import { createRepoOctokit } from "./octokit";
+import { ShallowContext } from "./context-builder";
 
 export type Recommendation = {
   issueUrl: string;
@@ -11,14 +10,24 @@ export type Recommendation = {
   title: string;
 };
 
-export async function getRecommendations(env: Env, userId: number, options: { topK?: number; threshold?: number } = {}): Promise<Recommendation[]> {
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
-  const threshold = options.threshold ?? 0.6; // 60% similarity threshold
-  const topK = options.topK ?? 5;
+export async function getRecommendations({
+  context,
+  options,
+}: {
+  context: Context | ShallowContext;
+  options?: { topK?: number; threshold?: number };
+}): Promise<Recommendation[]> {
+  const supabase = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_KEY);
+  const threshold = options?.threshold ?? 0.6; // 60% similarity threshold
+  const topK = options?.topK ?? 5;
+  const {
+    octokit,
+    payload: { sender },
+  } = context;
 
   // Get user's completed/authored issues with embeddings
   // filter out issues that have assignees
-  const { data: authored } = await supabase.from("issues").select("embedding,payload").eq("author_id", userId).limit(100);
+  const { data: authored } = await supabase.from("issues").select("embedding,payload").eq("author_id", sender?.id).limit(100);
 
   const vectors = (authored || [])
     .map((r) => {
@@ -31,7 +40,7 @@ export async function getRecommendations(env: Env, userId: number, options: { to
     .filter((v: number[] | null): v is number[] => Array.isArray(v) && v.length > 0);
 
   if (!vectors.length) {
-    console.error("No embeddings found for user", { userId });
+    console.error("No embeddings found for user", { userId: sender?.id });
     return [];
   }
 
@@ -43,7 +52,7 @@ export async function getRecommendations(env: Env, userId: number, options: { to
 
   // Find similar issues
   const { data: similar, error } = await supabase.rpc("find_similar_issues_annotate", {
-    current_id: `user-${userId}`,
+    current_id: `user-${sender?.id}`,
     query_embedding: queryEmbedding,
     threshold,
     top_k: topK,
@@ -69,17 +78,15 @@ export async function getRecommendations(env: Env, userId: number, options: { to
     }
 
     try {
-      const octokit = await createRepoOctokit(env, org, repo);
-      console.log(`Fetching issue ${org}/${repo}#${number}`);
       const issue = (await octokit.rest.issues.get({ owner: org, repo, issue_number: number })).data as Context<"issue_comment.created">["payload"]["issue"];
 
-      const isOpen = issue.state === "open";
-      const isUnassigned = !(issue.assignees && issue.assignees.length);
+      // const isOpen = issue.state === "open";
+      // const isUnassigned = !(issue.assignees && issue.assignees.length);
 
-      if (isOpen && isUnassigned) {
-        const href = `https://www.github.com/${org}/${repo}/issues/${number}`;
-        results.push({ issueUrl: href, similarity: row.similarity, repo, org, title: issue.title });
-      }
+      // if (isOpen && isUnassigned) {
+      const href = `https://www.github.com/${org}/${repo}/issues/${number}`;
+      results.push({ issueUrl: href, similarity: row.similarity, repo, org, title: issue.title });
+      // }
     } catch (err) {
       // Skip issues we can't access
       console.warn(`Failed to fetch issue ${org}/${repo}#${number}:`, err);
