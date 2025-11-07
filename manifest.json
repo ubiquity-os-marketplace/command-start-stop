@@ -204,6 +204,113 @@
                 ]
               }
             }
+          },
+          "accountRequiredAge": {
+            "default": {
+              "minimumDays": 365.25
+            },
+            "type": "object",
+            "properties": {
+              "minimumDays": {
+                "default": 365.25,
+                "minimum": 0,
+                "description": "Minimum number of days a GitHub account must exist before starting a task.",
+                "examples": [0, 30, 365.25],
+                "type": "number"
+              }
+            }
+          },
+          "experience": {
+            "default": {
+              "priorityThresholds": [
+                {
+                  "label": "Priority: 0 (Regression)",
+                  "minimumXp": -2000
+                },
+                {
+                  "label": "Priority: 1 (Normal)",
+                  "minimumXp": -1000
+                },
+                {
+                  "label": "Priority: 2 (Medium)",
+                  "minimumXp": 0
+                },
+                {
+                  "label": "Priority: 3 (High)",
+                  "minimumXp": 1000
+                },
+                {
+                  "label": "Priority: 4 (Urgent)",
+                  "minimumXp": 2000
+                },
+                {
+                  "label": "Priority: 5 (Emergency)",
+                  "minimumXp": 3000
+                }
+              ]
+            },
+            "type": "object",
+            "properties": {
+              "priorityThresholds": {
+                "default": [
+                  {
+                    "label": "Priority: 0 (Regression)",
+                    "minimumXp": -2000
+                  },
+                  {
+                    "label": "Priority: 1 (Normal)",
+                    "minimumXp": -1000
+                  },
+                  {
+                    "label": "Priority: 2 (Medium)",
+                    "minimumXp": 0
+                  },
+                  {
+                    "label": "Priority: 3 (High)",
+                    "minimumXp": 1000
+                  },
+                  {
+                    "label": "Priority: 4 (Urgent)",
+                    "minimumXp": 2000
+                  },
+                  {
+                    "label": "Priority: 5 (Emergency)",
+                    "minimumXp": 3000
+                  }
+                ],
+                "description": "Mappings between priority labels and minimum XP required to start tasks with those labels.",
+                "examples": [
+                  [
+                    {
+                      "label": "Priority: 0",
+                      "minimumXp": -2000
+                    },
+                    {
+                      "label": "Priority: 5 (Emergency)",
+                      "minimumXp": 3000
+                    }
+                  ]
+                ],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "description": "Issue label to match for experience gating.",
+                      "examples": ["Priority: 1 (Normal)", "prio 1"],
+                      "type": "string"
+                    },
+                    "minimumXp": {
+                      "default": 0,
+                      "description": "Minimum XP required to start a task with the associated label.",
+                      "examples": [-2000, 0, 3000],
+                      "type": "number"
+                    }
+                  },
+                  "required": ["label"]
+                }
+              }
+            }
           }
         }
       }

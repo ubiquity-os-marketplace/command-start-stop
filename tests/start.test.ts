@@ -37,6 +37,9 @@ async function setupTests() {
     id: 1,
     login: "user1",
     role: "contributor",
+    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+    xp: 5000,
+    wallet: null,
   });
   db.issue.create({
     ...issueTemplate,
@@ -69,6 +72,9 @@ describe("Collaborator tests", () => {
       id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
+      created_at: new Date("2018-01-01T00:00:00Z").toISOString(),
+      xp: 8000,
+      wallet: null,
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
@@ -155,6 +161,9 @@ describe("Collaborator tests", () => {
       id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
+      created_at: new Date("2018-01-01T00:00:00Z").toISOString(),
+      xp: 8000,
+      wallet: null,
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;

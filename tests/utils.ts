@@ -1,7 +1,7 @@
 import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { createAdapters } from "../src/adapters/index";
-import { AssignedIssueScope, Context, Role, SupportedEvents } from "../src/types";
+import { AssignedIssueScope, Context, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Role, SupportedEvents } from "../src/types";
 import { db } from "./__mocks__/db";
 
 const octokit = await import("@octokit/rest");
@@ -69,6 +69,12 @@ export function createContext(
         usdPriceMax: {
           collaborator: collaboratorUsdLimit,
           contributor: 1000,
+        },
+        accountRequiredAge: {
+          minimumDays: 360,
+        },
+        experience: {
+          priorityThresholds: DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS.map((threshold) => ({ ...threshold })),
         },
       },
     },

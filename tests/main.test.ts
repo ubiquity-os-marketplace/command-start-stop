@@ -229,6 +229,57 @@ describe("User start/stop", () => {
     await expect(userStartStop(context)).rejects.toBeInstanceOf(LogReturn);
   });
 
+  test("User can't start an issue when account age is below the configured minimum", async () => {
+    const dateNowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2025-10-01T00:00:00Z").getTime());
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 4 } } }) as unknown as PayloadSender;
+
+    if (!sender) {
+      throw new Error("sender not found");
+    }
+
+    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+
+    context.adapters = createAdapters(getSupabase(), context);
+    context.config.taskAccessControl.accountRequiredAge = { minimumDays: 120 };
+
+    try {
+      await userStartStop(context);
+      throw new Error("Expected account age restriction to block start");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const messages = aggregateError.errors.map((entry) => entry.message);
+      expect(messages).toEqual(expect.arrayContaining([`@${sender.login} needs an account at least 120 days old (currently 30 days).`]));
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
+  test("User can't start an issue when experience is below the required threshold", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+
+    if (!sender) {
+      throw new Error("sender not found");
+    }
+
+    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+
+    context.adapters = createAdapters(getSupabase(), context);
+    context.config.taskAccessControl.experience = { priorityThresholds: [{ label: PRIORITY_ONE.name, minimumXp: 1000 }] };
+
+    try {
+      await userStartStop(context);
+      throw new Error("Expected experience restriction to block start");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      const aggregateError = error as AggregateError;
+      const messages = aggregateError.errors.map((entry) => entry.message);
+      expect(messages).toEqual(expect.arrayContaining([`@${sender.login} needs at least 1000 XP to start this task (currently 200).`]));
+    }
+  });
+
   test("User can't start an issue that's closed", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 4 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;

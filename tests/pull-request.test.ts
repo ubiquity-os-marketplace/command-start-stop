@@ -30,6 +30,9 @@ async function setupTests() {
     id: 1,
     login: "user1",
     role: "contributor",
+    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+    xp: 5000,
+    wallet: null,
   });
   db.users.create({
     id: 2,
@@ -83,6 +86,9 @@ describe("Pull-request tests", () => {
         pulls: {
           update: jest.fn(),
         },
+        issues: {
+          createComment: jest.fn(),
+        },
       },
       graphql: {
         paginate: jest.fn(() =>
@@ -129,6 +135,9 @@ describe("Pull-request tests", () => {
         },
       }),
     }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
     const { startStopTask } = await import("../src/plugin");
     await expect(startStopTask(context)).rejects.toMatchObject({
       logMessage: {
@@ -157,6 +166,9 @@ describe("Pull-request tests", () => {
       rest: {
         pulls: {
           update: jest.fn(),
+        },
+        issues: {
+          createComment: jest.fn(),
         },
       },
       graphql: {
@@ -219,11 +231,25 @@ describe("Pull-request tests", () => {
         },
       }),
     }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
     const { startStopTask } = await import("../src/plugin");
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
-      },
-    });
+    expect.assertions(2);
+    const error = await startStopTask(context).catch((err: unknown) => err);
+    if (!error || typeof error !== "object") {
+      throw new Error("Expected error object");
+    }
+    const candidate = error as { logMessage?: { raw?: unknown } };
+    if (!candidate.logMessage || typeof candidate.logMessage.raw !== "string") {
+      throw new Error("Expected error with logMessage.raw");
+    }
+    const raw = candidate.logMessage.raw;
+    expect(raw).toEqual(expect.stringContaining("This task does not reflect a business priority at the moment."));
+    expect(raw).toEqual(
+      expect.stringContaining(
+        "You may start tasks with one of the following labels: `Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`"
+      )
+    );
   });
 });
