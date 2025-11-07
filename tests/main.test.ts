@@ -230,6 +230,7 @@ describe("User start/stop", () => {
   });
 
   test("User can't start an issue when account age is below the configured minimum", async () => {
+    jest.spyOn(Date, "now").mockReturnValue(new Date("2025-10-01T00:00:00Z").getTime());
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 4 } } }) as unknown as PayloadSender;
 
