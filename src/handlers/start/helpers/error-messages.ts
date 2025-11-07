@@ -22,6 +22,7 @@ export const ERROR_MESSAGES = {
   NOT_BUSINESS_PRIORITY:
     "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: {{requiredLabelsToStart}}",
   PRESERVATION_MODE: "External contributors are not eligible for rewards at this time. We are preserving resources for core team only.",
+  MALFORMED_COMMAND: "Malformed command parameters.",
 } as const;
 
 export async function handleStartErrors(context: Context, eligibility: StartEligibilityResult): Promise<Result> {

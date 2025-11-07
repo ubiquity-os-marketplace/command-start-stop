@@ -1,17 +1,19 @@
-import { Context } from "../../../types/index";
+import { Context, Issue } from "../../../types/index";
 import { getTransformedRole } from "../../../utils/get-user-task-limit-and-role";
 import { ERROR_MESSAGES } from "./error-messages";
 
 export async function checkRequirements(
   context: Context,
-  issue: Context<"issue_comment.created">["payload"]["issue"],
+  issue: Context<"issue_comment.created">["payload"]["issue"] | Issue,
   userRole: ReturnType<typeof getTransformedRole>
 ): Promise<Error | null> {
   const {
     config: { requiredLabelsToStart },
     logger,
   } = context;
-  const issueLabels = issue.labels.map((label) => label.name.toLowerCase());
+  const issueLabels = issue.labels
+    .map((label) => (typeof label === "string" ? label.toLowerCase() : label.name?.toLowerCase()))
+    .filter((label): label is string => !!label);
 
   if (requiredLabelsToStart.length) {
     const currentLabelConfiguration = requiredLabelsToStart.find((label) =>

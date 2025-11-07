@@ -8,6 +8,8 @@ export type Assignee = Issue["assignee"];
 export type GitHubIssueSearch = RestEndpointMethodTypes["search"]["issuesAndPullRequests"]["response"]["data"];
 export type PrState = "open" | "closed" | "all" | undefined;
 export type Label = RestEndpointMethodTypes["issues"]["listLabelsForRepo"]["response"]["data"][0];
+export type Repository = RestEndpointMethodTypes["repos"]["get"]["response"]["data"];
+export type Organization = Repository["organization"];
 
 export type AssignedIssue = {
   title: string;

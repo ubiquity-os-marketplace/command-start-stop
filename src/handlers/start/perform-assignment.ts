@@ -8,13 +8,11 @@ import { getUserIds } from "./helpers/get-user-ids";
 import structuredMetadata from "./helpers/generate-structured-metadata";
 import { assignTableComment } from "./helpers/generate-assignment-table";
 
-export async function performAssignment(
-  context: Context,
-  issue: Context<"issue_comment.created">["payload"]["issue"],
-  sender: { login: string; id: number },
-  toAssign: string[]
-): Promise<Result> {
-  const { logger } = context;
+export async function performAssignment(context: Context<"issue_comment.created">, toAssign: string[]): Promise<Result> {
+  const {
+    logger,
+    payload: { issue, sender },
+  } = context;
   // compute metadata
   let commitHash: string | null = null;
   try {
@@ -28,7 +26,9 @@ export async function performAssignment(
     logger.error("Error while getting commit hash", { error: e as Error });
   }
   const labels = issue.labels ?? [];
-  const priceLabel = labels.find((label: Label) => label.name.startsWith("Price: "));
+  const priceLabel = labels.find((label: Label) => {
+    return (typeof label === "string" ? label : label.name)?.startsWith("Price: ");
+  });
   const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
   const toAssignIds = await getUserIds(context, toAssign);
   const assignmentComment = await generateAssignmentComment(context, issue.created_at, issue.number, sender.id, null);
