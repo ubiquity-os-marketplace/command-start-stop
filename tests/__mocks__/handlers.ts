@@ -1,11 +1,79 @@
 import { http, HttpResponse } from "msw";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
+import embeddings from "./embeddings.json";
 
 /**
  * Intercepts the routes and returns a custom payload
  */
 export const handlers = [
+  // --- Supabase Auth: GET /auth/v1/user ---
+  http.get("https://test.supabase.co/auth/v1/user", ({ request }) => {
+    const auth = request.headers.get("authorization") || request.headers.get("Authorization");
+    if (!auth || !auth.toLowerCase().startsWith("bearer ")) {
+      return HttpResponse.json({ user: null }, { status: 401 });
+    }
+    const token = auth.split(" ")[1];
+    // Simulate invalid token by checking for specific test token
+    if (token === "invalid-jwt") {
+      return HttpResponse.json({ user: null, error: { message: "Invalid token" } }, { status: 401 });
+    }
+    // Return a minimal supabase auth payload shape for valid tokens
+    return HttpResponse.json({
+      user: {
+        id: "test-id",
+        user_metadata: {
+          provider_id: 123,
+          access_token: "metadata-token",
+        },
+      },
+    });
+  }),
+  // --- Supabase REST: users table lookups ---
+  http.get("https://test.supabase.co/rest/v1/users", ({ request }) => {
+    const url = new URL(request.url);
+    // Expect queries like: select=*&id=eq.123&limit=1
+    const idEq = url.searchParams.get("id");
+    const id = idEq?.startsWith("eq.") ? idEq.slice(3) : null;
+    if (!id) {
+      return HttpResponse.json([], { status: 200 });
+    }
+    const row = { id: Number.isNaN(Number(id)) ? id : Number(id), user_metadata: { access_token: "metadata-token" } };
+    return HttpResponse.json([row], { status: 200, headers: { "content-range": "0-0/1" } });
+  }),
+  // --- Supabase REST: issues table queries ---
+  http.get("https://test.supabase.co/rest/v1/issues", ({ request }) => {
+    const url = new URL(request.url);
+    const select = url.searchParams.get("select") ?? "";
+    // author query: select=embedding,payload&author_id=eq.<id>&limit=100
+    const authorEq = url.searchParams.get("author_id");
+    const idEq = url.searchParams.get("id");
+    if (authorEq && select.includes("embedding")) {
+      const authorId = authorEq.startsWith("eq.") ? authorEq.slice(3) : authorEq;
+      const rows = embeddings.filter((r) => String(r.author_id) === String(authorId)).map((r) => ({ embedding: r.embedding, payload: r.payload }));
+      return HttpResponse.json(rows, { status: 200, headers: { "content-range": `0-${Math.max(rows.length - 1, 0)}/${rows.length}` } });
+    }
+    // payload by id query: select=payload&id=eq.<issue_id>
+    if (idEq && select.includes("payload")) {
+      const targetId = idEq.startsWith("eq.") ? idEq.slice(3) : idEq;
+      // Try to find matching row from embeddings fixture; else return a minimal stub
+      const row = embeddings.find((r) => String(r.id) === String(targetId));
+      const payload = row?.payload ? row.payload : JSON.stringify({ repository: { owner: { login: "owner" }, name: "repo" }, number: 42, assignees: [] });
+      return HttpResponse.json([{ payload }], { status: 200, headers: { "content-range": "0-0/1" } });
+    }
+    return HttpResponse.json([], { status: 200 });
+  }),
+  // --- Supabase REST RPC: find_similar_issues_annotate ---
+  http.post("https://test.supabase.co/rest/v1/rpc/find_similar_issues_annotate", async ({ request }) => {
+    // We can optionally parse body if needed; return a small fixed set
+    try {
+      await request.json();
+    } catch {
+      // Ignore parse errors for tests
+    }
+    const items = embeddings.slice(0, 2).map((r, i) => ({ issue_id: r.id ?? `issue-${i + 1}`, similarity: 0.8 - i * 0.1 }));
+    return HttpResponse.json(items, { status: 200 });
+  }),
   http.get("*/xp", ({ request }) => {
     const url = new URL(request.url);
     const identifier = url.searchParams.get("user");
@@ -157,8 +225,35 @@ export const handlers = [
     if (!user) {
       return new HttpResponse(null, { status: 404 });
     }
-    return HttpResponse.json(user);
+    return HttpResponse.json({
+      login: user.login,
+      id: user.id,
+      created_at: user.created_at,
+      type: "User",
+      site_admin: false,
+    });
   }),
   // get comments for an issue
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", () => HttpResponse.json(db.comments.getAll())),
+  http.get("https://api.github.com/user", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123456,
+      username: "test-user",
+    });
+  }),
+  http.get("https://api.github.com/repos/:owner/:repo", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123456,
+      username: "test-user",
+    });
+  }),
+  http.get("https://api.github.com/repos/owner/repo", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123456,
+      username: "test-user",
+    });
+  }),
 ];
