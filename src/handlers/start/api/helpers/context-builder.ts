@@ -7,8 +7,9 @@ import { createUserOctokit } from "./octokit";
 import { MAX_CONCURRENT_DEFAULTS } from "../../../../utils/constants";
 import { LogLevel, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { Issue, Organization, Repository } from "../../../../types";
+import { listOrganizations } from "../../../../utils/list-organizations";
 
-export type ShallowContext = Omit<Context<"issue_comment.created">, "repository" | "issue" | "organization" | "organizations" | "payload"> & {
+export type ShallowContext = Omit<Context<"issue_comment.created">, "repository" | "issue" | "organization" | "payload"> & {
   env: Env;
   payload: {
     sender: {
@@ -45,8 +46,10 @@ export async function buildShallowContextObject({ env, accessToken }: { env: Env
       },
     },
     adapters: {} as unknown as Context["adapters"],
+    organizations: [],
   };
 
+  ctx.organizations = await listOrganizations(ctx as Context);
   ctx.adapters = createAdapters(supabase, ctx as Context);
   return ctx;
 }
@@ -105,7 +108,7 @@ function getDefaultConfig(): PluginSettings {
     taskStaleTimeoutDuration: "30 Days",
     maxConcurrentTasks: MAX_CONCURRENT_DEFAULTS,
     startRequiresWallet: false,
-    assignedIssueScope: AssignedIssueScope.ORG,
+    assignedIssueScope: AssignedIssueScope.NETWORK,
     emptyWalletText: "Please set your wallet address with the /wallet command first and try again.",
     rolesWithReviewAuthority: [Role.ADMIN, Role.OWNER, Role.MEMBER],
     requiredLabelsToStart: [

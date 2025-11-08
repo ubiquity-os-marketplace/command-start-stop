@@ -68,25 +68,6 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
     errors.push(context.logger.error(errorMessage));
   }
 
-  // TODO: Confirm when (command === `null` | `undefined`) is valid
-  // if (!context.command || !("parameters" in context.command)) {
-  //   errors.push(context.logger.error(ERROR_MESSAGES.MALFORMED_COMMAND));
-  //   return {
-  //     ok: errors.length === 0,
-  //     errors,
-  //     warnings,
-  //     computed: {
-  //       deadline: null,
-  //       isTaskStale: false,
-  //       wallet: null,
-  //       toAssign: [],
-  //       assignedIssues,
-  //       consideredCount: 0,
-  //       senderRole: userRole,
-  //     },
-  //   };
-  // }
-
   const params =
     context.command && "parameters" in context.command
       ? context.command.parameters
@@ -152,6 +133,10 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
     let role: ReturnType<typeof getTransformedRole> | undefined = undefined;
     try {
       const res = await handleTaskLimitChecks({ context, logger: context.logger, sender: sender.login, username: user });
+      // capture issues for later comment and API response
+      res.issues.forEach((issue) => {
+        assignedIssues.push({ title: issue.title, html_url: issue.html_url });
+      });
       // within limit?
       if (!res.isWithinLimit) {
         const message = user === sender.login ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${user} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
@@ -162,10 +147,6 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
             limit: 0,
           })
         );
-        // capture issues for later comment rendering
-        res.issues.forEach((issue) => {
-          assignedIssues.push({ title: issue.title, html_url: issue.html_url });
-        });
       } else {
         toAssign.push(user);
       }

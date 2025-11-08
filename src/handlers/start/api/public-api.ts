@@ -53,7 +53,6 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
 
     return await handleValidateOrExecute({ context, mode, issueUrl });
   } catch (error) {
-    console.log("Error in handlePublicStart:", error);
     return handleError(error);
   }
 }

@@ -43,7 +43,9 @@ export async function handleValidateOrExecute({
       sender: context.payload.sender,
     }) as Context<"issue_comment.created">["payload"],
     command: createCommand([context.payload.sender.login || ""]),
-    organizations: organization ? [organization.login] : [],
+    organizations: !context.organizations.includes(organization?.login || repository.owner.login)
+      ? [...context.organizations, organization?.login || repository.owner.login]
+      : context.organizations,
   };
 
   // Evaluate eligibility
@@ -57,7 +59,6 @@ export async function handleValidateOrExecute({
         reasons: preflight.errors.map((e) => e.logMessage.raw),
         warnings: preflight.warnings,
         computed: preflight.computed,
-        assignedIssues: preflight.computed.assignedIssues,
       },
       { status }
     );
@@ -70,7 +71,6 @@ export async function handleValidateOrExecute({
         ok: false,
         reasons: preflight.errors.map((e) => e.logMessage.raw),
         warnings: preflight.warnings,
-        assignedIssues: preflight.computed.assignedIssues,
         computed: preflight.computed,
       },
       { status: 400 }

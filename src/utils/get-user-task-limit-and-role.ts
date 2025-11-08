@@ -84,8 +84,6 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
       logger.error("Could not get collaborator permission level", { err });
     }
 
-    console.log("Max concurrent tasks", maxConcurrentTasks);
-
     return { role: "contributor", limit: maxConcurrentTasks.contributor };
   } catch (err) {
     logger.error("Could not get user role", { err });

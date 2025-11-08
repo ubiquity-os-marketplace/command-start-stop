@@ -33,6 +33,7 @@ export async function handleTaskLimitChecks({
 
   const openedPullRequests = await getPendingOpenedPullRequests(context, username);
   const assignedIssues = await getAssignedIssues(context, username);
+
   const { limit, role } = await getUserRoleAndTaskLimit(context, username);
 
   // check for max and enforce max
@@ -52,7 +53,7 @@ export async function handleTaskLimitChecks({
 
   return {
     isWithinLimit: true,
-    issues: [],
+    issues: assignedIssues, // assigned issues for public API results
     role,
   };
 }

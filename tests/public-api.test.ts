@@ -6,6 +6,7 @@ import { handlePublicStart } from "../src/handlers/start/api/public-api";
 import { Env } from "../src/types/env";
 
 const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
 
 beforeAll(() => server.listen());
 afterEach(() => {
@@ -22,7 +23,7 @@ const mockOctokit = {
     users: {
       getAuthenticated: jest.fn(() =>
         Promise.resolve({
-          data: { login: "testuser", id: 123 },
+          data: { login: "test-user", id: 123 },
         })
       ),
     },
@@ -37,26 +38,28 @@ const mockOctokit = {
       get: jest.fn(),
     },
   },
-} as jest.Mocked<any>;
+};
 
 jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
   customOctokit: jest.fn(() => mockOctokit),
 }));
 
-const createMockEnv = (): Env => ({
-  APP_ID: "123",
-  APP_PRIVATE_KEY: "test-key",
-  SUPABASE_URL: "https://test.supabase.co",
-  SUPABASE_KEY: "test-key",
-  BOT_USER_ID: 1,
-  LOG_LEVEL: "info",
-});
+function createMockEnv(): Env {
+  return {
+    APP_ID: "123",
+    APP_PRIVATE_KEY: "test-key",
+    SUPABASE_URL: "https://test.supabase.co",
+    SUPABASE_KEY: "test-key",
+    BOT_USER_ID: 1,
+    LOG_LEVEL: "info",
+  };
+}
 
-const createMockRequest = (body: unknown, method = "POST", jwt?: string): Request => {
+function createMockRequest(body: unknown, method = "POST", jwt?: string): Request {
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
-  
+
   if (jwt) {
     headers.authorization = `Bearer ${jwt}`;
   }
@@ -66,7 +69,7 @@ const createMockRequest = (body: unknown, method = "POST", jwt?: string): Reques
     headers,
     body: JSON.stringify(body),
   });
-};
+}
 
 describe("handlePublicStart - HTTP Method Validation", () => {
   it("should reject non-POST requests with 405", async () => {
@@ -79,17 +82,15 @@ describe("handlePublicStart - HTTP Method Validation", () => {
   });
 
   it("should accept POST requests", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: "https://github.com/owner/repo/issues/1" });
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL });
     const env = createMockEnv();
-
-    
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
       data: { number: 1, title: "Test Issue", state: "open", assignees: [], labels: [] },
-    });
+    } as never);
     mockOctokit.rest.repos.get.mockResolvedValueOnce({
-      data: { id: 1, name: "repo", owner: { login: "owner" }  },
-    });
+      data: { id: 1, name: "repo", owner: { login: "owner" } },
+    } as never);
 
     const response = await handlePublicStart(request, env);
 
@@ -113,27 +114,25 @@ describe("handlePublicStart - Authentication", () => {
   });
 
   it("should verify JWT token with Supabase", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: "https://github.com/owner/repo/issues/1" }, "POST", "ghu_validtoken");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
       data: { number: 1, title: "Test", state: "open", assignees: [], labels: [] },
-    });
+    } as never);
     mockOctokit.rest.repos.get.mockResolvedValueOnce({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
-    });
+    } as never);
 
     const response = await handlePublicStart(request, env);
 
-    // Verify successful authentication by checking response is not 401
     expect(response.status).not.toBe(401);
   });
 
   it("should reject invalid JWT tokens", async () => {
-    const request = createMockRequest({ userId: 123 }, "POST", "inghu_validtoken");
+    const request = createMockRequest({ userId: 123 }, "POST", "invalid_jwt");
     const env = createMockEnv();
 
-    // MSW handler will return 401 for "inghu_validtoken" token
     const response = await handlePublicStart(request, env);
     const data = await response.json();
 
@@ -162,7 +161,7 @@ describe("handlePublicStart - Request Body Validation", () => {
   });
 
   it("should reject missing userId", async () => {
-    const request = createMockRequest({}, "POST", "ghu_validtoken");
+    const request = createMockRequest({}, "POST", "ghu_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -176,11 +175,7 @@ describe("handlePublicStart - Request Body Validation", () => {
   });
 
   it("should validate mode parameter", async () => {
-    const request = createMockRequest(
-      { userId: 123, mode: "invalid" as any },
-      "POST",
-      "ghu_validtoken"
-    );
+    const request = createMockRequest({ userId: 123, mode: "invalid" }, "POST", "ghu_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -200,31 +195,21 @@ describe("handlePublicStart - Rate Limiting", () => {
     const env = createMockEnv();
     const userId = 456;
 
-    // MSW handlers will handle Supabase auth automatically
     mockOctokit.rest.issues.get.mockResolvedValue({
       data: { number: 1, title: "Test", state: "open", assignees: [], labels: [] },
-    });
+    } as never);
     mockOctokit.rest.repos.get.mockResolvedValue({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
-    });
+    } as never);
 
-    // Make 3 successful requests
     for (let i = 0; i < 3; i++) {
-      const request = createMockRequest(
-        { userId, issueUrl: "https://github.com/owner/repo/issues/1", mode: "execute" },
-        "POST",
-        "ghu_validtoken"
-      );
+      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "POST", "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 4th request should be rate limited
-    const request = createMockRequest(
-      { userId, issueUrl: "https://github.com/owner/repo/issues/1", mode: "execute" },
-      "POST",
-      "ghu_validtoken"
-    );
+    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "POST", "ghu_valid_token");
     const response = await handlePublicStart(request, env);
     const data = await response.json();
 
@@ -243,28 +228,20 @@ describe("handlePublicStart - Rate Limiting", () => {
     // MSW handlers will handle Supabase auth automatically
     mockOctokit.rest.issues.get.mockResolvedValue({
       data: { number: 1, title: "Test", state: "open", assignees: [], labels: [] },
-    });
+    } as never);
     mockOctokit.rest.repos.get.mockResolvedValue({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
-    });
+    } as never);
 
     // Make 10 successful requests
     for (let i = 0; i < 10; i++) {
-      const request = createMockRequest(
-        { userId, issueUrl: "https://github.com/owner/repo/issues/1", mode: "validate" },
-        "POST",
-        "ghu_validtoken"
-      );
+      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "POST", "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 11th request should be rate limited
-    const request = createMockRequest(
-      { userId, issueUrl: "https://github.com/owner/repo/issues/1", mode: "validate" },
-      "POST",
-      "ghu_validtoken"
-    );
+    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "POST", "ghu_valid_token");
     const response = await handlePublicStart(request, env);
 
     expect(response.status).toBe(429);
@@ -276,20 +253,20 @@ describe("handlePublicStart - User Access Token Handling", () => {
     const request = createMockRequest(
       {
         userId: 123,
-        issueUrl: "https://github.com/owner/repo/issues/1",
+        issueUrl: ISSUE_ONE_URL,
         userAccessToken: "user-provided-token",
       },
       "POST",
-      "ghu_validtoken"
+      "ghu_valid_token"
     );
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
       data: { number: 1, title: "Test", state: "open", assignees: [], labels: [] },
-    });
+    } as never);
     mockOctokit.rest.repos.get.mockResolvedValueOnce({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
-    });
+    } as never);
 
     const response = await handlePublicStart(request, env);
 
@@ -297,20 +274,16 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should extract token from user metadata if not provided", async () => {
-    const request = createMockRequest(
-      { userId: 123, issueUrl: "https://github.com/owner/repo/issues/1" },
-      "POST",
-      "ghu_validtoken"
-    );
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
     const env = createMockEnv();
 
     // MSW handler returns user with metadata containing access_token
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
       data: { number: 1, title: "Test", state: "open", assignees: [], labels: [] },
-    });
+    } as never);
     mockOctokit.rest.repos.get.mockResolvedValueOnce({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
-    });
+    } as never);
 
     const response = await handlePublicStart(request, env);
 
@@ -318,11 +291,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should return 401 if no access token available", async () => {
-    const request = createMockRequest(
-      { userId: 123, issueUrl: "https://github.com/owner/repo/issues/1" },
-      "POST",
-      "invalid-jwt"
-    );
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "invalid-jwt");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -338,10 +307,10 @@ describe("handlePublicStart - User Access Token Handling", () => {
 
 describe("handlePublicStart - Error Handling", () => {
   it("should return 401 for unauthorized errors", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: "https://github.com/owner/repo/issues/1" }, "POST", "invalid-jwt");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "invalid-jwt");
     const env = createMockEnv();
 
-    mockOctokit.rest.issues.get.mockRejectedValueOnce(new Error("Unauthorized"));
+    mockOctokit.rest.issues.get.mockRejectedValueOnce(new Error("Unauthorized") as never);
     const response = await handlePublicStart(request, env);
     expect(response.status).toBe(401);
   });

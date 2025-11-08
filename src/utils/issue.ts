@@ -29,7 +29,10 @@ export async function getAssignedIssues(context: Context, username: string) {
       sort: "created",
     });
     return issues.filter((issue) => {
-      return issue.assignee?.login === username || issue.assignees?.some((assignee) => assignee.login === username);
+      return (
+        issue.assignee?.login.toLowerCase() === username.toLowerCase() ||
+        issue.assignees?.some((assignee) => assignee.login.toLowerCase() === username.toLowerCase())
+      );
     });
   } catch (err) {
     context.logger.info("Will try re-fetching assigned issues...", { error: err as Error });
@@ -301,6 +304,7 @@ export async function getPendingOpenedPullRequests(context: Context, username: s
       result.push(openedPullRequest);
     }
   }
+
   return result;
 }
 
