@@ -40,7 +40,6 @@ export async function getRecommendations({
     .filter((v: number[] | null): v is number[] => Array.isArray(v) && v.length > 0);
 
   if (!vectors.length) {
-    console.error("No embeddings found for user", { userId: sender?.id });
     return [];
   }
 
@@ -59,7 +58,6 @@ export async function getRecommendations({
   });
 
   if (error || !Array.isArray(similar)) {
-    console.error("Embeddings search failed", { error, similar });
     throw new Error("Embeddings search failed");
   }
 
@@ -73,23 +71,24 @@ export async function getRecommendations({
     const repo = payload?.repository?.name;
     const number = payload?.number ?? payload?.issue?.number;
 
-    if (!org || !repo || !number || payload?.assignees?.length) {
+    if (!org || !repo || !number || (payload?.assignees && payload.assignees.length)) {
       continue;
     }
 
     try {
       const issue = (await octokit.rest.issues.get({ owner: org, repo, issue_number: number })).data as Context<"issue_comment.created">["payload"]["issue"];
 
-      // const isOpen = issue.state === "open";
-      // const isUnassigned = !(issue.assignees && issue.assignees.length);
+      const isOpen = issue.state === "open";
+      const isUnassigned = !(issue.assignees && issue.assignees.length);
 
-      // if (isOpen && isUnassigned) {
-      const href = `https://www.github.com/${org}/${repo}/issues/${number}`;
-      results.push({ issueUrl: href, similarity: row.similarity, repo, org, title: issue.title });
-      // }
-    } catch (err) {
-      // Skip issues we can't access
-      console.warn(`Failed to fetch issue ${org}/${repo}#${number}:`, err);
+      if (isOpen && isUnassigned) {
+        const href = `https://www.github.com/${org}/${repo}/issues/${number}`;
+        results.push({ issueUrl: href, similarity: row.similarity, repo, org, title: issue.title });
+      }
+    } catch (e) {
+      if ((e as { status: number }).status !== 404) {
+        throw e;
+      }
     }
   }
 

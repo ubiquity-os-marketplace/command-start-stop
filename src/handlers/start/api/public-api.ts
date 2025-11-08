@@ -3,8 +3,6 @@ import { verifySupabaseJwt, extractJwtFromHeader } from "./helpers/auth";
 import { rateLimit, getClientId } from "./helpers/rate-limit";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { StartBody } from "./helpers/types";
-import { isDevelopment } from "../../../utils/is-dev-env";
-import { User } from "@supabase/supabase-js";
 import { handleRecommendations } from "./directory-task-recommendations";
 import { handleValidateOrExecute } from "./validate-or-execute";
 
@@ -41,8 +39,11 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
     if (authError) return authError;
 
     // Verify user authorization
-    if (!user || !accessToken) {
+    if (!user) {
       return Response.json({ ok: false, reasons: ["Unauthorized"] }, { status: 401 });
+    }
+    if (!accessToken) {
+      return Response.json({ ok: false, reasons: ["Missing user access token"] }, { status: 401 });
     }
 
     // Apply rate limiting
@@ -76,14 +77,10 @@ function validateRequestMethod(request: Request): Response | null {
 
 /**
  * Authenticates the request and returns the user if successful.
- * Returns null in development mode or if JWT verification succeeds.
  */
 async function authenticateRequest(body: StartBody, request: Request, env: Env) {
   const jwt = extractJwtFromHeader(request);
-  const isDev = isDevelopment();
-
-  if (!jwt && !isDev) {
-    console.log("Unauthorized: !JWT provided in production");
+  if (!jwt) {
     return {
       user: null,
       accessToken: null,
@@ -91,12 +88,8 @@ async function authenticateRequest(body: StartBody, request: Request, env: Env) 
     };
   }
 
-  if (jwt) {
-    const { user, accessToken } = await verifySupabaseJwt(body, env, jwt);
-    return { user, accessToken, error: null };
-  }
-
-  return { user: null, accessToken: null, error: null };
+  const { user, accessToken } = await verifySupabaseJwt(body, env, jwt);
+  return { user, accessToken, error: null };
 }
 
 /**
@@ -147,12 +140,12 @@ function applyRateLimit(request: Request, userId: number, mode: string): Respons
   return null;
 }
 
-
 /**
  * Handles errors and returns an appropriate response.
  */
 function handleError(error: unknown): Response {
   const message = error instanceof Error ? error.message : "Internal error";
-  const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 500;
+  const isUnauthorized = error instanceof Error && error.message.toLowerCase().includes("unauthorized");
+  const status = isUnauthorized ? 401 : 500;
   return Response.json({ ok: false, reasons: [message] }, { status });
 }

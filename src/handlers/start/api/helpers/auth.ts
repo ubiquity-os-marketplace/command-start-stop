@@ -7,7 +7,7 @@ import { StartBody } from "./types";
 /**
  * Verifies Supabase JWT token.
  */
-export async function verifySupabaseJwt(body: StartBody, env: Env, jwt: string): Promise<{ user: User, accessToken: string | null }> {
+export async function verifySupabaseJwt(body: StartBody, env: Env, jwt: string): Promise<{ user: User; accessToken: string | null }> {
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
@@ -15,43 +15,42 @@ export async function verifySupabaseJwt(body: StartBody, env: Env, jwt: string):
   }
 
   const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
-  const accessToken = extractUserAccessToken({ body });
-
   let user: User;
 
   function isValidGitAccessToken(token: string) {
     return token.startsWith("ghu_") || token.startsWith("ghs_") || token.startsWith("gho_");
   }
 
-  let isOauthTokenValid, isPayloadTokenValid: boolean;
-  isOauthTokenValid = isValidGitAccessToken(trimmedJwt);
-  isPayloadTokenValid = accessToken ? isValidGitAccessToken(accessToken) : false;
+  const isOauthTokenValid = isValidGitAccessToken(trimmedJwt);
+  const initialAccessToken = extractUserAccessToken({ body });
+  const isPayloadTokenValid = initialAccessToken ? isValidGitAccessToken(initialAccessToken) : false;
 
-  if (isPayloadTokenValid && accessToken) {
-    user = await verifyGitHubToken(supabase, accessToken);
+  if (isPayloadTokenValid && initialAccessToken) {
+    user = await verifyGitHubToken(supabase, initialAccessToken);
   } else if (isOauthTokenValid) {
     user = await verifyGitHubToken(supabase, trimmedJwt);
-  } else if (trimmedJwt.split(".").length === 3) {
-    user = await verifySupabaseToken(supabase, trimmedJwt);
   } else {
-    throw new Error("Unauthorized: Malformed JWT");
+    // Fallback: treat as Supabase JWT (even if it doesn't look like a JWT) and let Supabase validate it
+    user = await verifySupabaseToken(supabase, trimmedJwt);
+  }
+
+  // Prefer body.userAccessToken then fall back to OAuth token when provided
+  let finalAccessToken = extractUserAccessToken({ body, user });
+  if (!finalAccessToken && isOauthTokenValid) {
+    finalAccessToken = trimmedJwt;
   }
 
   return {
     user,
-    accessToken,
-  }
+    accessToken: finalAccessToken ?? null,
+  };
 }
 
 async function verifyGitHubToken(supabase: SupabaseClient, token: string): Promise<User> {
-  const octo = new Octokit({ auth: token });
-  const { data: user } = await octo.users.getAuthenticated();
+  const octokit = new Octokit({ auth: token });
+  const { data: user } = await octokit.users.getAuthenticated();
 
-  const { data: dbUser, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
   if (error || !dbUser) {
     throw new Error("Unauthorized: GitHub token not linked to any user");
@@ -72,11 +71,7 @@ async function verifySupabaseToken(supabase: SupabaseClient, token: string): Pro
     throw new Error("Unauthorized: User GitHub ID not found in OAuth metadata");
   }
 
-  const { data: dbUser, error: dbError } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", userGithubId)
-    .single();
+  const { data: dbUser, error: dbError } = await supabase.from("users").select("*").eq("id", userGithubId).single();
 
   if (dbError || !dbUser) {
     throw new Error("Unauthorized: User not found in database");
@@ -107,21 +102,17 @@ export function extractJwtFromHeader(request: Request): string | null {
   return auth.split(" ")[1];
 }
 
-
-
 /**
  * Extracts the user access token from the body or user metadata.
  */
-function extractUserAccessToken({ body, user }: { body?: StartBody, user?: User | null }): string | null {
+function extractUserAccessToken({ body, user }: { body?: StartBody; user?: User | null }): string | null {
   if (body?.userAccessToken) {
     return body.userAccessToken;
   }
 
-  if (user) {
-    const { access_token } = user.user_metadata as { access_token?: string };
-    if (access_token) {
-      return access_token;
-    }
+  const accessToken = user?.user_metadata?.access_token;
+  if (typeof accessToken === "string" && accessToken.length > 0) {
+    return accessToken;
   }
 
   return null;
