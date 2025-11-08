@@ -3,15 +3,13 @@ import { verifySupabaseJwt, extractJwtFromHeader } from "./helpers/auth";
 import { rateLimit, getClientId } from "./helpers/rate-limit";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { StartBody } from "./helpers/types";
-import { handleRecommendations } from "./directory-task-recommendations";
 import { handleValidateOrExecute } from "./validate-or-execute";
 
 /**
  * Main handler for the public start API endpoint.
- * Supports three modes:
- * 1. Recommendations: when issueUrl is omitted
- * 2. Validate: validates eligibility without performing assignment
- * 3. Execute: validates and performs assignment
+ * Supports two modes:
+ * 1. Validate: validates eligibility without performing assignment
+ * 2. Execute: validates and performs assignment
  *
  * @param request - HTTP request object
  * @param env - Environment variables
@@ -32,7 +30,7 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
     const validationError = validateBodyFields(body);
     if (validationError) return validationError;
 
-    const { userId, issueUrl, mode = "validate", recommend } = body;
+    const { userId, issueUrl, mode = "validate" } = body;
 
     // Authenticate request
     const { user, accessToken, error: authError } = await authenticateRequest(body, request, env);
@@ -52,11 +50,6 @@ export async function handlePublicStart(request: Request, env: Env): Promise<Res
 
     // Build context
     const context = await buildShallowContextObject({ env, accessToken });
-
-    // Route to appropriate handler
-    if (!issueUrl) {
-      return await handleRecommendations({ context, options: recommend });
-    }
 
     return await handleValidateOrExecute({ context, mode, issueUrl });
   } catch (error) {

@@ -1,7 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
-import embeddings from "./embeddings.json";
 
 /**
  * Intercepts the routes and returns a custom payload
@@ -40,39 +39,6 @@ export const handlers = [
     }
     const row = { id: Number.isNaN(Number(id)) ? id : Number(id), user_metadata: { access_token: "metadata-token" } };
     return HttpResponse.json([row], { status: 200, headers: { "content-range": "0-0/1" } });
-  }),
-  // --- Supabase REST: issues table queries ---
-  http.get("https://test.supabase.co/rest/v1/issues", ({ request }) => {
-    const url = new URL(request.url);
-    const select = url.searchParams.get("select") ?? "";
-    // author query: select=embedding,payload&author_id=eq.<id>&limit=100
-    const authorEq = url.searchParams.get("author_id");
-    const idEq = url.searchParams.get("id");
-    if (authorEq && select.includes("embedding")) {
-      const authorId = authorEq.startsWith("eq.") ? authorEq.slice(3) : authorEq;
-      const rows = embeddings.filter((r) => String(r.author_id) === String(authorId)).map((r) => ({ embedding: r.embedding, payload: r.payload }));
-      return HttpResponse.json(rows, { status: 200, headers: { "content-range": `0-${Math.max(rows.length - 1, 0)}/${rows.length}` } });
-    }
-    // payload by id query: select=payload&id=eq.<issue_id>
-    if (idEq && select.includes("payload")) {
-      const targetId = idEq.startsWith("eq.") ? idEq.slice(3) : idEq;
-      // Try to find matching row from embeddings fixture; else return a minimal stub
-      const row = embeddings.find((r) => String(r.id) === String(targetId));
-      const payload = row?.payload ? row.payload : JSON.stringify({ repository: { owner: { login: "owner" }, name: "repo" }, number: 42, assignees: [] });
-      return HttpResponse.json([{ payload }], { status: 200, headers: { "content-range": "0-0/1" } });
-    }
-    return HttpResponse.json([], { status: 200 });
-  }),
-  // --- Supabase REST RPC: find_similar_issues_annotate ---
-  http.post("https://test.supabase.co/rest/v1/rpc/find_similar_issues_annotate", async ({ request }) => {
-    // We can optionally parse body if needed; return a small fixed set
-    try {
-      await request.json();
-    } catch {
-      // Ignore parse errors for tests
-    }
-    const items = embeddings.slice(0, 2).map((r, i) => ({ issue_id: r.id ?? `issue-${i + 1}`, similarity: 0.8 - i * 0.1 }));
-    return HttpResponse.json(items, { status: 200 });
   }),
   http.get("*/xp", ({ request }) => {
     const url = new URL(request.url);

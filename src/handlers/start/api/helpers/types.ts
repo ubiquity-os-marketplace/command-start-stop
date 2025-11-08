@@ -1,13 +1,11 @@
 export type StartBody = {
   userId: number;
-  issueUrl?: string;
-  teammates?: string[];
-  mode?: "validate" | "execute";
-  recommend?: { topK?: number; threshold?: number };
-  // Development only: allows passing login directly when Supabase lookup is unavailable
-  login?: string;
-  // Optional: GitHub user OAuth access token used when the GitHub App isn't installed on the repo
+  issueUrl: string;
+  mode: "validate" | "execute";
+  // Optional: GitHub OAuth access token (of any kind, e.g., user or app) 
   userAccessToken?: string;
+  // Optional: Multi-assignee support - list of teammates to assign along with the user
+  teammates?: string[];
 };
 
 export type IssueUrlParts = {
