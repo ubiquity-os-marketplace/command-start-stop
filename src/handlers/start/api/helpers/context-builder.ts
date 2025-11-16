@@ -1,13 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
-import { Context } from "../../../../types/context";
-import { AssignedIssueScope, PluginSettings, Role } from "../../../../types/plugin-input";
-import { Env } from "../../../../types/env";
+import { CommentHandler } from "@ubiquity-os/plugin-sdk";
+import { LogLevel, Logs } from "@ubiquity-os/ubiquity-os-logger";
+
 import { createAdapters } from "../../../../adapters/index";
-import { createUserOctokit } from "./octokit";
+import { Context } from "../../../../types/context";
+import { Env } from "../../../../types/env";
+import { Issue, Organization, Repository } from "../../../../types/index";
+import { AssignedIssueScope, PluginSettings, Role } from "../../../../types/plugin-input";
 import { MAX_CONCURRENT_DEFAULTS } from "../../../../utils/constants";
-import { LogLevel, LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
-import { Issue, Organization, Repository } from "../../../../types";
 import { listOrganizations } from "../../../../utils/list-organizations";
+
+import { createUserOctokit } from "./octokit";
 
 export type ShallowContext = Omit<Context<"issue_comment.created">, "repository" | "issue" | "organization" | "payload"> & {
   env: Env;
@@ -25,20 +28,26 @@ export type ShallowContext = Omit<Context<"issue_comment.created">, "repository"
  * DOES NOT load payload, repository, issue, organization.
  * These must be injected once you know them.
  */
-export async function buildShallowContextObject({ env, accessToken }: { env: Env; accessToken: string }): Promise<ShallowContext> {
+export async function buildShallowContextObject({
+  env,
+  accessToken,
+  logger,
+}: {
+  env: Env;
+  accessToken: string;
+  logger: Context["logger"];
+}): Promise<ShallowContext> {
   const { octokit, supabase } = await initializeClients(env, accessToken);
   const userData = await octokit.rest.users.getAuthenticated();
 
   const ctx: ShallowContext = {
     env,
     octokit,
-    logger: createLogger(env),
+    logger,
     config: getDefaultConfig(),
     command: createCommand([userData.data.login]),
     eventName: "issue_comment.created" as const,
-    commentHandler: createCommentHandler({
-      userOctokit: octokit,
-    }),
+    commentHandler: new CommentHandler(),
     payload: {
       sender: {
         login: userData.data.login,
@@ -52,20 +61,6 @@ export async function buildShallowContextObject({ env, accessToken }: { env: Env
   ctx.organizations = await listOrganizations(ctx as Context);
   ctx.adapters = createAdapters(supabase, ctx as Context);
   return ctx;
-}
-
-export function createCommentHandler({ userOctokit }: { userOctokit: Awaited<ReturnType<typeof createUserOctokit>> }): Context["commentHandler"] {
-  return {
-    postComment: async (context: Context<"issue_comment.created">, msg: LogReturn | string) => {
-      const body = typeof msg === "string" ? msg : msg?.logMessage?.raw || String(msg);
-      await userOctokit.rest.issues.createComment({
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-        issue_number: context.payload.issue.number,
-        body,
-      });
-    },
-  } as unknown as Context["commentHandler"];
 }
 
 export function createPayload({
@@ -102,7 +97,7 @@ export function createCommand(assignees: string[]): Context["command"] {
   };
 }
 
-function getDefaultConfig(): PluginSettings {
+export function getDefaultConfig(): PluginSettings {
   return {
     reviewDelayTolerance: "3 Days",
     taskStaleTimeoutDuration: "30 Days",
@@ -112,11 +107,26 @@ function getDefaultConfig(): PluginSettings {
     emptyWalletText: "Please set your wallet address with the /wallet command first and try again.",
     rolesWithReviewAuthority: [Role.ADMIN, Role.OWNER, Role.MEMBER],
     requiredLabelsToStart: [
-      { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] },
-      { name: "Priority: 2 (Medium)", allowedRoles: ["collaborator", "contributor"] },
-      { name: "Priority: 3 (High)", allowedRoles: ["collaborator", "contributor"] },
-      { name: "Priority: 4 (Urgent)", allowedRoles: ["collaborator", "contributor"] },
-      { name: "Priority: 5 (Emergency)", allowedRoles: ["collaborator", "contributor"] },
+      {
+        name: "Priority: 1 (Normal)",
+        allowedRoles: ["collaborator", "contributor"],
+      },
+      {
+        name: "Priority: 2 (Medium)",
+        allowedRoles: ["collaborator", "contributor"],
+      },
+      {
+        name: "Priority: 3 (High)",
+        allowedRoles: ["collaborator", "contributor"],
+      },
+      {
+        name: "Priority: 4 (Urgent)",
+        allowedRoles: ["collaborator", "contributor"],
+      },
+      {
+        name: "Priority: 5 (Emergency)",
+        allowedRoles: ["collaborator", "contributor"],
+      },
     ],
     taskAccessControl: {
       usdPriceMax: {
@@ -127,7 +137,7 @@ function getDefaultConfig(): PluginSettings {
   } as PluginSettings;
 }
 
-function createLogger(env: Env): Logs {
+export function createLogger(env: Env | { LOG_LEVEL?: string }): Logs {
   return new Logs((env.LOG_LEVEL as LogLevel) ?? "info");
 }
 

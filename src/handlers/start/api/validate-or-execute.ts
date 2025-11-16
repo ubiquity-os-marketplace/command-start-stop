@@ -1,8 +1,9 @@
+import { Context } from "../../../types";
 import { HttpStatusCode } from "../../../types/result-types";
 import { evaluateStartEligibility } from "../evaluate-eligibility";
 import { performAssignment } from "../perform-assignment";
+
 import { createCommand, createPayload, ShallowContext } from "./helpers/context-builder";
-import { Context } from "../../../types";
 import { parseIssueUrl } from "./helpers/parsers";
 
 /**
@@ -18,16 +19,6 @@ export async function handleValidateOrExecute({
   mode: "validate" | "execute";
   issueUrl: string;
 }): Promise<Response> {
-  if (!issueUrl) {
-    return Response.json(
-      {
-        ok: false,
-        reasons: ["issueUrl is required for validate or execute mode."],
-      },
-      { status: 400 }
-    );
-  }
-
   const { owner, repo, issue_number: issueNumber } = parseIssueUrl(issueUrl);
   const issue = (await context.octokit.rest.issues.get({ owner, repo, issue_number: issueNumber })).data;
   const repository = (await context.octokit.rest.repos.get({ owner, repo })).data;

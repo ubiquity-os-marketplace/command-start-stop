@@ -1,4 +1,5 @@
 import { StaticDecode, Type as T } from "@sinclair/typebox";
+import { StandardValidator } from "typebox-validators";
 
 export enum AssignedIssueScope {
   ORG = "org",
@@ -185,3 +186,7 @@ export const pluginSettingsSchema = T.Object(
 );
 
 export type PluginSettings = StaticDecode<typeof pluginSettingsSchema>;
+
+export function getPluginSettingsValidator() {
+  return new StandardValidator<typeof pluginSettingsSchema>(pluginSettingsSchema);
+}

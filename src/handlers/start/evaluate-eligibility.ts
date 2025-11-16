@@ -1,14 +1,16 @@
 import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
+
 import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
-import { getTimeValue, isParentIssue } from "../../utils/issue";
 import { getTransformedRole, getUserRoleAndTaskLimit } from "../../utils/get-user-task-limit-and-role";
-import { checkRequirements } from "./helpers/check-requirements";
-import { ERROR_MESSAGES } from "./helpers/error-messages";
-import { handleTaskLimitChecks } from "./helpers/check-assignments";
-import { checkTaskStale } from "./helpers/check-task-stale";
-import { getDeadline } from "./helpers/get-deadline";
+import { getTimeValue, isParentIssue } from "../../utils/issue";
+
 import { checkAccountAge, UserProfile } from "./helpers/check-account-age";
+import { handleTaskLimitChecks } from "./helpers/check-assignments";
 import { checkExperience } from "./helpers/check-experience";
+import { checkRequirements } from "./helpers/check-requirements";
+import { checkTaskStale } from "./helpers/check-task-stale";
+import { ERROR_MESSAGES } from "./helpers/error-messages";
+import { getDeadline } from "./helpers/get-deadline";
 
 export type StartEligibilityResult = {
   ok: boolean;
@@ -35,6 +37,20 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
 
   if ((typeof sender === "object" && !sender.login) || !sender) {
     errors.push(context.logger.error(ERROR_MESSAGES.MISSING_SENDER));
+    return {
+      ok: false,
+      errors,
+      warnings,
+      computed: {
+        deadline: null,
+        isTaskStale: false,
+        wallet: null,
+        toAssign: [],
+        assignedIssues: [],
+        consideredCount: 0,
+        senderRole: "contributor",
+      },
+    };
   }
 
   const labels = (issue.labels ?? []) as Label[];

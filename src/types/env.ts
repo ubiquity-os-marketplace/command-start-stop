@@ -32,6 +32,11 @@ export const envSchema = T.Object({
    *  Comma-separated list of allowed origins for public API CORS. Example: "http://localhost:3000,http://127.0.0.1:5173"
    */
   PUBLIC_API_ALLOWED_ORIGINS: T.Optional(T.String()),
+  NODE_ENV: T.Optional(T.String()),
+  /**
+   * Cloudflare KV namespace binding for rate limiting (optional, falls back to in-memory in dev)
+   */
+  RATE_LIMIT_KV: T.Optional(T.Any()),
 });
 
 export type Env = StaticDecode<typeof envSchema>;
