@@ -1,7 +1,9 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../../../types/context";
-import { Super } from "./supabase";
+
 import { ShallowContext } from "../../../handlers/start/api/helpers/context-builder";
+import { Context } from "../../../types/context";
+
+import { Super } from "./supabase";
 
 type Wallet = {
   address: string;

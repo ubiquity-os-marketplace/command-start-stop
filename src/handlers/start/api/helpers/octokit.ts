@@ -1,6 +1,9 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
+
 import { Env } from "../../../../types/env";
+
+export type CustomOctokit = InstanceType<typeof customOctokit>;
 
 export async function createUserOctokit(userAccessToken: string) {
   return new customOctokit({ auth: userAccessToken });

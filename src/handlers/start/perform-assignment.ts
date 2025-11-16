@@ -1,12 +1,13 @@
-import { HttpStatusCode, Result } from "../../types/result-types";
 import { Context, Label } from "../../types";
+import { HttpStatusCode, Result } from "../../types/result-types";
 import { getTimeValue, addAssignees } from "../../utils/issue";
-import { ERROR_MESSAGES } from "./helpers/error-messages";
+
 import { checkTaskStale } from "./helpers/check-task-stale";
+import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { generateAssignmentComment } from "./helpers/generate-assignment-comment";
-import { getUserIds } from "./helpers/get-user-ids";
-import structuredMetadata from "./helpers/generate-structured-metadata";
 import { assignTableComment } from "./helpers/generate-assignment-table";
+import structuredMetadata from "./helpers/generate-structured-metadata";
+import { getUserIds } from "./helpers/get-user-ids";
 
 export async function performAssignment(context: Context<"issue_comment.created">, toAssign: string[]): Promise<Result> {
   const {

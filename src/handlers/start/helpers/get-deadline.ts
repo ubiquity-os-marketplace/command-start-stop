@@ -1,6 +1,7 @@
 import { Context } from "../../../types/index";
-import { options } from "./generate-assignment-comment";
 import { calculateDurations } from "../../../utils/shared";
+
+import { options } from "./generate-assignment-comment";
 
 export function getDeadline(labels: Context<"issue_comment.created">["payload"]["issue"]["labels"] | undefined | null): string | null {
   if (!labels?.length) {

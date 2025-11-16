@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../../../types/context";
+
 import { ShallowContext } from "../../../handlers/start/api/helpers/context-builder";
+import { Context } from "../../../types/context";
 
 export class Super {
   protected supabase: SupabaseClient;

@@ -1,7 +1,8 @@
 import { Context } from "../../../types/index";
-import { getAssignedIssues, getOwnerRepoFromHtmlUrl, getPendingOpenedPullRequests } from "../../../utils/issue";
 import { getAssignmentPeriods } from "../../../utils/get-assignment-periods";
 import { getUserRoleAndTaskLimit } from "../../../utils/get-user-task-limit-and-role";
+import { getAssignedIssues, getOwnerRepoFromHtmlUrl, getPendingOpenedPullRequests } from "../../../utils/issue";
+
 import { ERROR_MESSAGES } from "./error-messages";
 
 async function hasUserBeenUnassigned(context: Context, username: string): Promise<boolean> {

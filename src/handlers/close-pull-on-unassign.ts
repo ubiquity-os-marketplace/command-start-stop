@@ -1,6 +1,6 @@
 import { Context } from "../types/index";
-import { closePullRequestForAnIssue } from "../utils/issue";
 import { HttpStatusCode, Result } from "../types/result-types";
+import { closePullRequestForAnIssue } from "../utils/issue";
 
 export async function closeUserUnassignedPr(context: Context<"issues.unassigned">): Promise<Result> {
   if (!("issue" in context.payload)) {

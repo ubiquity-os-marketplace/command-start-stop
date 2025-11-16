@@ -1,7 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-import { getUserRoleAndTaskLimit } from "../src/utils/get-user-task-limit-and-role";
+
 import { Context } from "../src/types";
+import { getUserRoleAndTaskLimit } from "../src/utils/get-user-task-limit-and-role";
 
 describe("Role tests", () => {
   it("Should retrieve the user role from organization", async () => {

@@ -1,7 +1,8 @@
 import { Context } from "../types/index";
 import { Result } from "../types/result-types";
-import { handleStartErrors } from "./start/helpers/error-messages";
+
 import { evaluateStartEligibility } from "./start/evaluate-eligibility";
+import { handleStartErrors } from "./start/helpers/error-messages";
 import { performAssignment } from "./start/perform-assignment";
 
 export async function startTask(context: Context<"issue_comment.created">): Promise<Result> {

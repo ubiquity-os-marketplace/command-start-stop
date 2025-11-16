@@ -4,16 +4,18 @@ import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
 import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
+
 import { createAdapters } from "../src/adapters";
-import { HttpStatusCode } from "../src/types/result-types";
+import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
 import { userStartStop } from "../src/handlers/command-handler";
 import { Context, Env, envSchema, Sender } from "../src/types";
+import { HttpStatusCode } from "../src/types/result-types";
+
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
 import { createContext, MAX_CONCURRENT_DEFAULTS } from "./utils";
-import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
 
 dotenv.config();
 

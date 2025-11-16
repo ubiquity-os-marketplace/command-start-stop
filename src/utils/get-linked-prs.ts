@@ -1,5 +1,5 @@
-import { Issue, TimelineEventResponse, TimelineEvents } from "../types/index";
 import { Context } from "../types/context";
+import { Issue, TimelineEventResponse, TimelineEvents } from "../types/index";
 
 interface GetLinkedParams {
   owner: string;
