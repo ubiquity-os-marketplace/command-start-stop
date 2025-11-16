@@ -1,19 +1,24 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
-import { db } from "./__mocks__/db";
-import { server } from "./__mocks__/node";
+import { Context as HonoCtx } from "hono";
+
 import { handlePublicStart } from "../src/handlers/start/api/public-api";
 import { Env } from "../src/types/env";
 
-const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+import { db } from "./__mocks__/db";
+import { server } from "./__mocks__/node";
+
+// const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
+const INVALID_JWT = "invalid-jwt";
+const START_URL = "https://test.com/start";
 
 beforeAll(() => server.listen());
 afterEach(() => {
   server.resetHandlers();
   drop(db);
   jest.clearAllMocks();
-  logSpy.mockClear();
+  // logSpy.mockClear();
 });
 afterAll(() => server.close());
 
@@ -55,7 +60,15 @@ function createMockEnv(): Env {
   };
 }
 
-function createMockRequest(body: unknown, method = "POST", jwt?: string): Request {
+function createMockRequest(
+  body: {
+    userId?: number;
+    issueUrl?: string;
+    mode?: "validate" | "execute";
+  },
+  method = "POST",
+  jwt?: string
+): HonoCtx {
   const headers: Record<string, string> = {
     "content-type": "application/json",
   };
@@ -64,18 +77,33 @@ function createMockRequest(body: unknown, method = "POST", jwt?: string): Reques
     headers.authorization = `Bearer ${jwt}`;
   }
 
-  return new Request("http://localhost:3000/start", {
+  const requestInit: RequestInit = {
     method,
     headers,
     body: JSON.stringify(body),
-  });
+  };
+
+  const request = new Request(START_URL, requestInit);
+  return {
+    env: createMockEnv(),
+    req: {
+      raw: request,
+    },
+    body: request.body,
+    json: async () => JSON.parse(await request.text()),
+    header: (name: string) => request.headers.get(name) || undefined,
+  } as unknown as HonoCtx;
 }
 
 describe("handlePublicStart - HTTP Method Validation", () => {
   it("should reject non-POST requests with 405", async () => {
-    const request = new Request("https://test.com/start", { method: "GET" });
     const env = createMockEnv();
-
+    const request = {
+      req: {
+        raw: new Request(START_URL, { method: "GET" }),
+      },
+      env,
+    } as unknown as HonoCtx;
     const response = await handlePublicStart(request, env);
 
     expect(response.status).toBe(405);
@@ -130,7 +158,7 @@ describe("handlePublicStart - Authentication", () => {
   });
 
   it("should reject invalid JWT tokens", async () => {
-    const request = createMockRequest({ userId: 123 }, "POST", "invalid_jwt");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", INVALID_JWT);
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -143,12 +171,19 @@ describe("handlePublicStart - Authentication", () => {
 
 describe("handlePublicStart - Request Body Validation", () => {
   it("should reject invalid JSON body", async () => {
-    const request = new Request("https://test.com/start", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "invalid json{",
-    });
     const env = createMockEnv();
+    const request = {
+      req: {
+        raw: new Request(START_URL, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: "Bearer ghu_valid_token",
+          },
+          body: "invalid json{",
+        }),
+      },
+    } as unknown as HonoCtx;
 
     const response = await handlePublicStart(request, env);
     const data = await response.json();
@@ -175,7 +210,7 @@ describe("handlePublicStart - Request Body Validation", () => {
   });
 
   it("should validate mode parameter", async () => {
-    const request = createMockRequest({ userId: 123, mode: "invalid" }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, mode: "invalid" as "validate" }, "POST", "ghu_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -216,7 +251,7 @@ describe("handlePublicStart - Rate Limiting", () => {
     expect(response.status).toBe(429);
     expect(data).toMatchObject({
       ok: false,
-      reasons: expect.arrayContaining([expect.stringContaining("Rate limit")]),
+      reasons: expect.arrayContaining([expect.stringContaining("RateLimit: exceeded")]),
       resetAt: expect.any(Number),
     });
   });
@@ -254,7 +289,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
       {
         userId: 123,
         issueUrl: ISSUE_ONE_URL,
-        userAccessToken: "user-provided-token",
+        mode: "validate",
       },
       "POST",
       "ghu_valid_token"
@@ -291,12 +326,13 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should return 401 if no access token available", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "invalid-jwt");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "POST", INVALID_JWT);
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
     const data = await response.json();
 
+    console.log("Response Data:", data);
     expect(response.status).toBe(401);
     expect(data).toMatchObject({
       ok: false,
@@ -307,7 +343,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
 
 describe("handlePublicStart - Error Handling", () => {
   it("should return 401 for unauthorized errors", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "invalid-jwt");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", INVALID_JWT);
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockRejectedValueOnce(new Error("Unauthorized") as never);
