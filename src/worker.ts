@@ -1,15 +1,20 @@
+import process from "node:process";
+
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "hono";
-import manifest from "../manifest.json";
+
+import manifest from "../manifest.json" with { type: "json" };
+
 import { createAdapters } from "./adapters/index";
+import { handlePublicStart } from "./handlers/start/api/public-api";
 import { startStopTask } from "./plugin";
 import { Command } from "./types/command";
-import { SupportedEvents } from "./types/context";
-import { Env, envSchema } from "./types/env";
-import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
-import { handlePublicStart } from "./handlers/start/api/public-api";
+import { SupportedEvents } from "./types/index";
+import { Env, envSchema } from "./types/index";
+import { PluginSettings, pluginSettingsSchema } from "./types/index";
+import { validateReqEnv } from "./utils/validate-env";
 
 const START_API_PATH = "/public/start";
 
@@ -21,8 +26,14 @@ function computeAllowedOrigin(origin: string | null, env: Env): string | null {
     .filter(Boolean);
   if (configured.includes("*")) return origin; // wildcard allowed (no credentials usage expected)
   if (configured.length > 0 && configured.includes(origin)) return origin;
-  // Dev convenience: allow localhost & 127.0.0.1 if not explicitly set
-  if (configured.length === 0 && /^(http:\/\/)?(localhost|127\.0\.0\.1)/.test(origin)) return origin;
+  // Dev convenience only in dev/local NODE_ENV: allow localhost & 127.0.0.1 if not explicitly set
+  if (configured.length === 0) {
+    const nodeEnv = typeof process !== "undefined" ? process.env?.NODE_ENV : env?.NODE_ENV;
+    const isDev = nodeEnv === "development" || nodeEnv === "local";
+    if (isDev && /^(http:\/\/)?(localhost|127\.0\.0\.1)/.test(origin)) {
+      return origin;
+    }
+  }
   return null;
 }
 
@@ -38,19 +49,6 @@ function applyCors(request: Request, response: Response, env: Env): Response {
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
-    // Merge runtime-provided env with process.env for local dev (e.g., `bun dev`)
-    const mergedEnv: Env = {
-      APP_ID: (env.APP_ID ?? process.env.APP_ID) as string,
-      APP_PRIVATE_KEY: (env.APP_PRIVATE_KEY ?? process.env.APP_PRIVATE_KEY) as string,
-      SUPABASE_URL: (env.SUPABASE_URL ?? process.env.SUPABASE_URL) as string,
-      SUPABASE_KEY: (env.SUPABASE_KEY ?? process.env.SUPABASE_KEY) as string,
-      BOT_USER_ID: (env.BOT_USER_ID ?? (process.env.BOT_USER_ID as unknown)) as number,
-      KERNEL_PUBLIC_KEY: (env.KERNEL_PUBLIC_KEY ?? process.env.KERNEL_PUBLIC_KEY) as string | undefined,
-      LOG_LEVEL: (env.LOG_LEVEL ?? process.env.LOG_LEVEL) as string | undefined,
-      XP_SERVICE_BASE_URL: (env.XP_SERVICE_BASE_URL ?? process.env.XP_SERVICE_BASE_URL) as string | undefined,
-      PUBLIC_API_ALLOWED_ORIGINS: env.PUBLIC_API_ALLOWED_ORIGINS ?? process.env.PUBLIC_API_ALLOWED_ORIGINS,
-    } as Env;
-
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
@@ -64,8 +62,8 @@ export default {
         envSchema: envSchema,
         postCommentOnError: true,
         settingsSchema: pluginSettingsSchema,
-        logLevel: (mergedEnv.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
-        kernelPublicKey: mergedEnv.KERNEL_PUBLIC_KEY as string,
+        logLevel: (env.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
+        kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
         bypassSignatureVerification: process.env.NODE_ENV === "local",
       }
     );
@@ -73,7 +71,11 @@ export default {
     // CORS preflight for public API
     honoApp.options(START_API_PATH, (c) => {
       const origin = c.req.header("origin") || c.req.header("Origin") || null;
-      const allowed = computeAllowedOrigin(origin, mergedEnv);
+      const validatedEnv = validateReqEnv(c);
+      if (validatedEnv instanceof Response) {
+        return validatedEnv;
+      }
+      const allowed = computeAllowedOrigin(origin, validatedEnv);
       if (!allowed) {
         return new Response(null, { status: 403 });
       }
@@ -91,15 +93,15 @@ export default {
 
     // Public API route with CORS applied
     honoApp.post(START_API_PATH, async (c) => {
-      const res = await handlePublicStart(c.req.raw as Request, mergedEnv);
-      return applyCors(c.req.raw as Request, res, mergedEnv);
+      const validatedEnv = validateReqEnv(c);
+      if (validatedEnv instanceof Response) {
+        return validatedEnv;
+      }
+
+      const res = await handlePublicStart(c, validatedEnv);
+      return applyCors(c.req.raw as Request, res, validatedEnv);
     });
 
-    // Global fetch: attach CORS if response is for public route & origin allowed
-    const response = await honoApp.fetch(request, mergedEnv, executionCtx);
-    if (new URL(request.url).pathname === START_API_PATH) {
-      return applyCors(request, response, mergedEnv);
-    }
-    return response;
+    return honoApp.fetch(request, env, executionCtx);
   },
 };
