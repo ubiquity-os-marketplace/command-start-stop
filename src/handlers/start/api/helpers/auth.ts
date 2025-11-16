@@ -1,13 +1,23 @@
-import { createClient, SupabaseClient, User } from "@supabase/supabase-js";
-import { Env } from "../../../../types/env";
-import { ShallowContext } from "./context-builder";
 import { Octokit } from "@octokit/rest";
-import { StartBody } from "./types";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+
+import { Env } from "../../../../types/env";
+
+import { DatabaseUser } from "./types";
 
 /**
  * Verifies Supabase JWT token.
  */
-export async function verifySupabaseJwt(body: StartBody, env: Env, jwt: string): Promise<{ user: User; accessToken: string | null }> {
+export async function verifySupabaseJwt({
+  env,
+  jwt,
+  logger,
+}: {
+  env: Env;
+  jwt: string;
+  logger: Logs;
+}): Promise<(DatabaseUser & { accessToken: string }) | null> {
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
@@ -15,51 +25,59 @@ export async function verifySupabaseJwt(body: StartBody, env: Env, jwt: string):
   }
 
   const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
-  let user: User;
+  let user: (DatabaseUser & { accessToken: string }) | null = null;
 
   function isValidGitAccessToken(token: string) {
     return token.startsWith("ghu_") || token.startsWith("ghs_") || token.startsWith("gho_");
   }
 
-  const isOauthTokenValid = isValidGitAccessToken(trimmedJwt);
-  const initialAccessToken = extractUserAccessToken({ body });
-  const isPayloadTokenValid = initialAccessToken ? isValidGitAccessToken(initialAccessToken) : false;
+  const isValidGithubOrOauthToken = isValidGitAccessToken(trimmedJwt);
 
-  if (isPayloadTokenValid && initialAccessToken) {
-    user = await verifyGitHubToken(supabase, initialAccessToken);
-  } else if (isOauthTokenValid) {
-    user = await verifyGitHubToken(supabase, trimmedJwt);
+  if (isValidGithubOrOauthToken) {
+    user = await verifyGitHubToken({ supabase, token: trimmedJwt, logger });
   } else {
-    // Fallback: treat as Supabase JWT (even if it doesn't look like a JWT) and let Supabase validate it
-    user = await verifySupabaseToken(supabase, trimmedJwt);
+    user = await verifySupabaseToken({ supabase, token: trimmedJwt, logger });
   }
 
-  // Prefer body.userAccessToken then fall back to OAuth token when provided
-  let finalAccessToken = extractUserAccessToken({ body, user });
-  if (!finalAccessToken && isOauthTokenValid) {
-    finalAccessToken = trimmedJwt;
-  }
-
-  return {
-    user,
-    accessToken: finalAccessToken ?? null,
-  };
+  return user;
 }
 
-async function verifyGitHubToken(supabase: SupabaseClient, token: string): Promise<User> {
-  const octokit = new Octokit({ auth: token });
-  const { data: user } = await octokit.users.getAuthenticated();
+async function verifyGitHubToken({
+  supabase,
+  token,
+  logger,
+}: {
+  supabase: SupabaseClient;
+  token: string;
+  logger: Logs;
+}): Promise<DatabaseUser & { accessToken: string }> {
+  try {
+    const octokit = new Octokit({ auth: token });
+    const { data: user } = await octokit.users.getAuthenticated();
 
-  const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
+    const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
-  if (error || !dbUser) {
-    throw new Error("Unauthorized: GitHub token not linked to any user");
+    if (error || !dbUser) {
+      logger.error("GitHub token verification failed", { e: error });
+      throw new Error("Unauthorized: GitHub token not linked to any user");
+    }
+
+    return { ...dbUser, accessToken: token };
+  } catch (error) {
+    logger.error("GitHub authentication failed", { e: error });
+    throw new Error("Unauthorized: Invalid GitHub token");
   }
-
-  return { ...dbUser, accessToken: token };
 }
 
-async function verifySupabaseToken(supabase: SupabaseClient, token: string): Promise<User> {
+async function verifySupabaseToken({
+  supabase,
+  token,
+  logger,
+}: {
+  supabase: SupabaseClient;
+  token: string;
+  logger: Logs;
+}): Promise<DatabaseUser & { accessToken: string }> {
   const { data: userOauthData, error } = await supabase.auth.getUser(token);
 
   if (error || !userOauthData?.user) {
@@ -74,20 +92,11 @@ async function verifySupabaseToken(supabase: SupabaseClient, token: string): Pro
   const { data: dbUser, error: dbError } = await supabase.from("users").select("*").eq("id", userGithubId).single();
 
   if (dbError || !dbUser) {
+    logger.error("Supabase token verification failed", { e: dbError });
     throw new Error("Unauthorized: User not found in database");
   }
 
-  return { ...dbUser, accessToken: token };
-}
-
-/**
- * Resolves GitHub login from Supabase issues cache.
- */
-export async function resolveLoginFromSupabaseIssues(context: ShallowContext, userId: number): Promise<string | null> {
-  const supabase: SupabaseClient = createClient(context.env.SUPABASE_URL, context.env.SUPABASE_KEY);
-  const { data } = await supabase.from("issues").select("payload").eq("author_id", userId).order("modified_at", { ascending: false }).limit(1);
-  const payload = data && data[0]?.payload;
-  return payload?.user?.login ?? null;
+  return { ...dbUser, accessToken: token } as DatabaseUser & { accessToken: string };
 }
 
 /**
@@ -95,25 +104,9 @@ export async function resolveLoginFromSupabaseIssues(context: ShallowContext, us
  * Returns null if header is missing or malformed.
  */
 export function extractJwtFromHeader(request: Request): string | null {
-  const auth = request.headers.get("authorization") || request.headers.get("Authorization");
+  const auth = request.headers.get("authorization");
   if (!auth || !auth.toLowerCase().startsWith("bearer ")) {
     return null;
   }
   return auth.split(" ")[1];
-}
-
-/**
- * Extracts the user access token from the body or user metadata.
- */
-function extractUserAccessToken({ body, user }: { body?: StartBody; user?: User | null }): string | null {
-  if (body?.userAccessToken) {
-    return body.userAccessToken;
-  }
-
-  const accessToken = user?.user_metadata?.access_token;
-  if (typeof accessToken === "string" && accessToken.length > 0) {
-    return accessToken;
-  }
-
-  return null;
 }

@@ -1,9 +1,24 @@
+import { Value } from "@sinclair/typebox/value";
+import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { Context as HonoContext } from "hono";
+
 import { Env } from "../../../types/env";
-import { verifySupabaseJwt, extractJwtFromHeader } from "./helpers/auth";
-import { rateLimit, getClientId } from "./helpers/rate-limit";
-import { buildShallowContextObject } from "./helpers/context-builder";
-import { StartBody } from "./helpers/types";
+
+import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
+import { buildShallowContextObject, createLogger } from "./helpers/context-builder";
+import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
+import { getClientId, rateLimit } from "./helpers/rate-limit";
+import { getRequestBodyValidator, StartBody, startBodySchema } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
+
+// Type declaration for Cloudflare KV
+declare global {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  interface KVNamespace {
+    get(key: string): Promise<string | null>;
+    put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  }
+}
 
 /**
  * Main handler for the public start API endpoint.
@@ -15,118 +30,164 @@ import { handleValidateOrExecute } from "./validate-or-execute";
  * @param env - Environment variables
  * @returns HTTP response with appropriate status and body
  */
-export async function handlePublicStart(request: Request, env: Env): Promise<Response> {
-  try {
-    // Validate request method
-    const methodError = validateRequestMethod(request);
-    if (methodError) return methodError;
+export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise<Response> {
+  const request = honoCtx.req.raw as Request;
 
-    // Parse request body
-    const { body, error: parseError } = await parseRequestBody(request);
-    if (parseError) return parseError;
-    if (!body) return Response.json({ ok: false, reasons: ["Invalid request body"] }, { status: 400 });
-
-    // Validate body fields
-    const validationError = validateBodyFields(body);
-    if (validationError) return validationError;
-
-    const { userId, issueUrl, mode = "validate" } = body;
-
-    // Authenticate request
-    const { user, accessToken, error: authError } = await authenticateRequest(body, request, env);
-    if (authError) return authError;
-
-    // Verify user authorization
-    if (!user) {
-      return Response.json({ ok: false, reasons: ["Unauthorized"] }, { status: 401 });
-    }
-    if (!accessToken) {
-      return Response.json({ ok: false, reasons: ["Missing user access token"] }, { status: 401 });
-    }
-
-    // Apply rate limiting
-    const rateLimitError = applyRateLimit(request, userId, mode);
-    if (rateLimitError) return rateLimitError;
-
-    // Build context
-    const context = await buildShallowContextObject({ env, accessToken });
-
-    return await handleValidateOrExecute({ context, mode, issueUrl });
-  } catch (error) {
-    return handleError(error);
-  }
-}
-
-/**
- * Validates that the request method is POST.
- */
-function validateRequestMethod(request: Request): Response | null {
   if (request.method !== "POST") {
     return new Response(null, { status: 405 });
   }
-  return null;
+  const logger = createLogger(env);
+
+  try {
+    // Check for JWT token first before parsing body
+    const jwt = extractJwtFromHeader(request);
+    if (!jwt) {
+      return Response.json(
+        {
+          ok: false,
+          reasons: [logger.error("Missing Authorization header").logMessage.raw],
+        },
+        { status: 401 }
+      );
+    }
+
+    const { user, error: authError } = await authenticateRequest({
+      env,
+      logger,
+      jwt,
+    });
+    if (authError) {
+      logger.error(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
+      return authError;
+    }
+    if (!user) {
+      return Response.json(
+        {
+          ok: false,
+          reasons: [logger.error("Unauthorized: User authentication failed").logMessage.raw],
+        },
+        { status: 401 }
+      );
+    }
+
+    // Validate environment and parse request body
+    const body = await validateRequestBody(honoCtx, logger);
+    if (body instanceof Response) return body;
+    const { userId, issueUrl, mode } = body;
+
+    // Apply rate limiting
+    const rateLimitError = await applyRateLimit({ request, userId, mode, env, logger });
+    if (rateLimitError) return rateLimitError;
+
+    // Build context and load merged plugin settings from org/repo config
+    const context = await buildShallowContextObject({
+      env,
+      accessToken: user.accessToken,
+      logger,
+    });
+
+    context.config = await fetchMergedPluginSettings({
+      env,
+      issueUrl,
+      logger,
+    });
+
+    return await handleValidateOrExecute({ context, mode, issueUrl });
+  } catch (error) {
+    return handleError(error, logger);
+  }
+}
+
+async function validateRequestBody(honoCtx: HonoContext, logger: Logs) {
+  let body: StartBody;
+  const bodyValidator = getRequestBodyValidator();
+
+  try {
+    const rawBody = await honoCtx.req.raw.json();
+    if (!bodyValidator.test(rawBody)) {
+      const errors = [...bodyValidator.errors(rawBody)];
+      const reasons = errors.map((e) => `${e.path}: ${e.message}`);
+      logger.error("Request body validation failed", { reasons });
+      return Response.json({ ok: false, reasons }, { status: 400 });
+    }
+
+    body = Value.Decode(startBodySchema, Value.Default(startBodySchema, rawBody));
+  } catch (error) {
+    logger.error("Invalid JSON body", { e: error });
+    return Response.json(
+      { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
+      {
+        status: 400,
+      }
+    );
+  }
+  return body;
 }
 
 /**
  * Authenticates the request and returns the user if successful.
  */
-async function authenticateRequest(body: StartBody, request: Request, env: Env) {
-  const jwt = extractJwtFromHeader(request);
-  if (!jwt) {
+async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Logs; jwt: string }) {
+  try {
+    const user = await verifySupabaseJwt({
+      env,
+      jwt,
+      logger,
+    });
+
+    if (!user) {
+      throw new Error("Unauthorized: User not found");
+    }
+
+    return { user };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unauthorized: Invalid JWT, expired, or user not found";
     return {
       user: null,
       accessToken: null,
-      error: Response.json({ ok: false, reasons: ["Missing Authorization header"] }, { status: 401 }),
+      error: Response.json(
+        {
+          ok: false,
+          reasons: [message],
+        },
+        { status: 401 }
+      ),
     };
   }
-
-  const { user, accessToken } = await verifySupabaseJwt(body, env, jwt);
-  return { user, accessToken, error: null };
-}
-
-/**
- * Parses and validates the request body.
- */
-async function parseRequestBody(request: Request): Promise<{ body: StartBody | null; error: Response | null }> {
-  try {
-    const body = (await request.json()) as StartBody;
-    return { body, error: null };
-  } catch {
-    return {
-      body: null,
-      error: Response.json({ ok: false, reasons: ["Invalid JSON body"] }, { status: 400 }),
-    };
-  }
-}
-
-/**
- * Validates the required fields in the request body.
- */
-function validateBodyFields(body: StartBody): Response | null {
-  const { userId, issueUrl, mode = "validate" } = body;
-
-  if (!userId) {
-    return Response.json({ ok: false, reasons: ["userId is required"] }, { status: 400 });
-  }
-
-  if (!issueUrl && mode !== "validate" && mode !== "execute") {
-    return Response.json({ ok: false, reasons: ["mode must be 'validate' or 'execute' when issueUrl is provided"] }, { status: 400 });
-  }
-
-  return null;
 }
 
 /**
  * Applies rate limiting based on client ID, user ID, and mode.
  */
-function applyRateLimit(request: Request, userId: number, mode: string): Response | null {
+async function applyRateLimit({
+  request,
+  userId,
+  mode,
+  env,
+  logger,
+}: {
+  request: Request;
+  userId: number;
+  mode: string;
+  env: Env & {
+    KV_RATE_LIMIT?: KVNamespace;
+  };
+  logger: Logs;
+}): Promise<Response | null> {
   const clientId = getClientId(request);
   const key = `${clientId}|${userId}|${mode}`;
   const limit = mode === "execute" ? 3 : 10;
-  const rl = rateLimit(key, limit, 60_000);
+  const rl = await rateLimit(key, limit, 60_000, env);
 
   if (!rl.allowed) {
-    return Response.json({ ok: false, reasons: ["Rate limit exceeded"], resetAt: rl.resetAt }, { status: 429 });
+    return Response.json(
+      {
+        ok: false,
+        reasons: [logger.warn("RateLimit: exceeded", { key, resetAt: rl.resetAt, limit }).logMessage.raw],
+        resetAt: rl.resetAt,
+      },
+      { status: 429 }
+    );
   }
 
   return null;
@@ -135,9 +196,10 @@ function applyRateLimit(request: Request, userId: number, mode: string): Respons
 /**
  * Handles errors and returns an appropriate response.
  */
-function handleError(error: unknown): Response {
+function handleError(error: unknown, logger: Logs): Response {
   const message = error instanceof Error ? error.message : "Internal error";
   const isUnauthorized = error instanceof Error && error.message.toLowerCase().includes("unauthorized");
   const status = isUnauthorized ? 401 : 500;
+  logger.error("PublicStart: unhandled error", { message, status, e: error });
   return Response.json({ ok: false, reasons: [message] }, { status });
 }
