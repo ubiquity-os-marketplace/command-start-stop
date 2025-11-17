@@ -73,7 +73,7 @@ describe("Pull-request tests", () => {
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "") as Context<"pull_request.opened">;
+    const context = await createContext(issue, sender, "") as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -113,13 +113,13 @@ describe("Pull-request tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+    jest.mock("@supabase/supabase-js", () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule("../src/adapters", () => ({
+    jest.mock("../src/adapters", () => ({
       createAdapters: jest.fn(),
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
         rest: {
           apps: {
@@ -154,7 +154,7 @@ describe("Pull-request tests", () => {
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "") as Context<"pull_request.opened">;
+    const context = await createContext(issue, sender, "") as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -194,10 +194,10 @@ describe("Pull-request tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-    jest.unstable_mockModule("@supabase/supabase-js", () => ({
+    jest.mock("@supabase/supabase-js", () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule("../src/adapters", () => ({
+    jest.mock("../src/adapters", () => ({
       createAdapters: jest.fn(() => ({
         supabase: {
           user: {
@@ -206,7 +206,7 @@ describe("Pull-request tests", () => {
         },
       })),
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
         paginate: jest.fn(() => Promise.resolve([])),
         rest: {

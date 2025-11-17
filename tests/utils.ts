@@ -6,8 +6,8 @@ import { AssignedIssueScope, Context, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Ro
 import { MAX_CONCURRENT_DEFAULTS } from "../src/utils/constants";
 
 import { db } from "./__mocks__/db";
+import { mockOctokit } from "./setup";
 
-const octokit = await import("@octokit/rest");
 const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
 const priority3LabelName = "Priority: 3 (High)";
 const priority4LabelName = "Priority: 4 (Urgent)";
@@ -32,16 +32,14 @@ const PRIORITY_LABELS = [
   },
 ];
 
-export { MAX_CONCURRENT_DEFAULTS };
-
-export function createContext(
+async function createContext(
   issue: Record<string, unknown>,
   sender: Record<string, unknown> | undefined,
   body = "/start",
   collaboratorUsdLimit: string | number = 10000,
   startRequiresWallet = false,
   requiredLabelsToStart = PRIORITY_LABELS
-): Context {
+): Promise<Context> {
   return {
     adapters: {} as ReturnType<typeof createAdapters>,
     payload: {
@@ -79,7 +77,8 @@ export function createContext(
         },
       },
     },
-    octokit: new octokit.Octokit(),
+    octokit: mockOctokit as unknown as Context["octokit"],
+    installOctokit: mockOctokit as unknown as Context["octokit"],
     eventName: "issue_comment.created" as SupportedEvents,
     organizations: ["ubiquity"],
     env: {
@@ -93,3 +92,5 @@ export function createContext(
     commentHandler: new CommentHandler(),
   } as unknown as Context;
 }
+
+export { MAX_CONCURRENT_DEFAULTS, createContext, PRIORITY_ONE, priority3LabelName, priority4LabelName, priority5LabelName };

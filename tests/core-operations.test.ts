@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect } from "@jest/globals";
 import { drop } from "@mswjs/data";
 
 import { Context } from "../src/types";
@@ -59,10 +59,10 @@ describe("test", () => {
     await setupTests();
   });
   it("should block bounty tasks when price limit is negative", async () => {
-    jest.unstable_mockModule(supabaseModulePath, () => ({
+    jest.mock(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule(adaptersModulePath, () => ({
+    jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(() => ({
         supabase: {
           user: {
@@ -101,7 +101,8 @@ describe("test", () => {
       },
     ];
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
-    const context = { ...createContext(issue, sender, "/start"), issue: {} } as Context<"issue_comment.created">;
+    // const context = { ...createContext(issue, sender, "/start"),  issue: {} } as Context<"issue_comment.created">;
+    const context = await createContext(issue, sender, "/start");
     context.config.taskAccessControl.usdPriceMax = {
       collaborator: -1,
       contributor: -1,

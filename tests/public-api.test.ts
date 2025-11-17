@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { Context as HonoCtx } from "hono";
 
@@ -8,17 +8,15 @@ import { Env } from "../src/types/env";
 import { db } from "./__mocks__/db";
 import { server } from "./__mocks__/node";
 
-// const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
 const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
 const INVALID_JWT = "invalid-jwt";
-const START_URL = "https://test.com/start";
+const START_URL = "https://test.com/public/start";
 
 beforeAll(() => server.listen());
 afterEach(() => {
   server.resetHandlers();
   drop(db);
   jest.clearAllMocks();
-  // logSpy.mockClear();
 });
 afterAll(() => server.close());
 
@@ -57,6 +55,7 @@ function createMockEnv(): Env {
     SUPABASE_KEY: "test-key",
     BOT_USER_ID: 1,
     LOG_LEVEL: "info",
+    NODE_ENV: "test",
   };
 }
 
@@ -66,7 +65,7 @@ function createMockRequest(
     issueUrl?: string;
     mode?: "validate" | "execute";
   },
-  method = "POST",
+  method = "GET",
   jwt?: string
 ): HonoCtx {
   const headers: Record<string, string> = {
@@ -77,30 +76,28 @@ function createMockRequest(
     headers.authorization = `Bearer ${jwt}`;
   }
 
+  const queryString = new URLSearchParams(body as Record<string, string>).toString();
   const requestInit: RequestInit = {
     method,
     headers,
-    body: JSON.stringify(body),
   };
 
-  const request = new Request(START_URL, requestInit);
+  const request = new Request(START_URL + "?" + queryString, requestInit);
   return {
     env: createMockEnv(),
     req: {
       raw: request,
     },
-    body: request.body,
-    json: async () => JSON.parse(await request.text()),
     header: (name: string) => request.headers.get(name) || undefined,
   } as unknown as HonoCtx;
 }
 
 describe("handlePublicStart - HTTP Method Validation", () => {
-  it("should reject non-POST requests with 405", async () => {
+  it("should reject non-GET requests with 405", async () => {
     const env = createMockEnv();
     const request = {
       req: {
-        raw: new Request(START_URL, { method: "GET" }),
+        raw: new Request(START_URL, { method: "POST" }),
       },
       env,
     } as unknown as HonoCtx;
@@ -109,7 +106,7 @@ describe("handlePublicStart - HTTP Method Validation", () => {
     expect(response.status).toBe(405);
   });
 
-  it("should accept POST requests", async () => {
+  it("should accept GET requests", async () => {
     const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL });
     const env = createMockEnv();
 
@@ -142,7 +139,7 @@ describe("handlePublicStart - Authentication", () => {
   });
 
   it("should verify JWT token with Supabase", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
@@ -158,7 +155,7 @@ describe("handlePublicStart - Authentication", () => {
   });
 
   it("should reject invalid JWT tokens", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", INVALID_JWT);
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", INVALID_JWT);
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -169,18 +166,23 @@ describe("handlePublicStart - Authentication", () => {
   });
 });
 
-describe("handlePublicStart - Request Body Validation", () => {
-  it("should reject invalid JSON body", async () => {
+describe("handlePublicStart - Request Query Validation", () => {
+  it("should reject invalid query parameters", async () => {
     const env = createMockEnv();
+    const queryString = new URLSearchParams({
+      userId: "123",
+      issueUrl: ISSUE_ONE_URL,
+      mode: "validate",
+      badKey: "badValue",
+    }).toString();
     const request = {
       req: {
-        raw: new Request(START_URL, {
-          method: "POST",
+        raw: new Request(START_URL + "?" + queryString, {
+          method: "GET",
           headers: {
             "content-type": "application/json",
             authorization: "Bearer ghu_valid_token",
           },
-          body: "invalid json{",
         }),
       },
     } as unknown as HonoCtx;
@@ -196,7 +198,7 @@ describe("handlePublicStart - Request Body Validation", () => {
   });
 
   it("should reject missing userId", async () => {
-    const request = createMockRequest({}, "POST", "ghu_valid_token");
+    const request = createMockRequest({}, "GET", "ghu_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -210,7 +212,7 @@ describe("handlePublicStart - Request Body Validation", () => {
   });
 
   it("should validate mode parameter", async () => {
-    const request = createMockRequest({ userId: 123, mode: "invalid" as "validate" }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, mode: "invalid" as "validate" }, "GET", "ghu_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -238,13 +240,13 @@ describe("handlePublicStart - Rate Limiting", () => {
     } as never);
 
     for (let i = 0; i < 3; i++) {
-      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "POST", "ghu_valid_token");
+      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "GET", "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 4th request should be rate limited
-    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "GET", "ghu_valid_token");
     const response = await handlePublicStart(request, env);
     const data = await response.json();
 
@@ -270,13 +272,13 @@ describe("handlePublicStart - Rate Limiting", () => {
 
     // Make 10 successful requests
     for (let i = 0; i < 10; i++) {
-      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "POST", "ghu_valid_token");
+      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "GET", "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 11th request should be rate limited
-    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "GET", "ghu_valid_token");
     const response = await handlePublicStart(request, env);
 
     expect(response.status).toBe(429);
@@ -291,7 +293,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
         issueUrl: ISSUE_ONE_URL,
         mode: "validate",
       },
-      "POST",
+      "GET",
       "ghu_valid_token"
     );
     const env = createMockEnv();
@@ -309,7 +311,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should extract token from user metadata if not provided", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
     const env = createMockEnv();
 
     // MSW handler returns user with metadata containing access_token
@@ -326,7 +328,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should return 401 if no access token available", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "POST", INVALID_JWT);
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "GET", INVALID_JWT);
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
@@ -343,7 +345,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
 
 describe("handlePublicStart - Error Handling", () => {
   it("should return 401 for unauthorized errors", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", INVALID_JWT);
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", INVALID_JWT);
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockRejectedValueOnce(new Error("Unauthorized") as never);

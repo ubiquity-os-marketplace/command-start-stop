@@ -173,9 +173,9 @@ export const handlers = [
     const query = params.get("q");
     const hasAssignee = query?.includes("assignee");
     if (hasAssignee) {
-      return HttpResponse.json(db.issue.getAll());
+      return HttpResponse.json({ items: db.issue.getAll(), total_count: db.issue.count() });
     } else {
-      return HttpResponse.json(db.pull.getAll());
+      return HttpResponse.json({ items: db.pull.getAll(), total_count: db.pull.count() });
     }
   }),
   // get issue by number
@@ -222,5 +222,55 @@ export const handlers = [
       id: 123456,
       username: "test-user",
     });
+  }),
+  // Get app installation for a repository
+  http.get("https://api.github.com/repos/:owner/:repo/installation", ({ params: { owner } }) => {
+    return HttpResponse.json({
+      id: 12345,
+      account: {
+        login: owner,
+        id: 1,
+      },
+      repository_selection: "selected",
+      access_tokens_url: "https://api.github.com/app/installations/12345/access_tokens",
+      repositories_url: "https://api.github.com/installation/repositories",
+    });
+  }),
+  // List installations for authenticated app
+  http.get("https://api.github.com/app/installations", () => {
+    return HttpResponse.json([
+      {
+        id: 12345,
+        account: {
+          login: "test-org",
+          id: 1,
+        },
+      },
+    ]);
+  }),
+  // GET https://api.github.com/repos/test-org/.ubiquity-os/contents/.github%2F.ubiquity-os.config.yml
+  http.get("https://api.github.com/repos/:owner/:repo/contents/:path", ({ params: { owner, repo, path } }) => {
+    if (owner === "test-org" && repo === ".ubiquity-os" && path === ".github/.ubiquity-os.config.yml") {
+      const content = Buffer.from(
+        `plugins: 
+  - uses:
+    - plugin: http://localhost:4000
+      with: 
+        taskAccessControl: 
+          usdPriceMax: 
+            collaborator: 9999999
+            contributor: 1500
+          requiredLabelsToStart:
+            - "Priority: 2 (Medium)"`
+      ).toString("base64");
+
+      return HttpResponse.json({
+        type: "file",
+        encoding: "base64",
+        size: content.length,
+        name: ".ubiquity-os.config.yml",
+        content,
+      });
+    }
   }),
 ];

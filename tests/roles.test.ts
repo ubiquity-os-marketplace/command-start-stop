@@ -33,17 +33,29 @@ describe("Role tests", () => {
           },
         },
       },
-    } as unknown as Context;
+      installOctokit: {
+        rest: {
+          orgs: {
+            getMembershipForUser: jest.fn(() => ({ data: { role: "admin" } })),
+          },
+        },
+      },
+    } as unknown as Context & { installOctokit: Context["octokit"] };
 
     let result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
     expect(result).toEqual({ limit: Infinity, role: "admin" });
-    ctx.octokit = {
+
+    const mockOctokit = {
       rest: {
         repos: {
           getCollaboratorPermissionLevel: jest.fn(() => ({ data: { role_name: "contributor" } })),
         },
       },
-    } as unknown as Context["octokit"];
+    };
+
+    ctx.octokit = mockOctokit as unknown as Context["octokit"];
+    ctx.installOctokit = mockOctokit as unknown as Context["octokit"];
+
     result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
     expect(result).toEqual({ limit: 1, role: "contributor" });
   });

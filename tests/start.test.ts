@@ -80,7 +80,7 @@ describe("Collaborator tests", () => {
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
+    const context = await createContext(issue, sender, "") as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -123,17 +123,17 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule(supabaseModulePath, () => ({
+    jest.mock(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule(adaptersModulePath, () => ({
+    jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
     const startTask = jest.fn();
-    jest.unstable_mockModule(modulePath, () => ({
+    jest.mock(modulePath, () => ({
       startTask,
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
         rest: {
           apps: {
@@ -179,7 +179,7 @@ describe("Collaborator tests", () => {
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
     const repository = db.repo.findFirst({ where: { id: { equals: 1 } } });
 
-    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -222,17 +222,17 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule(supabaseModulePath, () => ({
+    jest.mock(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule(adaptersModulePath, () => ({
+    jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
     const startTask = jest.fn();
-    jest.unstable_mockModule(modulePath, () => ({
+    jest.mock(modulePath, () => ({
       startTask,
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
         rest: {
           apps: {
