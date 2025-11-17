@@ -49,7 +49,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start", "Infinity") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start", "Infinity")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     const { content } = await userStartStop(context);
@@ -61,7 +61,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 8 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     await expect(userStartStop(context)).rejects.toMatchObject({
@@ -81,7 +81,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -94,7 +94,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "\n\n/start\n") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "\n\n/start\n")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -107,7 +107,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start @user3") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start @user3")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -124,7 +124,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -137,7 +137,7 @@ describe("User start/stop", () => {
     const infoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
-    const context = await createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -153,7 +153,7 @@ describe("User start/stop", () => {
     const infoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
-    const context = await createContext(issue, sender, "") as Context<"issues.unassigned">;
+    const context = (await createContext(issue, sender, "")) as Context<"issues.unassigned">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -169,7 +169,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -180,7 +180,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 6 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "You are not assigned to this task" } });
@@ -190,7 +190,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -203,7 +203,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 3 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -223,7 +223,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start", "Infinity", true) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start", "Infinity", true)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(false), context);
     await expect(userStartStop(context)).rejects.toBeInstanceOf(LogReturn);
@@ -251,7 +251,7 @@ describe("User start/stop", () => {
       throw new Error("updated sender not found");
     }
 
-    const context = await createContext(issue, updatedSender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, updatedSender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     context.config.taskAccessControl.accountRequiredAge = { minimumDays: 120 };
@@ -280,7 +280,7 @@ describe("User start/stop", () => {
       throw new Error("sender not found");
     }
 
-    const context = await createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     context.config.taskAccessControl.experience = { priorityThresholds: [{ label: PRIORITY_ONE.name, minimumXp: 1000 }] };
@@ -304,7 +304,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 4 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
@@ -315,7 +315,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 5 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -331,7 +331,7 @@ describe("User start/stop", () => {
     const memberLimit = MAX_CONCURRENT_DEFAULTS.collaborator;
 
     createIssuesForMaxAssignment(memberLimit + 4, sender.id);
-    const context = await createContext(issue, sender) as unknown as Context;
+    const context = (await createContext(issue, sender)) as unknown as Context;
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
@@ -346,7 +346,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 6 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
@@ -396,11 +396,11 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start", "Infinity", false, [
+    const context = (await createContext(issue, sender, "/start", "Infinity", false, [
       { name: priority3LabelName, allowedRoles: ["collaborator", "contributor"] },
       { name: priority4LabelName, allowedRoles: ["collaborator", "contributor"] },
       { name: priority5LabelName, allowedRoles: ["collaborator", "contributor"] },
-    ]) as Context<"issue_comment.created">;
+    ])) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -415,13 +415,13 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "/start", "Infinity", false, [
+    const context = (await createContext(issue, sender, "/start", "Infinity", false, [
       { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator"] },
       { name: "Priority: 2 (Medium)", allowedRoles: ["collaborator"] },
       { name: priority3LabelName, allowedRoles: ["collaborator"] },
       { name: priority4LabelName, allowedRoles: ["collaborator"] },
       { name: priority5LabelName, allowedRoles: ["collaborator"] },
-    ]) as Context<"issue_comment.created">;
+    ])) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     await expect(userStartStop(context)).rejects.toMatchObject({

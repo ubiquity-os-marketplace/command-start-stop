@@ -73,7 +73,7 @@ describe("Pull-request tests", () => {
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "") as Context<"pull_request.opened">;
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -154,7 +154,7 @@ describe("Pull-request tests", () => {
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = await createContext(issue, sender, "") as Context<"pull_request.opened">;
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",

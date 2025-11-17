@@ -80,7 +80,7 @@ describe("Collaborator tests", () => {
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
-    const context = await createContext(issue, sender, "") as Context<"pull_request.edited">;
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
