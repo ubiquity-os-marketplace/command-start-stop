@@ -27,7 +27,9 @@ export type StartEligibilityResult = {
   };
 };
 
-export async function evaluateStartEligibility(context: Context<"issue_comment.created">): Promise<StartEligibilityResult> {
+export async function evaluateStartEligibility(
+  context: Context<"issue_comment.created"> & { installOctokit: Context["octokit"] }
+): Promise<StartEligibilityResult> {
   const errors: LogReturn[] = [];
   const warnings: string[] = [];
   const assignedIssues: AssignedIssue[] = [];
@@ -94,14 +96,14 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
   const allUsers = [...new Set([sender.login, ...(params.teammates ?? []).map((u: string) => u.trim()).filter((u: string) => u.length > 0)])];
 
   // Build participant role mappings for access control checks
-  const participantRoleAndLimits: Map<string, { role: ReturnType<typeof getTransformedRole> }> = new Map();
-  participantRoleAndLimits.set(sender.login.toLowerCase(), { role: userRole });
+  const participantRoleAndLimits: Map<string, { role: ReturnType<typeof getTransformedRole>; limit: number }> = new Map();
+  participantRoleAndLimits.set(sender.login.toLowerCase(), { role: userRole, limit: userAssociation.limit });
 
   const roleFetches = allUsers
     .filter((username) => !participantRoleAndLimits.has(username.toLowerCase()))
     .map(async (username) => {
       const association = await getUserRoleAndTaskLimit(context, username);
-      participantRoleAndLimits.set(username.toLowerCase(), { role: association.role });
+      participantRoleAndLimits.set(username.toLowerCase(), { role: association.role, limit: association.limit });
     });
 
   if (roleFetches.length) {
@@ -146,9 +148,9 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
 
   const toAssign: string[] = [];
   for (const user of allUsers) {
-    let role: ReturnType<typeof getTransformedRole> | undefined = undefined;
+    const roleAndLimit = participantRoleAndLimits.get(user.toLowerCase());
     try {
-      const res = await handleTaskLimitChecks({ context, logger: context.logger, sender: sender.login, username: user });
+      const res = await handleTaskLimitChecks({ context, logger: context.logger, sender: sender.login, username: user, roleAndLimit });
       // capture issues for later comment and API response
       res.issues.forEach((issue) => {
         assignedIssues.push({ title: issue.title, html_url: issue.html_url });
@@ -166,8 +168,6 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
       } else {
         toAssign.push(user);
       }
-      // role for price ceiling check
-      role = res.role as ReturnType<typeof getTransformedRole> | undefined;
     } catch (e) {
       if (e instanceof Error) {
         errors.push(context.logger.error(e.message));
@@ -178,10 +178,10 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
       }
     }
 
-    if (priceLabel && role && role !== "admin") {
+    if (priceLabel && roleAndLimit) {
       const { usdPriceMax } = context.config.taskAccessControl;
       const min = Math.min(...Object.values(usdPriceMax));
-      const allowed = role in usdPriceMax ? usdPriceMax[role as keyof typeof usdPriceMax] : undefined;
+      const allowed = roleAndLimit.role in usdPriceMax ? usdPriceMax[roleAndLimit.role as keyof typeof usdPriceMax] : undefined;
       const userAllowedMaxPrice = typeof allowed === "number" ? allowed : min;
       const match = priceLabel.name.match(/Price:\s*([\d.]+)/);
       if (!match || isNaN(parseFloat(match[1]))) {
@@ -189,12 +189,14 @@ export async function evaluateStartEligibility(context: Context<"issue_comment.c
       } else {
         const price = parseFloat(match[1]);
         if (userAllowedMaxPrice < 0) {
-          errors.push(context.logger.warn(ERROR_MESSAGES.PRESERVATION_MODE, { userRole: role, price, userAllowedMaxPrice, issueNumber: issue.number }));
+          errors.push(
+            context.logger.warn(ERROR_MESSAGES.PRESERVATION_MODE, { userRole: roleAndLimit.role, price, userAllowedMaxPrice, issueNumber: issue.number })
+          );
         } else if (price > userAllowedMaxPrice) {
           errors.push(
             context.logger.warn(
               ERROR_MESSAGES.PRICE_LIMIT_EXCEEDED.replace("{{user}}", user).replace("{{userAllowedMaxPrice}}", userAllowedMaxPrice.toString()),
-              { userRole: role, price, userAllowedMaxPrice, issueNumber: issue.number }
+              { userRole: roleAndLimit.role, price, userAllowedMaxPrice, issueNumber: issue.number }
             )
           );
         }

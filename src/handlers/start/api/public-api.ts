@@ -8,7 +8,7 @@ import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
 import { buildShallowContextObject, createLogger } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
 import { getClientId, rateLimit } from "./helpers/rate-limit";
-import { getRequestBodyValidator, StartBody, startBodySchema } from "./helpers/types";
+import { getRequestQueryParamsValidator, StartQueryParams, startQueryParamSchema } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
 
 // Type declaration for Cloudflare KV
@@ -33,9 +33,10 @@ declare global {
 export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise<Response> {
   const request = honoCtx.req.raw as Request;
 
-  if (request.method !== "POST") {
+  if (request.method !== "GET") {
     return new Response(null, { status: 405 });
   }
+
   const logger = createLogger(env);
 
   try {
@@ -70,10 +71,10 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
       );
     }
 
-    // Validate environment and parse request body
-    const body = await validateRequestBody(honoCtx, logger);
-    if (body instanceof Response) return body;
-    const { userId, issueUrl, mode } = body;
+    // Validate environment and parse request query params
+    const params = await validateQueryParams(honoCtx, logger);
+    if (params instanceof Response) return params;
+    const { userId, issueUrl, mode } = params;
 
     // Apply rate limiting
     const rateLimitError = await applyRateLimit({ request, userId, mode, env, logger });
@@ -98,20 +99,20 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
   }
 }
 
-async function validateRequestBody(honoCtx: HonoContext, logger: Logs) {
-  let body: StartBody;
-  const bodyValidator = getRequestBodyValidator();
+async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
+  let params: StartQueryParams;
+  const paramsValidator = getRequestQueryParamsValidator();
 
   try {
-    const rawBody = await honoCtx.req.raw.json();
-    if (!bodyValidator.test(rawBody)) {
-      const errors = [...bodyValidator.errors(rawBody)];
-      const reasons = errors.map((e) => `${e.path}: ${e.message}`);
+    const paramsObj = Object.fromEntries(new URL(honoCtx.req.raw.url).searchParams.entries());
+    if (!paramsValidator.test(paramsObj)) {
+      const errors = [...paramsValidator.errors(paramsObj)];
+      const reasons = errors.map((e) => `JSON validation: ${e.path}: ${e.message}`);
       logger.error("Request body validation failed", { reasons });
       return Response.json({ ok: false, reasons }, { status: 400 });
     }
 
-    body = Value.Decode(startBodySchema, Value.Default(startBodySchema, rawBody));
+    params = Value.Decode(startQueryParamSchema, Value.Default(startQueryParamSchema, paramsObj));
   } catch (error) {
     logger.error("Invalid JSON body", { e: error });
     return Response.json(
@@ -121,7 +122,7 @@ async function validateRequestBody(honoCtx: HonoContext, logger: Logs) {
       }
     );
   }
-  return body;
+  return params;
 }
 
 /**
@@ -197,6 +198,8 @@ async function applyRateLimit({
  * Handles errors and returns an appropriate response.
  */
 function handleError(error: unknown, logger: Logs): Response {
+  console.trace();
+  console.log(error);
   const message = error instanceof Error ? error.message : "Internal error";
   const isUnauthorized = error instanceof Error && error.message.toLowerCase().includes("unauthorized");
   const status = isUnauthorized ? 401 : 500;

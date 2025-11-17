@@ -92,7 +92,7 @@ export default {
     });
 
     // Public API route with CORS applied
-    honoApp.post(START_API_PATH, async (c) => {
+    honoApp.get(START_API_PATH, async (c) => {
       const validatedEnv = validateReqEnv(c);
       if (validatedEnv instanceof Response) {
         return validatedEnv;

@@ -20,16 +20,11 @@ export async function fetchMergedPluginSettings({ env, issueUrl, logger }: { env
   // Use App-authenticated Octokit to read configs (user PAT may lack perms)
   const { orgOctokit, repoOctokit } = await createOctokitInstances(env, owner, repo, logger);
 
-  const { orgText, repoText } = await fetchOrgAndRepoConfigTexts({ owner, repo, path, orgOctokit, repoOctokit, logger });
+  const { orgText, repoText } = await fetchOrgAndRepoConfigTexts({ owner, repo, path, orgOctokit, repoOctokit, logger, env });
 
   const mergedCfg = parseAndMergeConfigs(orgText, repoText, logger);
 
-  if (!mergedCfg) {
-    logger.info(`No valid configuration found for ${owner}/${CONFIG_ORG_REPO} or ${owner}/${repo}, using default settings.`);
-    return getDefaultConfig();
-  }
-
-  const settings = extractAndValidatePluginSettings(mergedCfg, owner, repo, logger);
+  const settings = await extractAndValidatePluginSettings({ mergedCfg, owner, repo, logger, env });
   if (settings) return settings;
 
   logger.info(`Neither configuration found for ${owner}/${CONFIG_ORG_REPO} or ${owner}/${repo}, using default settings.`);

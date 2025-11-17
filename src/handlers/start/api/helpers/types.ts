@@ -2,16 +2,28 @@ import { Type as T } from "@sinclair/typebox";
 import { StaticDecode } from "@sinclair/typebox";
 import { StandardValidator } from "typebox-validators";
 
-export const startBodySchema = T.Object({
-  userId: T.Number({ minimum: 1 }),
-  issueUrl: T.String({ minLength: 1 }),
-  mode: T.Union([T.Literal("validate"), T.Literal("execute")], { default: "validate" }),
-});
+export const startQueryParamSchema = T.Object(
+  {
+    userId: T.Transform(T.Union([T.String(), T.Number()]))
+      .Decode((val) => {
+        if (typeof val === "number") return val;
+        const parsed = parseInt(val, 10);
+        if (isNaN(parsed)) throw new Error("userId must be a number or numeric string");
+        return parsed;
+      })
+      .Encode((val) => val.toString()),
+    issueUrl: T.String({ minLength: 1 }),
+    mode: T.Union([T.Literal("validate"), T.Literal("execute")], { default: "validate" }),
+  },
+  {
+    additionalProperties: false,
+  }
+);
 
-export type StartBody = StaticDecode<typeof startBodySchema>;
+export type StartQueryParams = StaticDecode<typeof startQueryParamSchema>;
 
-export function getRequestBodyValidator() {
-  return new StandardValidator<typeof startBodySchema>(startBodySchema);
+export function getRequestQueryParamsValidator() {
+  return new StandardValidator<typeof startQueryParamSchema>(startQueryParamSchema);
 }
 
 export type IssueUrlParts = {
