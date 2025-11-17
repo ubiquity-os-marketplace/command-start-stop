@@ -84,8 +84,8 @@ async function createContext(
     env: {
       APP_ID: 1,
       APP_PRIVATE_KEY: "private_key",
-      SUPABASE_KEY: "key",
-      SUPABASE_URL: "url",
+      SUPABASE_KEY: "supabase_key",
+      SUPABASE_URL: "https://supabase.url",
       BOT_USER_ID: 1,
     },
     command: null,
