@@ -9,11 +9,15 @@ import { assignTableComment } from "./helpers/generate-assignment-table";
 import structuredMetadata from "./helpers/generate-structured-metadata";
 import { getUserIds } from "./helpers/get-user-ids";
 
-export async function performAssignment(context: Context<"issue_comment.created">, toAssign: string[]): Promise<Result> {
+export async function performAssignment(
+  context: Context<"issue_comment.created"> & { installOctokit: Context["octokit"] },
+  toAssign: string[]
+): Promise<Result> {
   const {
     logger,
     payload: { issue, sender },
   } = context;
+
   // compute metadata
   let commitHash: string | null = null;
   try {
@@ -42,9 +46,11 @@ export async function performAssignment(context: Context<"issue_comment.created"
   const metadata = structuredMetadata.create("Assignment", logMessage);
 
   await addAssignees(context, issue.number, toAssign);
-
   await context.commentHandler.postComment(
-    context,
+    {
+      ...context,
+      octokit: context.installOctokit,
+    },
     logger.ok(
       [
         assignTableComment({

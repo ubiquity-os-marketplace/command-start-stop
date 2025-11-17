@@ -145,13 +145,13 @@ async function confirmMultiAssignment(context: Context, issueNumber: number, use
   }
 }
 
-export async function addAssignees(context: Context, issueNo: number, assignees: string[]) {
-  const payload = context.payload;
+export async function addAssignees(context: Context & { installOctokit: Context["octokit"] }, issueNo: number, assignees: string[]) {
+  const repository = context.payload.repository;
 
   try {
-    await context.octokit.rest.issues.addAssignees({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
+    await context.installOctokit.rest.issues.addAssignees({
+      owner: repository.owner.login,
+      repo: repository.name,
       issue_number: issueNo,
       assignees,
     });

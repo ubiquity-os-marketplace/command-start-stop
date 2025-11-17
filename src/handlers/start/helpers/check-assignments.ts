@@ -21,11 +21,13 @@ export async function handleTaskLimitChecks({
   logger,
   sender,
   username,
+  roleAndLimit,
 }: {
   username: string;
-  context: Context;
+  context: Context & { installOctokit: Context["octokit"] };
   logger: Context["logger"];
   sender: string;
+  roleAndLimit?: { role: string; limit: number };
 }) {
   // Check for unassignment first - this should take precedence over task limit
   if (await hasUserBeenUnassigned(context, username)) {
@@ -35,7 +37,7 @@ export async function handleTaskLimitChecks({
   const openedPullRequests = await getPendingOpenedPullRequests(context, username);
   const assignedIssues = await getAssignedIssues(context, username);
 
-  const { limit, role } = await getUserRoleAndTaskLimit(context, username);
+  const { limit, role } = roleAndLimit || (await getUserRoleAndTaskLimit(context, username));
 
   // check for max and enforce max
   if (Math.abs(assignedIssues.length - openedPullRequests.length) >= limit) {

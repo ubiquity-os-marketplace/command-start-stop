@@ -4,6 +4,7 @@ import { evaluateStartEligibility } from "../evaluate-eligibility";
 import { performAssignment } from "../perform-assignment";
 
 import { createCommand, createPayload, ShallowContext } from "./helpers/context-builder";
+import { createRepoOctokit } from "./helpers/octokit";
 import { parseIssueUrl } from "./helpers/parsers";
 
 /**
@@ -25,7 +26,7 @@ export async function handleValidateOrExecute({
   const organization = repository.organization;
 
   // Build context
-  const ctx: Context<"issue_comment.created"> = {
+  const ctx: Context<"issue_comment.created"> & { installOctokit: Awaited<ReturnType<typeof createRepoOctokit>> } = {
     ...context,
     payload: createPayload({
       issue,
@@ -34,10 +35,13 @@ export async function handleValidateOrExecute({
       sender: context.payload.sender,
     }) as Context<"issue_comment.created">["payload"],
     command: createCommand([context.payload.sender.login || ""]),
+    installOctokit: {} as Awaited<ReturnType<typeof createRepoOctokit>>,
     organizations: !context.organizations.includes(organization?.login || repository.owner.login)
       ? [...context.organizations, organization?.login || repository.owner.login]
       : context.organizations,
   };
+
+  ctx.installOctokit = await createRepoOctokit(context.env, ctx.payload.repository.owner.login, ctx.payload.repository.name);
 
   // Evaluate eligibility
   const preflight = await evaluateStartEligibility(ctx);

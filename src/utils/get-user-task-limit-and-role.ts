@@ -33,9 +33,9 @@ function getUserTaskLimit(maxConcurrentTasks: PluginSettings["maxConcurrentTasks
   return maxConcurrentTasks.contributor;
 }
 
-export async function getUserRoleAndTaskLimit(context: Context, user: string): Promise<MatchingUserProps> {
+export async function getUserRoleAndTaskLimit(context: Context & { installOctokit: Context["octokit"] }, user: string): Promise<MatchingUserProps> {
   const orgLogin = context.payload.organization?.login;
-  const { config, logger, octokit } = context;
+  const { config, logger, installOctokit } = context;
   const { maxConcurrentTasks } = config;
 
   try {
@@ -48,7 +48,7 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
     let limit;
 
     try {
-      const response = await octokit.rest.orgs.getMembershipForUser({
+      const response = await installOctokit.rest.orgs.getMembershipForUser({
         org: orgLogin,
         username: user,
       });
@@ -62,7 +62,7 @@ export async function getUserRoleAndTaskLimit(context: Context, user: string): P
 
     // If we failed to get organization membership, narrow down to repo role
     try {
-      const permissionLevel = await octokit.rest.repos.getCollaboratorPermissionLevel({
+      const permissionLevel = await installOctokit.rest.repos.getCollaboratorPermissionLevel({
         username: user,
         owner: context.payload.repository.owner.login,
         repo: context.payload.repository.name,

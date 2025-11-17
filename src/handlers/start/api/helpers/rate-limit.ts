@@ -13,12 +13,12 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   let Deno:
     | {
-      openKv: () => Promise<{
-        get: <T>(key: string[]) => Promise<{ value: T | null }>;
-        set: <T>(key: string[], value: T, options?: { expireIn?: number }) => Promise<void>;
-        close: () => void;
-      }>;
-    }
+        openKv: () => Promise<{
+          get: <T>(key: string[]) => Promise<{ value: T | null }>;
+          set: <T>(key: string[], value: T, options?: { expireIn?: number }) => Promise<void>;
+          close: () => void;
+        }>;
+      }
     | undefined;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   interface KVNamespace {
@@ -39,6 +39,11 @@ declare global {
 export async function rateLimit(key: string, limit: number, windowMs: number, env?: Env): Promise<RateLimitResult> {
   const now = Date.now();
   const backend = getRuntimeKey();
+
+  if (env?.NODE_ENV === "local" || env?.NODE_ENV === "development" || env?.NODE_ENV === "test") {
+    // In local/dev/test, always use in-memory rate limiting
+    return rateLimitMemory(key, limit, windowMs, now);
+  }
 
   if (backend === "deno") {
     return await rateLimitDeno(key, limit, windowMs, now);
