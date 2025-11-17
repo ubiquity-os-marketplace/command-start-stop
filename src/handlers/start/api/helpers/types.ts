@@ -13,7 +13,6 @@ export const startQueryParamSchema = T.Object(
       })
       .Encode((val) => val.toString()),
     issueUrl: T.String({ minLength: 1 }),
-    mode: T.Union([T.Literal("validate"), T.Literal("execute")], { default: "validate" }),
   },
   {
     additionalProperties: false,

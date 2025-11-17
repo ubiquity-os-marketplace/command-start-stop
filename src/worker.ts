@@ -16,7 +16,7 @@ import { Env, envSchema } from "./types/index";
 import { PluginSettings, pluginSettingsSchema } from "./types/index";
 import { validateReqEnv } from "./utils/validate-env";
 
-const START_API_PATH = "/public/start";
+const START_API_PATH = "/start";
 
 function computeAllowedOrigin(origin: string | null, env: Env): string | null {
   if (!origin) return null;
@@ -83,7 +83,7 @@ export default {
         status: 204,
         headers: {
           "Access-Control-Allow-Origin": allowed,
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization",
           "Access-Control-Max-Age": "86400",
           Vary: "Origin",
@@ -91,8 +91,20 @@ export default {
       });
     });
 
-    // Public API route with CORS applied
+    // Public API routes with CORS applied
+    // GET route for validation only
     honoApp.get(START_API_PATH, async (c) => {
+      const validatedEnv = validateReqEnv(c);
+      if (validatedEnv instanceof Response) {
+        return validatedEnv;
+      }
+
+      const res = await handlePublicStart(c, validatedEnv);
+      return applyCors(c.req.raw as Request, res, validatedEnv);
+    });
+
+    // POST route for execution
+    honoApp.post(START_API_PATH, async (c) => {
       const validatedEnv = validateReqEnv(c);
       if (validatedEnv instanceof Response) {
         return validatedEnv;

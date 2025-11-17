@@ -33,9 +33,11 @@ declare global {
 export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise<Response> {
   const request = honoCtx.req.raw as Request;
 
-  if (request.method !== "GET") {
+  if (request.method !== "GET" && request.method !== "POST") {
     return new Response(null, { status: 405 });
   }
+
+  const mode = request.method === "POST" ? "execute" : "validate";
 
   const logger = createLogger(env);
 
@@ -74,7 +76,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
     // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { userId, issueUrl, mode } = params;
+    const { userId, issueUrl } = params;
 
     // Apply rate limiting
     const rateLimitError = await applyRateLimit({ request, userId, mode, env, logger });
@@ -199,7 +201,6 @@ async function applyRateLimit({
  */
 function handleError(error: unknown, logger: Logs): Response {
   console.trace();
-  console.log(error);
   const message = error instanceof Error ? error.message : "Internal error";
   const isUnauthorized = error instanceof Error && error.message.toLowerCase().includes("unauthorized");
   const status = isUnauthorized ? 401 : 500;

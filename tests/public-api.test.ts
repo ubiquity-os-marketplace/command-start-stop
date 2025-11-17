@@ -10,7 +10,7 @@ import { server } from "./__mocks__/node";
 
 const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
 const INVALID_JWT = "invalid-jwt";
-const START_URL = "https://test.com/public/start";
+const START_URL = "https://test.com/start";
 
 beforeAll(() => server.listen());
 afterEach(() => {
@@ -93,11 +93,11 @@ function createMockRequest(
 }
 
 describe("handlePublicStart - HTTP Method Validation", () => {
-  it("should reject non-GET requests with 405", async () => {
+  it("should reject non-GET/POST requests with 405", async () => {
     const env = createMockEnv();
     const request = {
       req: {
-        raw: new Request(START_URL, { method: "POST" }),
+        raw: new Request(START_URL, { method: "DELETE" }),
       },
       env,
     } as unknown as HonoCtx;
@@ -107,7 +107,23 @@ describe("handlePublicStart - HTTP Method Validation", () => {
   });
 
   it("should accept GET requests", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL });
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
+    const env = createMockEnv();
+
+    mockOctokit.rest.issues.get.mockResolvedValueOnce({
+      data: { number: 1, title: "Test Issue", state: "open", assignees: [], labels: [] },
+    } as never);
+    mockOctokit.rest.repos.get.mockResolvedValueOnce({
+      data: { id: 1, name: "repo", owner: { login: "owner" } },
+    } as never);
+
+    const response = await handlePublicStart(request, env);
+
+    expect(response.status).not.toBe(405);
+  });
+
+  it("should accept POST requests", async () => {
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
@@ -172,7 +188,6 @@ describe("handlePublicStart - Request Query Validation", () => {
     const queryString = new URLSearchParams({
       userId: "123",
       issueUrl: ISSUE_ONE_URL,
-      mode: "validate",
       badKey: "badValue",
     }).toString();
     const request = {
@@ -210,17 +225,6 @@ describe("handlePublicStart - Request Query Validation", () => {
       reasons: expect.arrayContaining([expect.stringContaining("userId")]),
     });
   });
-
-  it("should validate mode parameter", async () => {
-    const request = createMockRequest({ userId: 123, mode: "invalid" as "validate" }, "GET", "ghu_valid_token");
-    const env = createMockEnv();
-
-    const response = await handlePublicStart(request, env);
-    const data = await response.json();
-
-    expect(response.status).toBe(400);
-    expect(data.ok).toBe(false);
-  });
 });
 
 describe("handlePublicStart - Rate Limiting", () => {
@@ -240,13 +244,13 @@ describe("handlePublicStart - Rate Limiting", () => {
     } as never);
 
     for (let i = 0; i < 3; i++) {
-      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "GET", "ghu_valid_token");
+      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 4th request should be rate limited
-    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "execute" }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
     const response = await handlePublicStart(request, env);
     const data = await response.json();
 
@@ -272,13 +276,13 @@ describe("handlePublicStart - Rate Limiting", () => {
 
     // Make 10 successful requests
     for (let i = 0; i < 10; i++) {
-      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "GET", "ghu_valid_token");
+      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 11th request should be rate limited
-    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
     const response = await handlePublicStart(request, env);
 
     expect(response.status).toBe(429);
@@ -291,7 +295,6 @@ describe("handlePublicStart - User Access Token Handling", () => {
       {
         userId: 123,
         issueUrl: ISSUE_ONE_URL,
-        mode: "validate",
       },
       "GET",
       "ghu_valid_token"
@@ -328,7 +331,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should return 401 if no access token available", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL, mode: "validate" }, "GET", INVALID_JWT);
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", INVALID_JWT);
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env);
