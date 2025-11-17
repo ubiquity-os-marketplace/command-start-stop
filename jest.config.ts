@@ -11,7 +11,7 @@ const cfg: Config = {
   reporters: ["default", "jest-junit", "jest-md-dashboard"],
   coverageDirectory: "coverage",
   testTimeout: 20000,
-  transformIgnorePatterns: ["node_modules/(?!(@octokit|@ubiquity-os|universal-user-agent|before-after-hook)/)"],
+  transformIgnorePatterns: [],
   roots: ["<rootDir>/tests"],
   testMatch: ["<rootDir>/tests/**/*.test.ts"],
   setupFilesAfterEnv: ["dotenv/config", "<rootDir>/tests/setup.ts"],

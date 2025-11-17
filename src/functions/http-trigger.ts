@@ -7,5 +7,6 @@ app.http("http-trigger", {
   methods: ["GET", "POST"],
   authLevel: "anonymous",
   route: "{*proxy}",
-  handler: azureHonoHandler(worker.fetch),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: azureHonoHandler(worker.fetch as any),
 });
