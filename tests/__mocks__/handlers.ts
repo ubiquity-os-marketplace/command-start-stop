@@ -273,4 +273,36 @@ export const handlers = [
       });
     }
   }),
+  //POST https://api.github.com/graphql
+  http.post("https://api.github.com/graphql", async () => {
+    const responsePayload = {
+      data: {
+        repository: {
+          pullRequest: {
+            closingIssuesReferences: {
+              nodes: [
+                {
+                  assignees: {
+                    nodes: [],
+                  },
+                  repository: {
+                    name: "test-repo",
+                    owner: {
+                      login: "ubiquity",
+                    },
+                  },
+                },
+              ],
+              pageInfo: {
+                hasNextPage: false,
+                endCursor: null,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    return HttpResponse.json(responsePayload);
+  }),
 ];
