@@ -21,18 +21,14 @@ export async function handleValidateOrExecute({
   issueUrl: string;
 }): Promise<Response> {
   const { owner, repo, issue_number: issueNumber } = parseIssueUrl(issueUrl);
-  const issue = (await context.octokit.rest.issues.get({ owner, repo, issue_number: issueNumber }))?.data;
-  const repository = (await context.octokit.rest.repos.get({ owner, repo }))?.data;
-  const organization = repository?.organization;
-
-  if (!issue || !repository) {
-    return Response.json(
-      {
-        ok: false,
-        reasons: ["Issue or repository not found"],
-      },
-      { status: 404 }
-    );
+  let issue, repository, organization;
+  try {
+    issue = (await context.octokit.rest.issues.get({ owner, repo, issue_number: issueNumber }))?.data;
+    repository = (await context.octokit.rest.repos.get({ owner, repo }))?.data;
+    organization = repository?.organization;
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Issue or repository not found";
+    return Response.json({ ok: false, reasons: [reason] }, { status: 404 });
   }
 
   // Build context
