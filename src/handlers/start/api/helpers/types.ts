@@ -1,6 +1,9 @@
 import { Type as T } from "@sinclair/typebox";
 import { StaticDecode } from "@sinclair/typebox";
-import { StandardValidator } from "typebox-validators";
+import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
+
+import { AssignedIssue } from "../../../../types";
+import { getTransformedRole } from "../../../../utils/get-user-task-limit-and-role";
 
 export const startQueryParamSchema = T.Object(
   {
@@ -21,10 +24,6 @@ export const startQueryParamSchema = T.Object(
 
 export type StartQueryParams = StaticDecode<typeof startQueryParamSchema>;
 
-export function getRequestQueryParamsValidator() {
-  return new StandardValidator<typeof startQueryParamSchema>(startQueryParamSchema);
-}
-
 export type IssueUrlParts = {
   owner: string;
   repo: string;
@@ -41,4 +40,23 @@ export type DatabaseUser = {
   id: number;
   wallet_id: number | null;
   location_id: number | null;
+};
+
+export type StartEligibilityResult = {
+  ok: boolean;
+  errors: LogReturn[] | null;
+  warnings: LogReturn[] | null;
+  computed: {
+    deadline: string | null;
+    isTaskStale: boolean | null;
+    wallet: string | null;
+    toAssign: string[];
+    assignedIssues: AssignedIssue[];
+    consideredCount: number;
+    senderRole: ReturnType<typeof getTransformedRole>;
+  };
+};
+
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };

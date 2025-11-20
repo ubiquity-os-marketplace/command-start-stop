@@ -21,7 +21,7 @@ export async function verifySupabaseJwt({
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
-    throw new Error("Unauthorized: Empty JWT");
+    throw new Error(logger.error("Unauthorized: Empty JWT").logMessage.raw);
   }
 
   const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
@@ -81,18 +81,20 @@ async function verifySupabaseToken({
   const { data: userOauthData, error } = await supabase.auth.getUser(token);
 
   if (error || !userOauthData?.user) {
+    logger.error("Supabase authentication failed: Invalid JWT, expired, or user not found", { e: error });
     throw new Error("Unauthorized: Invalid JWT, expired, or user not found");
   }
 
   const userGithubId = userOauthData.user.user_metadata?.provider_id;
   if (!userGithubId) {
+    logger.error("Supabase authentication failed: User GitHub ID not found in OAuth metadata");
     throw new Error("Unauthorized: User GitHub ID not found in OAuth metadata");
   }
 
   const { data: dbUser, error: dbError } = await supabase.from("users").select("*").eq("id", userGithubId).single();
 
   if (dbError || !dbUser) {
-    logger.error("Supabase token verification failed", { e: dbError });
+    logger.error("Supabase authentication failed: User not found in database", { e: dbError });
     throw new Error("Unauthorized: User not found in database");
   }
 

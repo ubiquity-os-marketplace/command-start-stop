@@ -81,14 +81,6 @@ export async function fetchRawConfigWithOctokit({
   }
 }
 
-/**
- * @note - Any QA app will not have permission to successfully fetch configs from orgs/repos
- * so expect failures when running in non-production environments without UbiquityOS app auth. Unless
- * they have set up their own internal `devpool-directory` with valid tasks with their app installed and
- * hooked up `work.ubq.fi` to that rather than the official `devpool-directory` repo.
- *
- * In production, this has UbiquityOS full access to org/repo configs.
- */
 export async function createOctokitInstances(env: Env, owner: string, repo: string, logger: Logs) {
   let orgOctokit, repoOctokit;
   let orgError, repoError;
@@ -114,8 +106,9 @@ export async function createOctokitInstances(env: Env, owner: string, repo: stri
       });
     }
   } else {
-    // repoOctokit is going to fail in non-production unless extensive special setup is done
-    logger.warn("Running in non-production environment, proceeding despite Octokit instance creation failures.");
+    if (!repoOctokit) {
+      logger.warn("Repo Octokit instance not created in non-production environment, proceeding without it.");
+    }
   }
 
   if (!orgOctokit) {

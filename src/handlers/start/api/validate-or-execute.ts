@@ -21,9 +21,19 @@ export async function handleValidateOrExecute({
   issueUrl: string;
 }): Promise<Response> {
   const { owner, repo, issue_number: issueNumber } = parseIssueUrl(issueUrl);
-  const issue = (await context.octokit.rest.issues.get({ owner, repo, issue_number: issueNumber })).data;
-  const repository = (await context.octokit.rest.repos.get({ owner, repo })).data;
-  const organization = repository.organization;
+  const issue = (await context.octokit.rest.issues.get({ owner, repo, issue_number: issueNumber }))?.data;
+  const repository = (await context.octokit.rest.repos.get({ owner, repo }))?.data;
+  const organization = repository?.organization;
+
+  if (!issue || !repository) {
+    return Response.json(
+      {
+        ok: false,
+        reasons: ["Issue or repository not found"],
+      },
+      { status: 404 }
+    );
+  }
 
   // Build context
   const ctx: Context<"issue_comment.created"> & { installOctokit: Awaited<ReturnType<typeof createRepoOctokit>> } = {
@@ -51,9 +61,9 @@ export async function handleValidateOrExecute({
     return Response.json(
       {
         ok: preflight.ok,
-        reasons: preflight.errors.map((e) => e.logMessage.raw),
-        warnings: preflight.warnings,
         computed: preflight.computed,
+        warnings: preflight.warnings ?? null,
+        reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
       { status }
     );
@@ -64,9 +74,9 @@ export async function handleValidateOrExecute({
     return Response.json(
       {
         ok: false,
-        reasons: preflight.errors.map((e) => e.logMessage.raw),
-        warnings: preflight.warnings,
         computed: preflight.computed,
+        warnings: preflight.warnings ?? null,
+        reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
       { status: 400 }
     );
@@ -74,7 +84,7 @@ export async function handleValidateOrExecute({
 
   // Perform assignment
   try {
-    const result = await performAssignment(ctx, preflight.computed.toAssign);
+    const result = await performAssignment(ctx, preflight);
     return Response.json(
       {
         ok: result.status === HttpStatusCode.OK,

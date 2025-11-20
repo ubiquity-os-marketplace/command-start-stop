@@ -8,7 +8,7 @@ import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
 import { buildShallowContextObject, createLogger } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
 import { getClientId, rateLimit } from "./helpers/rate-limit";
-import { getRequestQueryParamsValidator, StartQueryParams, startQueryParamSchema } from "./helpers/types";
+import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
 
 // Type declaration for Cloudflare KV
@@ -103,12 +103,11 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
 
 async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
   let params: StartQueryParams;
-  const paramsValidator = getRequestQueryParamsValidator();
 
   try {
     const paramsObj = Object.fromEntries(new URL(honoCtx.req.raw.url).searchParams.entries());
-    if (!paramsValidator.test(paramsObj)) {
-      const errors = [...paramsValidator.errors(paramsObj)];
+    if (!Value.Check(startQueryParamSchema, paramsObj)) {
+      const errors = [...Value.Errors(startQueryParamSchema, paramsObj)];
       const reasons = errors.map((e) => `JSON validation: ${e.path}: ${e.message}`);
       logger.error("Request body validation failed", { reasons });
       return Response.json({ ok: false, reasons }, { status: 400 });
