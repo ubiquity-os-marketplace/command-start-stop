@@ -2,6 +2,7 @@ import { Context, Label } from "../../types";
 import { HttpStatusCode, Result } from "../../types/result-types";
 import { getTimeValue, addAssignees } from "../../utils/issue";
 
+import { StartEligibilityResult } from "./api/helpers/types";
 import { checkTaskStale } from "./helpers/check-task-stale";
 import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { generateAssignmentComment } from "./helpers/generate-assignment-comment";
@@ -11,12 +12,15 @@ import { getUserIds } from "./helpers/get-user-ids";
 
 export async function performAssignment(
   context: Context<"issue_comment.created"> & { installOctokit: Context["octokit"] },
-  toAssign: string[]
+  eligibility: StartEligibilityResult
 ): Promise<Result> {
   const {
     logger,
     payload: { issue, sender },
   } = context;
+  const {
+    computed: { toAssign = [] },
+  } = eligibility;
 
   // compute metadata
   let commitHash: string | null = null;
@@ -36,7 +40,13 @@ export async function performAssignment(
   });
   const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
   const toAssignIds = await getUserIds(context, toAssign);
-  const assignmentComment = await generateAssignmentComment(context, issue.created_at, issue.number, sender.id, null);
+  const assignmentComment = await generateAssignmentComment({
+    context,
+    issueCreatedAt: issue.created_at,
+    issueNumber: issue.number,
+    senderId: sender.id,
+    eligibility,
+  });
   const logMessage = logger.info(ERROR_MESSAGES.TASK_ASSIGNED, {
     taskDeadline: assignmentComment.deadline,
     taskAssignees: toAssignIds,
@@ -58,6 +68,7 @@ export async function performAssignment(
           daysElapsedSinceTaskCreation: assignmentComment.daysElapsedSinceTaskCreation,
           taskDeadline: assignmentComment.deadline,
           registeredWallet: assignmentComment.registeredWallet,
+          warnings: assignmentComment.warnings,
         }),
         assignmentComment.tips,
         metadata,

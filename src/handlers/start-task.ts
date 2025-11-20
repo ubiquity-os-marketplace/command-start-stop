@@ -31,5 +31,5 @@ export async function startTask(context: Context<"issue_comment.created">): Prom
   }
 
   // All checks passed, perform assignment
-  return performAssignment(newCtx, eligibility.computed.toAssign);
+  return performAssignment(newCtx, eligibility);
 }

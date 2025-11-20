@@ -1,6 +1,6 @@
 import { Context } from "../../../types";
 import { HttpStatusCode, Result } from "../../../types/result-types";
-import { StartEligibilityResult } from "../evaluate-eligibility";
+import { StartEligibilityResult } from "../api/helpers/types";
 
 export const ERROR_MESSAGES = {
   UNASSIGNED: "{{username}} you were previously unassigned from this task. You cannot be reassigned.",
@@ -23,15 +23,29 @@ export const ERROR_MESSAGES = {
     "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: {{requiredLabelsToStart}}",
   PRESERVATION_MODE: "External contributors are not eligible for rewards at this time. We are preserving resources for core team only.",
   MALFORMED_COMMAND: "Malformed command parameters.",
+  NO_DEADLINE_LABEL: "No labels are set.",
 } as const;
 
+/**
+ * This method only supports the standard plugin entrypoint error handling flow.
+ *
+ * **This is not meant for use with the API.**
+ */
 export async function handleStartErrors(context: Context, eligibility: StartEligibilityResult): Promise<Result> {
   const { logger } = context;
-  const errorMessages = eligibility.errors.map((e) => e.logMessage.raw.toLowerCase());
+  const errorMessages = eligibility.errors ?? [];
+
+  if (!errorMessages.length) {
+    throw new Error(
+      logger.error("handleStartErrors called but there are no errors in eligibility.", {
+        eligibility,
+      }).logMessage.raw
+    );
+  }
 
   // Check for unassigned errors first - these should take precedence over all other errors
   const unassignedPattern = ERROR_MESSAGES.UNASSIGNED.toLowerCase().replace("{{username}}", "").trim();
-  const unassignedError = eligibility.errors.find((e) => {
+  const unassignedError = eligibility.errors?.find((e) => {
     const lowerMsg = e.logMessage.raw.toLowerCase();
     return lowerMsg.includes(unassignedPattern);
   });
@@ -39,8 +53,8 @@ export async function handleStartErrors(context: Context, eligibility: StartElig
     throw unassignedError;
   }
 
-  const hasParentReason = errorMessages.some((msg) => msg.includes(ERROR_MESSAGES.PARENT_ISSUES.toLowerCase()));
-  const hasPreParentReason = errorMessages.some((msg) => msg.includes(ERROR_MESSAGES.PRICE_LABEL_REQUIRED.toLowerCase()));
+  const hasParentReason = errorMessages.some((log) => log.logMessage.raw.toLowerCase().includes(ERROR_MESSAGES.PARENT_ISSUES.toLowerCase()));
+  const hasPreParentReason = errorMessages.some((log) => log.logMessage.raw.toLowerCase().includes(ERROR_MESSAGES.PRICE_LABEL_REQUIRED.toLowerCase()));
 
   // Preserve original ordering: if pre-parent validations fail, do NOT post parent comment
   if (hasParentReason && !hasPreParentReason) {
@@ -52,16 +66,18 @@ export async function handleStartErrors(context: Context, eligibility: StartElig
   // Quota-only cases: post comment with assigned issues list
   const quotaPrefixLower = ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX.toLowerCase();
   const quotaTeammatePrefixLower = ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX.toLowerCase();
-  const isQuotaOnly = errorMessages.every((msg) => msg.includes(quotaTeammatePrefixLower) || msg.includes(quotaPrefixLower));
+  const isQuotaOnly = errorMessages.every(
+    (log) => log.logMessage.raw.toLowerCase().includes(quotaTeammatePrefixLower) || log.logMessage.raw.toLowerCase().includes(quotaPrefixLower)
+  );
 
   if (isQuotaOnly) {
     const { toAssign, assignedIssues, consideredCount } = eligibility.computed;
     if (toAssign.length === 0 && consideredCount > 1) {
       const allTeammatesPattern = "All teammates have reached";
-      const error = eligibility.errors.find((e) => e.logMessage.raw.includes(allTeammatesPattern));
+      const error = errorMessages.find((e) => e.logMessage.raw.includes(allTeammatesPattern));
       if (error) throw error;
     } else if (toAssign.length === 0) {
-      const error = eligibility.errors.find((e) => e.logMessage.raw.includes(ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX));
+      const error = errorMessages.find((e) => e.logMessage.raw.includes(ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX));
       if (error) {
         let issues = "";
         const urlPattern = /https:\/\/(github.com\/(\S+)\/(\S+)\/issues\/(\d+))/;
@@ -87,9 +103,9 @@ ${issues}
     }
   }
 
-  if (eligibility.errors.length > 1) {
-    throw new AggregateError(eligibility.errors.map((e) => new Error(e.logMessage.raw)));
+  if (errorMessages.length > 1) {
+    throw new AggregateError(errorMessages.map((e) => new Error(e.logMessage.raw)));
   }
 
-  throw eligibility.errors[0];
+  throw errorMessages[0];
 }
