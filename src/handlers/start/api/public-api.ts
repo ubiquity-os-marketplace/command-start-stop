@@ -38,7 +38,6 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
   }
 
   const mode = request.method === "POST" ? "execute" : "validate";
-
   const logger = createLogger(env);
 
   try {
@@ -103,17 +102,31 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
 
 async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
   let params: StartQueryParams;
+  if (honoCtx.req.raw.method === "POST") {
+    try {
+      params = await honoCtx.req.json();
+    } catch (error) {
+      logger.error("Invalid JSON body", { e: error });
+      return Response.json(
+        { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
+        {
+          status: 400,
+        }
+      );
+    }
+  } else {
+    params = Object.fromEntries(new URL(honoCtx.req.raw.url).searchParams.entries()) as unknown as StartQueryParams;
+  }
 
   try {
-    const paramsObj = Object.fromEntries(new URL(honoCtx.req.raw.url).searchParams.entries());
-    if (!Value.Check(startQueryParamSchema, paramsObj)) {
-      const errors = [...Value.Errors(startQueryParamSchema, paramsObj)];
+    if (!Value.Check(startQueryParamSchema, params)) {
+      const errors = [...Value.Errors(startQueryParamSchema, params)];
       const reasons = errors.map((e) => `JSON validation: ${e.path}: ${e.message}`);
       logger.error("Request body validation failed", { reasons });
       return Response.json({ ok: false, reasons }, { status: 400 });
     }
 
-    params = Value.Decode(startQueryParamSchema, Value.Default(startQueryParamSchema, paramsObj));
+    params = Value.Decode(startQueryParamSchema, Value.Default(startQueryParamSchema, params));
   } catch (error) {
     logger.error("Invalid JSON body", { e: error });
     return Response.json(

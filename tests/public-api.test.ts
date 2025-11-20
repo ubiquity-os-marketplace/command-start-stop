@@ -87,6 +87,7 @@ function createMockRequest(
     env: createMockEnv(),
     req: {
       raw: request,
+      json: () => request.json(),
     },
     header: (name: string) => request.headers.get(name) || undefined,
   } as unknown as HonoCtx;
@@ -243,14 +244,36 @@ describe("handlePublicStart - Rate Limiting", () => {
       data: { id: 1, name: "repo", owner: { login: "owner" } },
     } as never);
 
+    // Helper to create a POST request with JSON body
+    function createPostJsonRequest(body: Record<string, unknown>, jwt?: string) {
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+      };
+      if (jwt) headers["authorization"] = `Bearer ${jwt}`;
+      const requestInit: RequestInit = {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      };
+      const request = new Request(START_URL, requestInit);
+      return {
+        env: createMockEnv(),
+        req: {
+          raw: request,
+          json: () => request.json(),
+        },
+        header: (name: string) => request.headers.get(name) || undefined,
+      } as unknown as HonoCtx;
+    }
+
     for (let i = 0; i < 3; i++) {
-      const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
+      const request = createPostJsonRequest({ userId, issueUrl: ISSUE_ONE_URL }, "ghu_valid_token");
       const response = await handlePublicStart(request, env);
       expect(response.status).not.toBe(429);
     }
 
     // 4th request should be rate limited
-    const request = createMockRequest({ userId, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
+    const request = createPostJsonRequest({ userId, issueUrl: ISSUE_ONE_URL }, "ghu_valid_token");
     const response = await handlePublicStart(request, env);
     const data = await response.json();
 
