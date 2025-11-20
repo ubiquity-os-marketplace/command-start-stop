@@ -12,7 +12,7 @@ import { createContext } from "./utils";
 
 dotenv.config();
 
-const userLogin = "ubiquity-os-author";
+const userLogin = "user2";
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
@@ -28,23 +28,11 @@ afterEach(() => {
 afterAll(() => server.close());
 
 async function setupTests() {
-  db.users.create({
-    id: 1,
-    login: "user1",
-    role: "contributor",
-    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
-    xp: 5000,
-    wallet: null,
-  });
-  db.users.create({
-    id: 2,
-    login: userLogin,
-    role: "contributor",
-  });
   db.issue.create({
     ...issueTemplate,
     labels: [{ name: "Priority: 1 (Normal)", description: "collaborator only" }, ...issueTemplate.labels],
   });
+
   db.repo.create({
     id: 1,
     html_url: "",
@@ -55,6 +43,22 @@ async function setupTests() {
       type: "Organization",
     },
     issues: [],
+  });
+  db.users.create({
+    id: 1,
+    login: "ubiquity",
+    role: "admin",
+    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+    xp: 5000,
+    wallet: null,
+  });
+  db.users.create({
+    id: 2,
+    login: "user2",
+    role: "contributor",
+    created_at: "2024-07-01T00:00:00.000Z",
+    xp: 200,
+    wallet: null,
   });
 }
 
@@ -71,7 +75,7 @@ describe("Pull-request tests", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
     issue.labels = [];
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
     const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
@@ -79,7 +83,7 @@ describe("Pull-request tests", () => {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
       number: 1,
       user: {
-        id: 1,
+        id: 2,
         login: userLogin,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
@@ -150,9 +154,13 @@ describe("Pull-request tests", () => {
 
   it("Should properly update the close status of a linked pull-request", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    // Add a price label so the business priority check is reached
+    issue.labels = [
+      { name: "Price: $100", color: "#000000", default: false, description: null, id: 1, node_id: "1", url: "" },
+      { name: "Time: <1 Hour", color: "#000000", default: false, description: null, id: 2, node_id: "2", url: "" },
+    ];
     const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
-    issue.labels = [];
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
     const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
@@ -160,7 +168,7 @@ describe("Pull-request tests", () => {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
       number: 1,
       user: {
-        id: 1,
+        id: 2,
         login: userLogin,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
@@ -214,7 +222,7 @@ describe("Pull-request tests", () => {
             getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
           },
           issues: {
-            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: "Time: <1 Hour" }] } })),
+            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: issue.labels } })),
             listEvents: jest.fn(() => Promise.resolve({ data: [] })),
             listComments: jest.fn(() => Promise.resolve({ data: [] })),
             listForRepo: jest.fn(() => Promise.resolve({ data: [] })),
@@ -224,11 +232,33 @@ describe("Pull-request tests", () => {
           },
           repos: {
             get: jest.fn(() => Promise.resolve({ data: repo })),
-            getCollaboratorPermissionLevel: jest.fn(() => Promise.resolve({ data: { role_name: "admin" } })),
+            getCollaboratorPermissionLevel: jest.fn(() => Promise.resolve({ data: { role_name: "contributor" } })),
           },
           orgs: {
             get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
-            getMembershipForUser: jest.fn(() => ({ data: { role: "member" } })),
+            getMembershipForUser: jest.fn(() => ({ data: { role: "contributor" } })),
+          },
+          users: {
+            getByUsername: jest.fn(({ username }) => {
+              const user = db.users.findFirst({ where: { login: { equals: username as string } } });
+              if (!user) {
+                return Promise.reject(new Error("User not found"));
+              }
+              return Promise.resolve({
+                data: {
+                  login: user.login,
+                  id: user.id,
+                  created_at: user.created_at,
+                  type: "User",
+                  site_admin: false,
+                  name: user.login,
+                  avatar_url: `https://avatars.githubusercontent.com/u/${user.id}`,
+                  html_url: `https://github.com/${user.login}`,
+                  email: null,
+                  bio: null,
+                },
+              });
+            }),
           },
         },
       }),
