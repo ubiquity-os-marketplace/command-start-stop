@@ -34,29 +34,27 @@ export async function handleTaskLimitChecks({
     throw logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", username), { username });
   }
 
-  const openedPullRequests = await getPendingOpenedPullRequests(context, username);
-  const assignedIssues = await getAssignedIssues(context, username);
+  const openedPullRequests = (await getPendingOpenedPullRequests(context, username)) || [];
+  const assignedIssues = (await getAssignedIssues(context, username)) || [];
 
   const { limit, role } = roleAndLimit || (await getUserRoleAndTaskLimit(context, username));
 
+  const isWithinLimit = Math.abs(assignedIssues.length - openedPullRequests.length) < limit;
+
   // check for max and enforce max
-  if (Math.abs(assignedIssues.length - openedPullRequests.length) >= limit) {
+  if (!isWithinLimit) {
     const errorMessage = username === sender ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${username} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
     logger.error(errorMessage, {
       assignedIssues: assignedIssues.length,
       openedPullRequests: openedPullRequests.length,
       limit,
     });
-
-    return {
-      isWithinLimit: false,
-      issues: assignedIssues,
-    };
   }
 
   return {
-    isWithinLimit: true,
-    issues: assignedIssues, // assigned issues for public API results
+    isWithinLimit,
+    assignedIssues,
+    openedPullRequests,
     role,
   };
 }

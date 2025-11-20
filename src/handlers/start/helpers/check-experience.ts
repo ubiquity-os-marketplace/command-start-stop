@@ -67,9 +67,13 @@ export async function checkExperience(
         xpMessages.push(`@${username} needs at least ${requiredExperience} XP to start this task (currently ${xp}).`);
       }
     } catch (err) {
-      const message = `Unable to verify XP for ${username}.`;
-      logger.error(message, { username, err });
-      throw new Error(message);
+      xpMessages.push(`@${username} - unable to verify experience at this time.`);
+      logger.error(`Unable to verify XP for ${username}.`, { username, err });
+      /**
+       * Throwing an error is not ideal, because P0-P2 require negative or zero XP.
+       * If the XP service is down or unreachable, we don't want to block users
+       * from starting tasks they should be allowed to start. Hence, we log the error and continue.
+       */
     }
   }
 

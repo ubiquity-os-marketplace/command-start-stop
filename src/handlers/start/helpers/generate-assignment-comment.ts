@@ -1,4 +1,5 @@
 import { Context } from "../../../types/index";
+import { StartEligibilityResult } from "../api/helpers/types";
 
 export const options: Intl.DateTimeFormatOptions = {
   weekday: "short",
@@ -10,20 +11,34 @@ export const options: Intl.DateTimeFormatOptions = {
   timeZoneName: "short",
 };
 
-export async function generateAssignmentComment(context: Context, issueCreatedAt: string, issueNumber: number, senderId: number, deadline: string | null) {
+export async function generateAssignmentComment({
+  context,
+  issueCreatedAt,
+  issueNumber,
+  senderId,
+  eligibility,
+}: {
+  context: Context;
+  issueCreatedAt: string;
+  issueNumber: number;
+  senderId: number;
+  eligibility: StartEligibilityResult;
+}) {
   const startTime = new Date().getTime();
+  const wallet = eligibility.computed.wallet || (await context.adapters.supabase.user.getWalletByUserId(senderId, issueNumber));
 
-  return {
-    daysElapsedSinceTaskCreation: Math.floor((startTime - new Date(issueCreatedAt).getTime()) / 1000 / 60 / 60 / 24),
-    deadline: deadline ?? null,
-    registeredWallet:
-      (await context.adapters.supabase.user.getWalletByUserId(senderId, issueNumber)) ||
-      `
+  const registerWalletText = `
 
 > [!WARNING]
 > Register your wallet to be eligible for rewards.
 
-`,
+`;
+
+  return {
+    daysElapsedSinceTaskCreation: Math.floor((startTime - new Date(issueCreatedAt).getTime()) / 1000 / 60 / 60 / 24),
+    deadline: eligibility.computed.deadline ?? null,
+    registeredWallet: wallet || registerWalletText,
+    warnings: eligibility.warnings || [],
     tips: `
 > [!TIP]
 > - Use <code>/wallet 0x0000...0000</code> if you want to update your registered payment wallet address.
