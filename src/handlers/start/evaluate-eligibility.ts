@@ -4,6 +4,7 @@ import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
 import { getTransformedRole, getUserRoleAndTaskLimit } from "../../utils/get-user-task-limit-and-role";
 import { getTimeValue, isParentIssue } from "../../utils/issue";
 
+import { DeepPartial, StartEligibilityResult } from "./api/helpers/types";
 import { checkAccountAge, UserProfile } from "./helpers/check-account-age";
 import { handleTaskLimitChecks } from "./helpers/check-assignments";
 import { checkExperience } from "./helpers/check-experience";
@@ -12,26 +13,28 @@ import { checkTaskStale } from "./helpers/check-task-stale";
 import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { getDeadline } from "./helpers/get-deadline";
 
-export type StartEligibilityResult = {
-  ok: boolean;
-  errors: LogReturn[];
-  warnings: string[];
-  computed: {
-    deadline: string | null;
-    isTaskStale: boolean;
-    wallet: string | null;
-    toAssign: string[];
-    assignedIssues: AssignedIssue[];
-    consideredCount: number;
-    senderRole: ReturnType<typeof getTransformedRole>;
+function unableToStartError({ override }: { override?: DeepPartial<StartEligibilityResult> }): StartEligibilityResult {
+  return {
+    ok: false,
+    errors: [...(override?.errors ?? []).filter((e): e is LogReturn => !!e)],
+    warnings: [...(override?.warnings ?? []).filter((w): w is LogReturn => !!w)],
+    computed: {
+      deadline: override?.computed?.deadline ?? null,
+      isTaskStale: override?.computed?.isTaskStale ?? null,
+      wallet: override?.computed?.wallet ?? null,
+      toAssign: [...(override?.computed?.toAssign ?? []).filter((u): u is string => !!u)],
+      assignedIssues: [...(override?.computed?.assignedIssues ?? []).filter((i): i is AssignedIssue => !!i)],
+      consideredCount: override?.computed?.consideredCount ?? 0,
+      senderRole: override?.computed?.senderRole ?? "contributor",
+    },
   };
-};
+}
 
 export async function evaluateStartEligibility(
   context: Context<"issue_comment.created"> & { installOctokit: Context["octokit"] }
 ): Promise<StartEligibilityResult> {
   const errors: LogReturn[] = [];
-  const warnings: string[] = [];
+  const warnings: LogReturn[] = [];
   const assignedIssues: AssignedIssue[] = [];
   const {
     payload: { issue, sender },
@@ -39,20 +42,7 @@ export async function evaluateStartEligibility(
 
   if ((typeof sender === "object" && !sender.login) || !sender) {
     errors.push(context.logger.error(ERROR_MESSAGES.MISSING_SENDER));
-    return {
-      ok: false,
-      errors,
-      warnings,
-      computed: {
-        deadline: null,
-        isTaskStale: false,
-        wallet: null,
-        toAssign: [],
-        assignedIssues: [],
-        consideredCount: 0,
-        senderRole: "contributor",
-      },
-    };
+    return unableToStartError({ override: { errors } });
   }
 
   const labels = (issue.labels ?? []) as Label[];
@@ -63,19 +53,23 @@ export async function evaluateStartEligibility(
   // Collaborators need price label
   if (!priceLabel && userRole === "contributor") {
     errors.push(context.logger.error(ERROR_MESSAGES.PRICE_LABEL_REQUIRED));
+    return unableToStartError({ override: { errors } });
   }
 
   const checkReqErr = await checkRequirements(context, issue, userRole);
   if (checkReqErr) {
     errors.push(context.logger.error(checkReqErr.message));
+    return unableToStartError({ override: { errors } });
   }
 
   if (issue.body && isParentIssue(issue.body)) {
     errors.push(context.logger.error(ERROR_MESSAGES.PARENT_ISSUES));
+    return unableToStartError({ override: { errors } });
   }
 
   if (issue.state === ISSUE_TYPE.CLOSED) {
     errors.push(context.logger.error(ERROR_MESSAGES.CLOSED));
+    return unableToStartError({ override: { errors } });
   }
 
   const assignees = issue?.assignees ?? [];
@@ -84,6 +78,7 @@ export async function evaluateStartEligibility(
     const isSenderAssigned = assignees.some((assignee) => assignee?.login?.toLowerCase() === sender.login.toLowerCase());
     const errorMessage = isSenderAssigned ? ERROR_MESSAGES.ALREADY_ASSIGNED : ERROR_MESSAGES.ISSUE_ALREADY_ASSIGNED;
     errors.push(context.logger.error(errorMessage));
+    return unableToStartError({ override: { errors } });
   }
 
   const params =
@@ -118,31 +113,40 @@ export async function evaluateStartEligibility(
   if (accountRequiredAgeDays > 0) {
     try {
       const accountAgeResult = await checkAccountAge(context, allUsers, userProfiles, participantRoleAndLimits, accountRequiredAgeDays);
-
       if (accountAgeResult.messages.length > 0) {
         const message = accountAgeResult.messages.join("\n");
         const warning = context.logger.warn(message, { accountRequiredAgeDays, ageMetadata: accountAgeResult.metadata });
         errors.push(warning);
+        return unableToStartError({ override: { errors } });
       }
     } catch (err) {
       if (err instanceof Error) {
         errors.push(context.logger.error(err.message));
+        return unableToStartError({ override: { errors } });
       }
     }
   }
 
   // Check experience requirements
   try {
-    const experienceResult = await checkExperience(context, allUsers, participantRoleAndLimits, labels);
+    const { messages = [], metadata, requiredExperience } = await checkExperience(context, allUsers, participantRoleAndLimits, labels);
 
-    if (experienceResult.messages.length > 0) {
-      const message = experienceResult.messages.join("\n");
-      const warning = context.logger.warn(message, { requiredExperience: experienceResult.requiredExperience, xpMetadata: experienceResult.metadata });
+    if (messages.length > 0 && requiredExperience && requiredExperience > 0) {
+      const message = messages.join("\n");
+      const warning = context.logger.warn(message, { requiredExperience, xpMetadata: metadata });
       errors.push(warning);
+      return unableToStartError({ override: { errors } });
+    }
+
+    if (messages.length == 1 && messages.includes("@" + sender.login + " - unable to verify experience at this time.")) {
+      const message = messages.join("\n");
+      const warning = context.logger.warn(message, { requiredExperience, xpMetadata: metadata });
+      warnings.push(warning);
     }
   } catch (err) {
     if (err instanceof Error) {
       errors.push(context.logger.error(err.message));
+      return unableToStartError({ override: { errors } });
     }
   }
 
@@ -152,7 +156,7 @@ export async function evaluateStartEligibility(
     try {
       const res = await handleTaskLimitChecks({ context, logger: context.logger, sender: sender.login, username: user, roleAndLimit });
       // capture issues for later comment and API response
-      res.issues.forEach((issue) => {
+      res.assignedIssues.forEach((issue) => {
         assignedIssues.push({ title: issue.title, html_url: issue.html_url });
       });
       // within limit?
@@ -160,22 +164,29 @@ export async function evaluateStartEligibility(
         const message = user === sender.login ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${user} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
         errors.push(
           context.logger.error(message, {
-            assignedIssues: res.issues.length,
-            openedPullRequests: 0,
+            assignedIssues: res.assignedIssues.length,
+            openedPullRequests: res.openedPullRequests.length,
             limit: 0,
           })
         );
+        continue;
       } else {
         toAssign.push(user);
       }
     } catch (e) {
       if (e instanceof Error) {
-        errors.push(context.logger.error(e.message));
+        errors.push(context.logger.error(e.message, { username: user }));
       } else if (e instanceof LogReturn) {
         errors.push(e);
       } else {
-        errors.push(context.logger.error(`An error occurred while checking the task limit for ${user}`, { e }));
+        errors.push(context.logger.error("Unknown error during task limit checks", { username: user, e }));
       }
+      continue;
+    }
+
+    if (roleAndLimit?.role === "admin") {
+      // Admins have no price limit
+      continue;
     }
 
     if (priceLabel && roleAndLimit) {
@@ -218,6 +229,8 @@ export async function evaluateStartEligibility(
     if (!hasQuotaError) {
       errors.push(context.logger.error(message));
     }
+
+    return unableToStartError({ override: { errors } });
   }
 
   // Wallet
@@ -225,25 +238,31 @@ export async function evaluateStartEligibility(
   try {
     wallet = await context.adapters.supabase.user.getWalletByUserId(sender.id, issue.number);
   } catch {
-    errors.push(context.logger.error(context.config.emptyWalletText));
+    /**
+     * Swallow errors here as this is more of a nudge for the user to set their wallet,
+     * it shouldn't prevent them from starting a task.
+     *
+     * Returning this as a warning via the API makes more sense.
+     */
+    warnings.push(context.logger.error(context.config.emptyWalletText));
   }
 
   // Staleness & deadline
   const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
   if (isTaskStale) {
-    warnings.push(ERROR_MESSAGES.TASK_STALE);
+    warnings.push(context.logger.warn(ERROR_MESSAGES.TASK_STALE));
   }
-  let deadline: string | null = null;
-  try {
-    deadline = getDeadline(labels);
-  } catch {
-    // don't throw (post a comment) "No labels are set." error
+
+  const deadline = getDeadline(labels);
+  if (!deadline) {
+    const msg = ERROR_MESSAGES.NO_DEADLINE_LABEL;
+    warnings.push(context.logger.warn(msg));
   }
 
   return {
     ok: errors.length === 0,
-    errors,
-    warnings,
+    errors: errors.length > 0 ? errors : null,
+    warnings: warnings.length > 0 ? warnings : null,
     computed: {
       deadline,
       isTaskStale,
