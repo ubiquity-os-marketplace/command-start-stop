@@ -1,12 +1,10 @@
 import process from "node:process";
-
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "hono";
-
+import { cors } from "hono/cors";
 import manifest from "../manifest.json" with { type: "json" };
-
 import { createAdapters } from "./adapters/index";
 import { handlePublicStart } from "./handlers/start/api/public-api";
 import { startStopTask } from "./plugin";
@@ -37,16 +35,6 @@ function computeAllowedOrigin(origin: string | null, env: Env): string | null {
   return null;
 }
 
-function applyCors(request: Request, response: Response, env: Env): Response {
-  const origin = request.headers.get("origin") || request.headers.get("Origin");
-  const allowed = computeAllowedOrigin(origin, env);
-  if (!allowed) return response; // Not adding headers if origin not allowed
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", allowed);
-  headers.set("Vary", "Origin");
-  return new Response(response.body, { status: response.status, headers });
-}
-
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
@@ -68,27 +56,28 @@ export default {
       }
     );
 
+    honoApp.use(
+      START_API_PATH,
+      cors({
+        origin: (origin) => {
+          const allowed = computeAllowedOrigin(origin, env);
+          return allowed ? origin : null;
+        },
+        allowMethods: ["GET", "POST", "OPTIONS"],
+        allowHeaders: ["Content-Type", "Authorization"],
+        maxAge: 86400,
+        credentials: true,
+      })
+    );
+
     // CORS preflight for public API
     honoApp.options(START_API_PATH, (c) => {
-      const origin = c.req.header("origin") || c.req.header("Origin") || null;
       const validatedEnv = validateReqEnv(c);
       if (validatedEnv instanceof Response) {
         return validatedEnv;
       }
-      const allowed = computeAllowedOrigin(origin, validatedEnv);
-      if (!allowed) {
-        return new Response(null, { status: 403 });
-      }
-      return new Response(null, {
-        status: 204,
-        headers: {
-          "Access-Control-Allow-Origin": allowed,
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-          "Access-Control-Max-Age": "86400",
-          Vary: "Origin",
-        },
-      });
+
+      return new Response(null, { status: 200 });
     });
 
     // Public API routes with CORS applied
@@ -99,8 +88,7 @@ export default {
         return validatedEnv;
       }
 
-      const res = await handlePublicStart(c, validatedEnv);
-      return applyCors(c.req.raw as Request, res, validatedEnv);
+      return await handlePublicStart(c, validatedEnv);
     });
 
     // POST route for execution
@@ -110,8 +98,7 @@ export default {
         return validatedEnv;
       }
 
-      const res = await handlePublicStart(c, validatedEnv);
-      return applyCors(c.req.raw as Request, res, validatedEnv);
+      return await handlePublicStart(c, validatedEnv);
     });
 
     return honoApp.fetch(request, env, executionCtx);
