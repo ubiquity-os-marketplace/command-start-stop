@@ -1,5 +1,4 @@
 import { createClient } from "@supabase/supabase-js";
-
 import { createAdapters } from "./adapters/index";
 import { closeUserUnassignedPr } from "./handlers/close-pull-on-unassign";
 import { commandHandler, userStartStop } from "./handlers/command-handler";

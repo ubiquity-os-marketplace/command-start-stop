@@ -1,9 +1,7 @@
 import { CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-
 import { Env } from "../../../../types/env";
 import { PluginSettings } from "../../../../types/plugin-input";
-
 import { createOctokitInstances, fetchOrgAndRepoConfigTexts, pickConfigPath } from "./config/fetching";
 import { parseAndMergeConfigs } from "./config/parsing";
 import { extractAndValidatePluginSettings } from "./config/validation";

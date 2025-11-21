@@ -1,6 +1,5 @@
 import { StaticDecode, Type as T } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-
 import { Context } from "../types";
 
 const xpUserSchema = T.Object({

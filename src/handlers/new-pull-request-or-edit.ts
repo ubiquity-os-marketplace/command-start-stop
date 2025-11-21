@@ -1,12 +1,10 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Repository } from "@octokit/graphql-schema";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
-
 import { Context } from "../types/index";
 import { HttpStatusCode, Result } from "../types/result-types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, getOwnerRepoFromHtmlUrl } from "../utils/issue";
-
 import { getDeadline } from "./start/helpers/get-deadline";
 import { startTask } from "./start-task";
 

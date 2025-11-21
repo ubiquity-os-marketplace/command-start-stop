@@ -1,5 +1,4 @@
 import ms from "ms";
-
 import { Context } from "../types/index";
 
 export function calculateDurations(labels: Context<"issue_comment.created">["payload"]["issue"]["labels"]): number[] {

@@ -1,5 +1,4 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
-
 import { Context, PrState } from "../types/index";
 
 function isHttpError(error: unknown): error is { status: number; message: string } {

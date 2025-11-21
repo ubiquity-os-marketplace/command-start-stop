@@ -1,9 +1,7 @@
 import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-
 import { Env } from "../../../../types/env";
-
 import { DatabaseUser } from "./types";
 
 /**

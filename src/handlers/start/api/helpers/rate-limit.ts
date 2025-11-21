@@ -1,7 +1,5 @@
 import { getRuntimeKey } from "hono/adapter";
-
 import { Env } from "../../../../types";
-
 import { RateLimitResult } from "./types";
 
 const rateState: Map<string, { count: number; resetAt: number }> = new Map();
