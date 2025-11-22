@@ -29,12 +29,6 @@ export type IssueUrlParts = {
   issue_number: number;
 };
 
-export type RateLimitResult = {
-  allowed: boolean;
-  remaining: number;
-  resetAt: number;
-};
-
 export type DatabaseUser = {
   id: number;
   wallet_id: number | null;

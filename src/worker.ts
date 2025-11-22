@@ -4,8 +4,11 @@ import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "hono";
 import { cors } from "hono/cors";
+import { getConnInfo } from "hono/deno";
+import { rateLimiter } from "hono-rate-limiter";
 import manifest from "../manifest.json" with { type: "json" };
 import { createAdapters } from "./adapters/index";
+import { KvStore } from "./handlers/start/api/helpers/rate-limit";
 import { handlePublicStart } from "./handlers/start/api/public-api";
 import { startStopTask } from "./plugin";
 import { Command } from "./types/command";
@@ -69,6 +72,26 @@ export default {
         credentials: true,
       })
     );
+
+    // Global rate limiter for all routes except /start (which has its own per-user rate limiting)
+    // Apply rate limiter only to routes that are not /start
+    honoApp.use(async (c, next) => {
+      if (c.req.path === START_API_PATH) {
+        // Skip global rate limiter for /start route - it has its own per-user rate limiting
+        return next();
+      }
+      // For other routes, apply the rate limiter
+      const globalLimiter = rateLimiter({
+        windowMs: 60 * 1000,
+        limit: 100,
+        standardHeaders: "draft-7",
+        keyGenerator: (ctx) => {
+          return getConnInfo(ctx).remote.address ?? "";
+        },
+        store: new KvStore(env.RATE_LIMIT_KV),
+      });
+      return globalLimiter(c, next);
+    });
 
     // CORS preflight for public API
     honoApp.options(START_API_PATH, (c) => {

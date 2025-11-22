@@ -1,155 +1,97 @@
-import { getRuntimeKey } from "hono/adapter";
-import { Env } from "../../../../types";
-import { RateLimitResult } from "./types";
+import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
 
-const rateState: Map<string, { count: number; resetAt: number }> = new Map();
+export class KvStore implements Store {
+  _options: ConfigType | undefined;
+  prefix = "rate-limiter";
 
-type RateLimitState = { count: number; resetAt: number };
-
-// Type declarations for Deno and Cloudflare KV
-declare global {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  let Deno:
-    | {
-        openKv: () => Promise<{
-          get: <T>(key: string[]) => Promise<{ value: T | null }>;
-          set: <T>(key: string[], value: T, options?: { expireIn?: number }) => Promise<void>;
-          close: () => void;
-        }>;
-      }
-    | undefined;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  interface KVNamespace {
-    get(key: string): Promise<string | null>;
-    put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-  }
-}
-
-/**
- * Rate limiter that works with Deno KV, Cloudflare KV, or in-memory storage.
- * Automatically detects the available backend and uses it.
- *
- * @param key - Unique identifier for the rate limit (e.g., "clientId|userId|mode")
- * @param limit - Maximum number of requests allowed in the window
- * @param windowMs - Time window in milliseconds
- * @param env - Optional environment object containing RATE_LIMIT_KV binding
- */
-export async function rateLimit(key: string, limit: number, windowMs: number, env?: Env): Promise<RateLimitResult> {
-  const now = Date.now();
-  const backend = getRuntimeKey();
-
-  if (env?.NODE_ENV === "local" || env?.NODE_ENV === "development" || env?.NODE_ENV === "test") {
-    // In local/dev/test, always use in-memory rate limiting
-    return rateLimitMemory(key, limit, windowMs, now);
-  }
-
-  if (backend === "deno") {
-    return await rateLimitDeno(key, limit, windowMs, now);
-  } else if (backend === "workerd") {
-    return await rateLimitCloudflare(key, limit, windowMs, now, env);
-  } else {
-    return rateLimitMemory(key, limit, windowMs, now);
-  }
-}
-
-/**
- * Deno KV implementation
- */
-async function rateLimitDeno(key: string, limit: number, windowMs: number, now: number): Promise<RateLimitResult> {
-  if (!Deno?.openKv) {
-    throw new Error("Deno KV not available");
-  }
-  const kv = await Deno.openKv();
-  const kvKey = ["rate_limit", key];
-
-  try {
-    const entry = await kv.get<RateLimitState>(kvKey);
-    const state = entry.value;
-
-    if (!state || now > state.resetAt) {
-      const newState: RateLimitState = { count: 1, resetAt: now + windowMs };
-      await kv.set(kvKey, newState, { expireIn: windowMs });
-      return { allowed: true, remaining: limit - 1, resetAt: newState.resetAt };
+  constructor(
+    readonly _store: {
+      get: <T>(key: string[]) => Promise<{ value: T | null }>;
+      set: <T>(key: string[], value: T, options?: { expireIn?: number }) => Promise<void>;
+      delete: (key: string[]) => Promise<void>;
     }
+  ) {}
 
-    if (state.count >= limit) {
-      return { allowed: false, remaining: 0, resetAt: state.resetAt };
+  async decrement(key: string) {
+    const nowMs = Date.now();
+    const record = await this.get(key);
+
+    const existingResetTimeMs = record?.resetTime && new Date(record.resetTime).getTime();
+    const isActiveWindow = existingResetTimeMs && existingResetTimeMs > nowMs;
+
+    if (isActiveWindow && record) {
+      const payload: ClientRateLimitInfo = {
+        totalHits: Math.max(0, record.totalHits - 1),
+        resetTime: new Date(existingResetTimeMs),
+      };
+
+      await this.updateRecord(key, payload);
     }
+  }
 
-    const updatedState: RateLimitState = { count: state.count + 1, resetAt: state.resetAt };
-    await kv.set(kvKey, updatedState, { expireIn: state.resetAt - now });
-    return { allowed: true, remaining: limit - updatedState.count, resetAt: state.resetAt };
-  } finally {
-    kv.close();
+  async resetKey(key: string) {
+    await this._store.delete([this.prefix, key]);
+  }
+
+  async increment(key: string): Promise<ClientRateLimitInfo> {
+    const nowMs = Date.now();
+    const record = await this.get(key);
+    const defaultResetTime = new Date(nowMs + (this._options?.windowMs ?? 60000));
+
+    const existingResetTimeMs = record?.resetTime && new Date(record.resetTime).getTime();
+    const isActiveWindow = existingResetTimeMs && existingResetTimeMs > nowMs;
+
+    const payload: ClientRateLimitInfo = {
+      totalHits: isActiveWindow ? record.totalHits + 1 : 1,
+      resetTime: isActiveWindow && existingResetTimeMs ? new Date(existingResetTimeMs) : defaultResetTime,
+    };
+
+    await this.updateRecord(key, payload);
+
+    return payload;
+  }
+
+  async get(key: string): Promise<ClientRateLimitInfo | undefined> {
+    const res = await this._store.get<ClientRateLimitInfo>([this.prefix, key]);
+    return res?.value ?? undefined;
+  }
+
+  async updateRecord(key: string, payload: ClientRateLimitInfo): Promise<void> {
+    await this._store.set([this.prefix, key], payload);
   }
 }
 
 /**
- * Cloudflare KV implementation
+ * Checks rate limit for a user and mode.
+ * Returns null if allowed, or a Response with rate limit error if exceeded.
  */
-async function rateLimitCloudflare(
-  key: string,
-  limit: number,
-  windowMs: number,
-  now: number,
-  env?: { RATE_LIMIT_KV?: KVNamespace; NODE_ENV?: string }
-): Promise<RateLimitResult> {
-  const kvKey = `rate_limit:${key}`;
-  const kv = env?.RATE_LIMIT_KV || (globalThis as { RATE_LIMIT_KV?: KVNamespace }).RATE_LIMIT_KV;
+export async function checkUserRateLimit(userId: number, mode: "validate" | "execute", kvStore: KvStore, logger: Logs): Promise<Response | null> {
+  const limit = mode === "execute" ? 3 : 10; // 3 for POST, 10 for GET
+  const windowMs = 60 * 1000; // 1 minute
+  const key = `user:${userId}:${mode}`;
 
-  if (kv) {
-    try {
-      const stateStr = await kv.get(kvKey);
-      const state = stateStr ? (JSON.parse(stateStr) as RateLimitState) : null;
+  // Set windowMs option for the store (partial config is okay)
+  kvStore._options = { windowMs } as ConfigType;
 
-      if (!state || now > state.resetAt) {
-        const newState: RateLimitState = { count: 1, resetAt: now + windowMs };
-        await kv.put(kvKey, JSON.stringify(newState), { expirationTtl: Math.ceil(windowMs / 1000) });
-        return { allowed: true, remaining: limit - 1, resetAt: newState.resetAt };
-      }
+  const info = await kvStore.increment(key);
+  const resetTime = info.resetTime;
+  if (!resetTime) {
+    // Should not happen, but handle gracefully
+    return null;
+  }
+  const resetAt = typeof resetTime === "number" ? resetTime : new Date(resetTime).getTime();
 
-      if (state.count >= limit) {
-        return { allowed: false, remaining: 0, resetAt: state.resetAt };
-      }
-
-      const updatedState: RateLimitState = { count: state.count + 1, resetAt: state.resetAt };
-      const ttlSeconds = Math.ceil((state.resetAt - now) / 1000);
-      await kv.put(kvKey, JSON.stringify(updatedState), { expirationTtl: Math.max(ttlSeconds, 1) });
-      return { allowed: true, remaining: limit - updatedState.count, resetAt: state.resetAt };
-    } catch (error) {
-      console.error("Cloudflare KV error, falling back to memory:", error);
-      return rateLimitMemory(key, limit, windowMs, now);
-    }
-  } else if (env?.NODE_ENV === "production" || !(env?.NODE_ENV === "development" || env?.NODE_ENV === "local" || env?.NODE_ENV === "test")) {
-    throw new Error("RATE_LIMIT_KV binding not found in production environment");
+  if (info.totalHits > limit) {
+    return Response.json(
+      {
+        ok: false,
+        reasons: [logger.warn("RateLimit: exceeded", { key, resetAt, limit }).logMessage.raw],
+        resetAt,
+      },
+      { status: 429 }
+    );
   }
 
-  return rateLimitMemory(key, limit, windowMs, now);
-}
-
-/**
- * In-memory implementation (fallback for local development)
- */
-function rateLimitMemory(key: string, limit: number, windowMs: number, now: number): RateLimitResult {
-  const state = rateState.get(key);
-
-  if (!state || now > state.resetAt) {
-    const newState = { count: 1, resetAt: now + windowMs };
-    rateState.set(key, newState);
-    return { allowed: true, remaining: limit - 1, resetAt: newState.resetAt };
-  }
-
-  if (state.count >= limit) {
-    return { allowed: false, remaining: 0, resetAt: state.resetAt };
-  }
-
-  state.count += 1;
-  return { allowed: true, remaining: limit - state.count, resetAt: state.resetAt };
-}
-
-export function getClientId(request: Request): string {
-  const headers = request.headers;
-  return (
-    (headers.get("cf-connecting-ip") || headers.get("x-forwarded-for") || headers.get("x-real-ip") || "unknown") + "|" + (headers.get("user-agent") || "ua")
-  );
+  return null; // Allowed
 }

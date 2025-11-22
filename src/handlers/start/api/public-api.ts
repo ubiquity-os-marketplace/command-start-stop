@@ -5,7 +5,7 @@ import { Env } from "../../../types/env";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
 import { buildShallowContextObject, createLogger } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
-import { getClientId, rateLimit } from "./helpers/rate-limit";
+import { checkUserRateLimit, KvStore } from "./helpers/rate-limit";
 import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
 
@@ -75,9 +75,15 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
     if (params instanceof Response) return params;
     const { userId, issueUrl } = params;
 
-    // Apply rate limiting
-    const rateLimitError = await applyRateLimit({ request, userId, mode, env, logger });
-    if (rateLimitError) return rateLimitError;
+    // Check rate limit (per user, per mode)
+    const rateLimitKv = env.RATE_LIMIT_KV;
+    if (rateLimitKv) {
+      const kvStore = new KvStore(rateLimitKv);
+      const rateLimitResponse = await checkUserRateLimit(userId, mode, kvStore, logger);
+      if (rateLimitResponse) {
+        return rateLimitResponse;
+      }
+    }
 
     // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
@@ -167,43 +173,6 @@ async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Log
       ),
     };
   }
-}
-
-/**
- * Applies rate limiting based on client ID, user ID, and mode.
- */
-async function applyRateLimit({
-  request,
-  userId,
-  mode,
-  env,
-  logger,
-}: {
-  request: Request;
-  userId: number;
-  mode: string;
-  env: Env & {
-    KV_RATE_LIMIT?: KVNamespace;
-  };
-  logger: Logs;
-}): Promise<Response | null> {
-  const clientId = getClientId(request);
-  const key = `${clientId}|${userId}|${mode}`;
-  const limit = mode === "execute" ? 3 : 10;
-  const rl = await rateLimit(key, limit, 60_000, env);
-
-  if (!rl.allowed) {
-    return Response.json(
-      {
-        ok: false,
-        reasons: [logger.warn("RateLimit: exceeded", { key, resetAt: rl.resetAt, limit }).logMessage.raw],
-        resetAt: rl.resetAt,
-      },
-      { status: 429 }
-    );
-  }
-
-  return null;
 }
 
 /**

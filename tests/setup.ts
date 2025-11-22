@@ -1,13 +1,20 @@
 import { jest } from "@jest/globals";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 
-jest.mock("@ubiquity-os/plugin-sdk", () => ({
-  CommentHandler: jest.fn().mockImplementation(() => {
-    return {
-      postComment: jest.fn(),
-    };
-  }),
-}));
+jest.mock("@ubiquity-os/plugin-sdk", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Hono } = require("hono");
+  return {
+    CommentHandler: jest.fn().mockImplementation(() => {
+      return {
+        postComment: jest.fn(),
+      };
+    }),
+    createPlugin: jest.fn(() => {
+      return new Hono();
+    }),
+  };
+});
 
 export const mockOctokit = new customOctokit({ auth: "mock-token" });
 
