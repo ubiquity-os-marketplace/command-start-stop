@@ -4,11 +4,10 @@ import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "hono";
 import { cors } from "hono/cors";
-import { getConnInfo } from "hono/deno";
-import { rateLimiter } from "hono-rate-limiter";
 import manifest from "../manifest.json" with { type: "json" };
 import { createAdapters } from "./adapters/index";
-import { KvStore } from "./handlers/start/api/helpers/rate-limit";
+import { createLogger } from "./handlers/start/api/helpers/context-builder";
+import { createUserRateLimiter } from "./handlers/start/api/helpers/rate-limit";
 import { handlePublicStart } from "./handlers/start/api/public-api";
 import { startStopTask } from "./plugin";
 import { Command } from "./types/command";
@@ -72,35 +71,13 @@ export default {
         credentials: true,
       })
     );
-
-    // Global rate limiter for all routes except /start (which has its own per-user rate limiting)
-    // Apply rate limiter only to routes that are not /start
-    honoApp.use(async (c, next) => {
-      if (c.req.path === START_API_PATH) {
-        // Skip global rate limiter for /start route - it has its own per-user rate limiting
-        return next();
-      }
-      // For other routes, apply the rate limiter
-      const globalLimiter = rateLimiter({
-        windowMs: 60 * 1000,
-        limit: 100,
-        standardHeaders: "draft-7",
-        keyGenerator: (ctx) => {
-          return getConnInfo(ctx).remote.address ?? "";
-        },
-        store: new KvStore(env.RATE_LIMIT_KV),
-      });
-      return globalLimiter(c, next);
-    });
+    // User-specific rate limiter: 10 for validate (GET), 3 for execute (POST) per user per minute
+    honoApp.use(START_API_PATH, createUserRateLimiter);
 
     // CORS preflight for public API
     honoApp.options(START_API_PATH, (c) => {
       const validatedEnv = validateReqEnv(c);
-      if (validatedEnv instanceof Response) {
-        return validatedEnv;
-      }
-
-      return new Response(null, { status: 200 });
+      return validatedEnv instanceof Response ? validatedEnv : new Response(null, { status: 200 });
     });
 
     // Public API routes with CORS applied
@@ -111,7 +88,7 @@ export default {
         return validatedEnv;
       }
 
-      return await handlePublicStart(c, validatedEnv);
+      return await handlePublicStart(c, validatedEnv, createLogger(env));
     });
 
     // POST route for execution
@@ -121,7 +98,7 @@ export default {
         return validatedEnv;
       }
 
-      return await handlePublicStart(c, validatedEnv);
+      return await handlePublicStart(c, validatedEnv, createLogger(env));
     });
 
     return honoApp.fetch(request, env, executionCtx);
