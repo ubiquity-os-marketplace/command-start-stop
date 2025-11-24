@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Update Manifest and Commit Changes
-        uses: ubq-testing/action-deploy-plugin@main
+        uses: ubiquity-os/action-deploy-plugin@main
         with:
           treatAsEsm: true
           sourcemap: false
