@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import dotenv from "dotenv";
 import { Context } from "../src/types/index";

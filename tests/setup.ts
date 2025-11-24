@@ -1,5 +1,7 @@
 import { jest } from "@jest/globals";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
+import "./__mocks__/deno-kv";
+export const mockOctokit = new customOctokit({ auth: "mock-token" });
 
 jest.mock("@ubiquity-os/plugin-sdk", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -16,9 +18,11 @@ jest.mock("@ubiquity-os/plugin-sdk", () => {
   };
 });
 
-export const mockOctokit = new customOctokit({ auth: "mock-token" });
-
 jest.mock("@octokit/core", () => ({
+  Octokit: jest.fn(() => mockOctokit),
+}));
+
+jest.mock("@octokit/rest", () => ({
   Octokit: jest.fn(() => mockOctokit),
 }));
 
