@@ -23,7 +23,7 @@ export async function verifySupabaseJwt({
   }
 
   const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
-  let user: (DatabaseUser & { accessToken: string }) | null = null;
+  let user: DatabaseUser & { accessToken: string };
 
   function isValidGitAccessToken(token: string) {
     return token.startsWith("ghu_") || token.startsWith("ghs_") || token.startsWith("gho_");

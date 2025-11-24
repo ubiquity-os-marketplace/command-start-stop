@@ -12,9 +12,7 @@ export function validateReqEnv(c: HonoContext) {
     }
     return Value.Decode(envSchema, cleanEnv);
   } catch (error) {
-    console.log("Environment validation failed during public API request", {
-      e: error,
-    });
+    console.error("Environment validation failed during public API request", { error });
     return new Response(
       JSON.stringify({
         error: {

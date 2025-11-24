@@ -1,21 +1,9 @@
-import { openKv, Kv, KvEntryMaybe, KvKey, KvCommitResult } from "@deno/kv";
+import { Kv } from "@deno/kv";
 import { Context } from "hono";
 import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
-import { Env } from "../../../../types/env";
 import { validateReqEnv } from "../../../../utils/validate-env";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./auth";
 import { createLogger } from "./context-builder";
-
-// Singleton instance for test environment to persist rate limit state across requests
-let inMemoryStoreInstance: Map<KvKey, unknown> | null = null;
-
-/**
- * Resets the in-memory KV store singleton instance.
- * This is primarily used for testing to ensure clean state between tests.
- */
-export function resetInMemoryKvStore(): void {
-  InMemoryKvStore.resetInstance();
-}
 
 export class KvStore implements Store {
   _options: ConfigType | undefined;
@@ -27,7 +15,12 @@ export class KvStore implements Store {
     this._options = options;
   }
 
-  async decrement(key: string) {
+  private async _getWindowInfo(key: string): Promise<{
+    nowMs: number;
+    record: ClientRateLimitInfo | undefined;
+    existingResetTimeMs: number | undefined;
+    isActiveWindow: boolean;
+  }> {
     const nowMs = Date.now();
     const record = await this.get(key);
 
@@ -41,6 +34,12 @@ export class KvStore implements Store {
     }
 
     const isActiveWindow = existingResetTimeMs !== undefined && existingResetTimeMs > nowMs;
+
+    return { nowMs, record, existingResetTimeMs, isActiveWindow };
+  }
+
+  async decrement(key: string) {
+    const { record, existingResetTimeMs, isActiveWindow } = await this._getWindowInfo(key);
 
     if (isActiveWindow && record && existingResetTimeMs !== undefined) {
       const payload: ClientRateLimitInfo = {
@@ -57,21 +56,8 @@ export class KvStore implements Store {
   }
 
   async increment(key: string): Promise<ClientRateLimitInfo> {
-    const nowMs = Date.now();
-    const record = await this.get(key);
+    const { nowMs, record, existingResetTimeMs, isActiveWindow } = await this._getWindowInfo(key);
     const defaultResetTime = new Date(nowMs + (this._options?.windowMs ?? 60000));
-
-    // Handle resetTime - it might be a Date, string, or number after deserialization
-    let existingResetTimeMs: number | undefined;
-    if (record?.resetTime) {
-      if (record.resetTime instanceof Date) {
-        existingResetTimeMs = record.resetTime.getTime();
-      } else if (typeof record.resetTime === "string" || typeof record.resetTime === "number") {
-        existingResetTimeMs = new Date(record.resetTime).getTime();
-      }
-    }
-
-    const isActiveWindow = existingResetTimeMs !== undefined && existingResetTimeMs > nowMs;
 
     const payload: ClientRateLimitInfo = {
       totalHits: isActiveWindow && record ? record.totalHits + 1 : 1,
@@ -93,69 +79,18 @@ export class KvStore implements Store {
   }
 }
 
-class InMemoryKvStore {
-  constructor(private _store: Map<KvKey, unknown>) {}
-
-  static getInstance(): InMemoryKvStore {
-    if (!inMemoryStoreInstance) {
-      inMemoryStoreInstance = new Map();
-    }
-    return new InMemoryKvStore(inMemoryStoreInstance);
-  }
-
-  static resetInstance(): void {
-    if (inMemoryStoreInstance) {
-      inMemoryStoreInstance.clear();
-    }
-    inMemoryStoreInstance = null;
-  }
-  get<T = unknown>(key: KvKey): Promise<KvEntryMaybe<T>> {
-    const mapKey = Array.isArray(key) ? JSON.stringify(key) : String(key);
-    const value = this._store.get(mapKey as unknown as KvKey);
-    if (value === undefined) {
-      return Promise.resolve(null as unknown as KvEntryMaybe<T>);
-    }
-    return Promise.resolve({
-      value: value as T,
-      versionstamp: "00000000000000000000",
-    } as KvEntryMaybe<T>);
-  }
-  set(key: KvKey, value: unknown): Promise<KvCommitResult> {
-    // Convert array key to string for Map lookup (Map uses reference equality for objects/arrays)
-    const mapKey = Array.isArray(key) ? JSON.stringify(key) : String(key);
-    this._store.set(mapKey as unknown as KvKey, value);
-    return Promise.resolve({ success: true, ok: true, versionstamp: new Uint8Array(32).toString() });
-  }
-  delete(key: KvKey): Promise<void> {
-    // Convert array key to string for Map lookup
-    const mapKey = Array.isArray(key) ? JSON.stringify(key) : String(key);
-    this._store.delete(mapKey as unknown as KvKey);
-    return Promise.resolve();
-  }
-}
-
-export async function createKvStore(env: Env): Promise<KvStore> {
-  /**
-   * Only create a real Deno KV when the following conditions are met:
-   * - The environment is never a test environment
-   * - The DENO_KV_ACCESS_TOKEN and DENO_KV_UUID are set OR Deno is defined globally
-   */
-
-  // @ts-expect-error - Deno isn't defined without having the DenoLand extension install or within the runtime
-  if ((env.NODE_ENV !== "test" && env.DENO_KV_ACCESS_TOKEN && env.DENO_KV_UUID) || typeof Deno !== "undefined") {
-    const kv = await openKv(`https://api.deno.com/databases/${env.DENO_KV_UUID}/connect`, { accessToken: env.DENO_KV_ACCESS_TOKEN });
+export async function createKvStore(): Promise<KvStore> {
+  // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
+  if (typeof Deno !== "undefined" && Deno.openKv) {
+    // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
+    const kv = await Deno.openKv();
     if (!kv) {
       throw new Error("Failed to open Deno KV");
     }
-
     return new KvStore(kv);
   }
 
-  if (env.NODE_ENV === "local" || env.NODE_ENV === "test" || env.NODE_ENV === "development") {
-    return new KvStore(InMemoryKvStore.getInstance() as unknown as Kv);
-  }
-
-  throw new Error("KV store is not available. This should not happen in production as KV is inherent to the runtime.");
+  throw new Error("KV store is not available");
 }
 
 /**
@@ -172,7 +107,7 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
     return validatedEnv;
   }
   const logger = createLogger(validatedEnv);
-  const kvStore = await createKvStore(validatedEnv);
+  const kvStore = await createKvStore();
 
   const request = c.req.raw as Request;
   const mode = request.method === "POST" ? "execute" : "validate";

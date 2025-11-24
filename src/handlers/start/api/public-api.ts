@@ -158,7 +158,6 @@ async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Log
  * Handles errors and returns an appropriate response.
  */
 function handleError(error: unknown, logger: Logs): Response {
-  console.trace();
   const message = error instanceof Error ? error.message : "Internal error";
   const isUnauthorized = error instanceof Error && error.message.toLowerCase().includes("unauthorized");
   const status = isUnauthorized ? 401 : 500;
