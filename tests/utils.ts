@@ -1,7 +1,7 @@
 import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { createAdapters } from "../src/adapters/index";
-import { AssignedIssueScope, Context, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Role, SupportedEvents } from "../src/types";
+import { AssignedIssueScope, Context, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Role, SupportedEvents } from "../src/types/index";
 import { db } from "./__mocks__/db";
 
 const octokit = await import("@octokit/rest");
