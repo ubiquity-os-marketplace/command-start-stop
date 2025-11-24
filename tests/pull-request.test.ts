@@ -3,7 +3,7 @@ import { drop } from "@mswjs/data";
 import { Repository } from "@octokit/graphql-schema";
 import dotenv from "dotenv";
 import { ERROR_MESSAGES } from "../src/handlers/start/helpers/error-messages";
-import { Context } from "../src/types";
+import { Context } from "../src/types/index";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";

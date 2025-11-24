@@ -7,13 +7,13 @@ import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
 import { userStartStop } from "../src/handlers/command-handler";
-import { Context, Env, envSchema, Sender } from "../src/types";
+import { Context, Env, envSchema, Sender } from "../src/types/index";
 import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
-import { createContext, MAX_CONCURRENT_DEFAULTS, PRIORITY_ONE, priority3LabelName, priority4LabelName, priority5LabelName } from "./utils";
+import { createContext, MAX_CONCURRENT_DEFAULTS, priority3LabelName, priority4LabelName, priority5LabelName, PRIORITY_ONE } from "./utils";
 
 dotenv.config();
 
