@@ -1,3 +1,4 @@
+import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 import { Context, Issue } from "../../../types/index";
 import { getTransformedRole } from "../../../utils/get-user-task-limit-and-role";
 import { ERROR_MESSAGES } from "./error-messages";
@@ -6,7 +7,7 @@ export async function checkRequirements(
   context: Context,
   issue: Context<"issue_comment.created">["payload"]["issue"] | Issue,
   userRole: ReturnType<typeof getTransformedRole>
-): Promise<Error | null> {
+): Promise<LogReturn | null> {
   const {
     config: { requiredLabelsToStart },
     logger,
@@ -32,12 +33,11 @@ export async function checkRequirements(
         requiredLabelsToStart.map((label) => `\`${label.name}\``).join(", ")
       );
 
-      logger.error(errorText, {
+      return logger.error(errorText, {
         requiredLabelsToStart,
         issueLabels,
         issue: issue.html_url,
       });
-      return new Error(errorText);
     } else if (!currentLabelConfiguration.allowedRoles.includes(userRole)) {
       // If we found the label in the allowed list, but the user role does not match the allowed roles, then the user cannot start this task.
       const humanReadableRoles = [
@@ -45,13 +45,12 @@ export async function checkRequirements(
         "an administrator",
       ].join(", or ");
       const errorText = `You must be ${humanReadableRoles} to start this task`;
-      logger.error(errorText, {
+      return logger.error(errorText, {
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,
         userRole,
       });
-      return new Error(errorText);
     }
   }
   return null;

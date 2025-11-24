@@ -56,7 +56,7 @@ export async function evaluateStartEligibility(
 
   const checkReqErr = await checkRequirements(context, issue, userRole);
   if (checkReqErr) {
-    errors.push(context.logger.error(checkReqErr.message));
+    errors.push(checkReqErr);
     return unableToStartError({ override: { errors } });
   }
 

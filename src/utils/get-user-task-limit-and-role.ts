@@ -41,7 +41,7 @@ export async function getUserRoleAndTaskLimit(context: Context & { installOctoki
   try {
     // Validate the organization login
     if (typeof orgLogin !== "string" || orgLogin.trim() === "") {
-      throw new Error("Invalid organization name");
+      throw context.logger.error("Invalid organization name");
     }
 
     let role;
@@ -83,10 +83,8 @@ export async function getUserRoleAndTaskLimit(context: Context & { installOctoki
     } catch (err) {
       logger.error("Could not get collaborator permission level", { err });
     }
-
-    return { role: "contributor", limit: maxConcurrentTasks.contributor };
   } catch (err) {
     logger.error("Could not get user role", { err });
-    return { role: "contributor", limit: maxConcurrentTasks.contributor };
   }
+  return { role: "contributor", limit: maxConcurrentTasks.contributor };
 }

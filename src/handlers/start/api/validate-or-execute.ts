@@ -19,7 +19,7 @@ export async function handleValidateOrExecute({
   mode: "validate" | "execute";
   issueUrl: string;
 }): Promise<Response> {
-  const { owner, repo, issue_number: issueNumber } = parseIssueUrl(issueUrl);
+  const { owner, repo, issue_number: issueNumber } = parseIssueUrl(issueUrl, context.logger);
   let issue, repository, organization;
   try {
     issue = (await context.octokit.rest.issues.get({ owner, repo, issue_number: issueNumber }))?.data;

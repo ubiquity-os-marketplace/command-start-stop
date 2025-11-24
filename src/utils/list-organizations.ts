@@ -45,5 +45,5 @@ export async function listOrganizations(context: Context): Promise<string[]> {
     return [...orgsSet];
   }
 
-  throw new Error("Unknown assignedIssueScope value. Supported values: ['org', 'repo', 'network']");
+  throw logger.error("Unknown assignedIssueScope value. Supported values: ['org', 'repo', 'network']", { assignedIssueScope, payload });
 }

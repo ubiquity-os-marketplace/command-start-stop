@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import dotenv from "dotenv";
 import { Context } from "../src/types";
@@ -131,24 +131,31 @@ describe("Collaborator tests", () => {
     jest.mock(modulePath, () => ({
       startTask,
     }));
-    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
-      customOctokit: jest.fn().mockReturnValue({
-        rest: {
-          apps: {
-            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-          },
-          issues: {
-            get: jest.fn(() => Promise.resolve({ data: issue })),
-          },
-          repos: {
-            get: jest.fn(() => Promise.resolve({ data: { id: 1, name: commandStartStop, owner: { id: 1, login: ubiquityOsMarketplace } } })),
-          },
-          orgs: {
-            get: jest.fn(() => Promise.resolve({ data: { id: 1, login: ubiquityOsMarketplace } })),
-          },
+
+    // Mock createRepoOctokit to return an octokit instance with the required methods
+    const mockRepoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
         },
-      }),
-    }));
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: issue })),
+        },
+        repos: {
+          get: jest.fn(() =>
+            Promise.resolve({ data: { id: 1, name: commandStartStop, owner: { id: 1, login: ubiquityOsMarketplace, type: "Organization" } } })
+          ),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: { id: 1, login: ubiquityOsMarketplace } })),
+        },
+      },
+    };
+
+    // Import the octokit helpers module and spy on createRepoOctokit
+    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(mockRepoOctokit as never);
+
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // Make sure the author is the one who starts and not the sender who modified the comment

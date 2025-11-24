@@ -3,20 +3,10 @@ import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { Context as HonoContext } from "hono";
 import { Env } from "../../../types/env";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
-import { buildShallowContextObject, createLogger } from "./helpers/context-builder";
+import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
-import { checkUserRateLimit, KvStore } from "./helpers/rate-limit";
 import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
-
-// Type declaration for Cloudflare KV
-declare global {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  interface KVNamespace {
-    get(key: string): Promise<string | null>;
-    put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-  }
-}
 
 /**
  * Main handler for the public start API endpoint.
@@ -28,7 +18,7 @@ declare global {
  * @param env - Environment variables
  * @returns HTTP response with appropriate status and body
  */
-export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise<Response> {
+export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: Logs): Promise<Response> {
   const request = honoCtx.req.raw as Request;
 
   if (request.method !== "GET" && request.method !== "POST") {
@@ -36,7 +26,6 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
   }
 
   const mode = request.method === "POST" ? "execute" : "validate";
-  const logger = createLogger(env);
 
   try {
     // Check for JWT token first before parsing body
@@ -73,17 +62,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env): Promise
     // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { userId, issueUrl } = params;
-
-    // Check rate limit (per user, per mode)
-    const rateLimitKv = env.RATE_LIMIT_KV;
-    if (rateLimitKv) {
-      const kvStore = new KvStore(rateLimitKv);
-      const rateLimitResponse = await checkUserRateLimit(userId, mode, kvStore, logger);
-      if (rateLimitResponse) {
-        return rateLimitResponse;
-      }
-    }
+    const { issueUrl } = params;
 
     // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
@@ -155,7 +134,7 @@ async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Log
     });
 
     if (!user) {
-      throw new Error("Unauthorized: User not found");
+      throw logger.error("Unauthorized: User not found");
     }
 
     return { user };

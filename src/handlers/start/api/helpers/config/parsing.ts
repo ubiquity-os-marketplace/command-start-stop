@@ -29,7 +29,6 @@ export function parseAndMergeConfigs(orgText: string | null, repoText: string | 
     const repoCfg = safeParseYaml(repoText);
     return mergeConfigurations(orgCfg, repoCfg);
   } catch (e) {
-    logger.error("Error parsing or merging configuration files", { e });
-    throw e;
+    throw logger.error("Error parsing or merging configuration files", { e: String(e) });
   }
 }

@@ -61,7 +61,7 @@ export async function checkAccountAge(
     } catch (err) {
       const message = `Unable to load GitHub profile for ${username}.`;
       logger.error(message, { username, err });
-      throw new Error(message);
+      throw logger.error(message, { username, err });
     }
   }
 

@@ -9,7 +9,7 @@ import { getDefaultConfig } from "./context-builder";
 import { parseIssueUrl } from "./parsers";
 
 export async function fetchMergedPluginSettings({ env, issueUrl, logger }: { env: Env; issueUrl: string; logger: Logs }): Promise<PluginSettings> {
-  const repoParts = parseIssueUrl(issueUrl);
+  const repoParts = parseIssueUrl(issueUrl, logger);
   const { owner, repo } = repoParts;
 
   // Resolve dev/prod config path using SDK constants

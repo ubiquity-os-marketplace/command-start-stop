@@ -38,13 +38,11 @@ export async function stop(
       assignees: [userToUnassign.login],
     });
   } catch (err) {
-    throw new Error(
-      logger.error(`Error while removing ${userToUnassign.login} from the issue: `, {
-        err,
-        issueNumber,
-        user: userToUnassign.login,
-      }).logMessage.raw
-    );
+    throw logger.error(`Error while removing ${userToUnassign.login} from the issue: `, {
+      err,
+      issueNumber,
+      user: userToUnassign.login,
+    });
   }
 
   return { content: "Task unassigned successfully", status: HttpStatusCode.OK };

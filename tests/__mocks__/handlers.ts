@@ -37,7 +37,8 @@ export const handlers = [
     if (!id) {
       return HttpResponse.json([], { status: 200 });
     }
-    const row = { id: Number.isNaN(Number(id)) ? id : Number(id), user_metadata: { access_token: "metadata-token" } };
+    const numericId = Number.isNaN(Number(id)) ? id : Number(id);
+    const row = { id: numericId, wallet_id: null, location_id: null, user_metadata: { access_token: "metadata-token" } };
     return HttpResponse.json([row], { status: 200, headers: { "content-range": "0-0/1" } });
   }),
   http.get("*/xp", ({ request }) => {
@@ -75,6 +76,19 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 });
     }
     return HttpResponse.json(item);
+  }),
+  // get org
+  http.get("https://api.github.com/orgs/:org", ({ params: { org } }: { params: { org: string } }) => {
+    const orgData = {
+      login: org,
+      id: 1,
+      avatar_url: `https://api.github.com/orgs/${org}/avatar`,
+      description: "Test org",
+      name: "Test Org",
+      url: `https://api.github.com/orgs/${org}`,
+      html_url: `https://github.com/${org}`,
+    };
+    return HttpResponse.json(orgData);
   }),
   //get member
   http.get("https://api.github.com/orgs/:org/memberships/:username", ({ params: { username } }) => {

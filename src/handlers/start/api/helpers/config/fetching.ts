@@ -14,12 +14,14 @@ export async function fetchRawConfigWithOctokit({
   path,
   octokit,
   env,
+  logger,
 }: {
   owner: string;
   repo: string;
   path: string;
   octokit?: CustomOctokit;
   env: Env;
+  logger: Logs;
 }) {
   if (!octokit && env.NODE_ENV !== "production") {
     // we couldn't create a repoOctokit, so in non-production just return null
@@ -30,17 +32,17 @@ export async function fetchRawConfigWithOctokit({
     const { data: installations } = await octokit.rest.apps.listInstallations();
 
     if (installations.length === 0) {
-      console.warn("No installations found for the authenticated app user, cannot fetch config from app owner repo.");
+      logger.warn("No installations found for the authenticated app user, cannot fetch config from app owner repo.");
       return null;
     }
 
     if (installations.length > 1) {
-      console.warn("Multiple installations found for the authenticated app user, using the first one.");
+      logger.warn("Multiple installations found for the authenticated app user, using the first one.");
     }
 
     const appOwner = installations[0].account?.login;
     if (!appOwner) {
-      console.warn("Failed to determine app owner from installation data, cannot fetch config from app owner repo.");
+      logger.warn("Failed to determine app owner from installation data, cannot fetch config from app owner repo.");
       return null;
     }
 
@@ -54,13 +56,13 @@ export async function fetchRawConfigWithOctokit({
       return typeof data === "string" ? data : null;
     } catch (e) {
       if (e instanceof Error) {
-        throw new Error(`Failed to fetch config from ${appOwner}/${CONFIG_ORG_REPO}/${path}: ${e.message}`);
-      } else {
         throw e;
+      } else {
+        throw logger.error("Failed to fetch config from {owner}/{repo}/{path}: {e}", { e: String(e) });
       }
     }
   } else if (!octokit) {
-    throw new Error("Octokit instance is required to fetch configuration in production environment");
+    throw logger.error("Octokit instance is required to fetch configuration in production environment");
   }
 
   try {
@@ -73,9 +75,9 @@ export async function fetchRawConfigWithOctokit({
     return typeof data === "string" ? data : null;
   } catch (e) {
     if (e instanceof Error) {
-      throw new Error(`Failed to fetch config from ${owner}/${repo}/${path}: ${e.message}`);
-    } else {
       throw e;
+    } else {
+      throw logger.error("Failed to fetch config from {owner}/{repo}/{path}: {e}", { e: String(e) });
     }
   }
 }
@@ -100,7 +102,7 @@ export async function createOctokitInstances(env: Env, owner: string, repo: stri
 
   if (env.NODE_ENV === "production") {
     if (!orgOctokit || !repoOctokit) {
-      throw new Error("Failed to create Octokit instances", {
+      throw logger.error("Failed to create Octokit instances", {
         cause: { orgError, repoError },
       });
     }
@@ -136,14 +138,12 @@ export async function fetchOrgAndRepoConfigTexts(params: {
   const { owner, repo, path, orgOctokit, repoOctokit, logger, env } = params;
   try {
     const [orgText, repoText] = await Promise.all([
-      fetchRawConfigWithOctokit({ owner, repo: CONFIG_ORG_REPO, path, octokit: orgOctokit, env }).catch(() => null),
-      fetchRawConfigWithOctokit({ owner, repo, path, octokit: repoOctokit, env }).catch(() => null),
+      fetchRawConfigWithOctokit({ owner, repo: CONFIG_ORG_REPO, path, octokit: orgOctokit, env, logger }).catch(() => null),
+      fetchRawConfigWithOctokit({ owner, repo, path, octokit: repoOctokit, env, logger }).catch(() => null),
     ]);
 
     return { orgText, repoText } as { orgText: string | null; repoText: string | null };
   } catch (e) {
-    console.log(e);
-    logger.error("Error fetching raw configuration files", { e: String(e) });
-    throw e;
+    throw logger.error("Error fetching raw configuration files", { e: String(e) });
   }
 }

@@ -90,7 +90,6 @@ export async function extractAndValidatePluginSettings({
 
     return Value.Decode(pluginSettingsSchema, Value.Default(pluginSettingsSchema, rawSettings));
   } catch (e) {
-    logger.error("Error validating plugin settings", { e });
-    throw e;
+    throw logger.error("Error validating plugin settings", { e: String(e) });
   }
 }

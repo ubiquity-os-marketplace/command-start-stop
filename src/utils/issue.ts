@@ -63,12 +63,10 @@ export async function closePullRequest(context: Context, results: Pick<GetLinked
 export async function closePullRequestForAnIssue(context: Context, issueNumber: number, repository: Context["payload"]["repository"], author: string) {
   const { logger } = context;
   if (!issueNumber) {
-    throw new Error(
-      logger.error("Issue is not defined", {
-        issueNumber,
-        repository: repository.name,
-      }).logMessage.raw
-    );
+    throw logger.error("Issue is not defined", {
+      issueNumber,
+      repository: repository.name,
+    });
   }
 
   const linkedPullRequests = await getLinkedPullRequests(context, {
@@ -180,7 +178,7 @@ async function getAllPullRequests(context: Context, state = "open", username: st
   try {
     return (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, query)) as GitHubIssueSearch["items"];
   } catch (err: unknown) {
-    throw new Error(context.logger.error("Fetching all pull requests failed!", { error: err as Error, query }).logMessage.raw);
+    throw context.logger.error("Fetching all pull requests failed!", { error: err as Error, query });
   }
 }
 
@@ -210,7 +208,7 @@ export async function getAllPullRequestReviews(context: Context, pullNumber: num
     if (err && typeof err === "object" && "status" in err && err.status === 404) {
       return [];
     } else {
-      throw new Error(context.logger.error("Fetching all pull request reviews failed!", { error: err as Error }).logMessage.raw);
+      throw context.logger.error("Fetching all pull request reviews failed!", { error: err as Error });
     }
   }
 }

@@ -85,6 +85,8 @@ async function createContext(
       SUPABASE_KEY: "supabase_key",
       SUPABASE_URL: "https://supabase.url",
       BOT_USER_ID: 1,
+      DENO_KV_UUID: "123",
+      DENO_KV_ACCESS_TOKEN: "123",
     },
     command: null,
     commentHandler: new CommentHandler(),

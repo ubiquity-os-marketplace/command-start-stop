@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { Context as HonoCtx } from "hono";
+import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
+import { resetInMemoryKvStore } from "../src/handlers/start/api/helpers/rate-limit";
 import { handlePublicStart } from "../src/handlers/start/api/public-api";
 import { Env } from "../src/types/env";
 import { db } from "./__mocks__/db";
@@ -11,64 +13,11 @@ const INVALID_JWT = "invalid-jwt";
 const START_URL = "https://test.com/start";
 const BASE_URL = "https://test.com";
 
-// Mock KV store for testing
-function createMockKvStore() {
-  const store = new Map<string, { value: unknown; expireAt?: number }>();
-
-  return {
-    get: jest.fn(async <T>(key: string[]) => {
-      const keyStr = JSON.stringify(key);
-      const entry = store.get(keyStr);
-      if (!entry) return { value: null };
-      if (entry.expireAt && entry.expireAt < Date.now()) {
-        store.delete(keyStr);
-        return { value: null };
-      }
-      return { value: entry.value as T };
-    }),
-    set: jest.fn(async <T>(key: string[], value: T, options?: { expireIn?: number }) => {
-      const keyStr = JSON.stringify(key);
-      const expireAt = options?.expireIn ? Date.now() + options.expireIn * 1000 : undefined;
-      store.set(keyStr, { value, expireAt });
-    }),
-    delete: jest.fn(async (key: string[]) => {
-      const keyStr = JSON.stringify(key);
-      store.delete(keyStr);
-    }),
-    clear: () => store.clear(),
-  };
-}
-
-// Mock getConnInfo to control IP addresses
-// It reads from request headers (cf-connecting-ip, x-forwarded-for, x-real-ip) or a stored _testIp property
-jest.mock("hono/deno", () => ({
-  getConnInfo: jest.fn((c: unknown) => {
-    const ctx = c as { req?: { raw?: Request; header?: (name: string) => string | undefined }; _testIp?: string };
-    const request = ctx?.req?.raw;
-    if (request) {
-      // Check for stored test IP first
-      const testIp = (request as unknown as { _testIp?: string })?._testIp;
-      if (testIp) {
-        return { remote: { address: testIp } };
-      }
-      // Check headers
-      const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip");
-      if (ip) {
-        return { remote: { address: ip } };
-      }
-    }
-    return { remote: { address: "127.0.0.1" } };
-  }),
-}));
-
 beforeAll(() => server.listen());
 afterEach(() => {
   server.resetHandlers();
   drop(db);
   jest.clearAllMocks();
-  if (mockKvStore) {
-    mockKvStore.clear();
-  }
 });
 afterAll(() => server.close());
 
@@ -99,12 +48,7 @@ jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
   customOctokit: jest.fn(() => mockOctokit),
 }));
 
-let mockKvStore: ReturnType<typeof createMockKvStore>;
-
 function createMockEnv(): Env {
-  if (!mockKvStore) {
-    mockKvStore = createMockKvStore();
-  }
   return {
     APP_ID: "123",
     APP_PRIVATE_KEY: "test-key",
@@ -113,7 +57,8 @@ function createMockEnv(): Env {
     BOT_USER_ID: 1,
     LOG_LEVEL: "info",
     NODE_ENV: "test",
-    RATE_LIMIT_KV: mockKvStore as unknown as Env["RATE_LIMIT_KV"],
+    DENO_KV_UUID: "123",
+    DENO_KV_ACCESS_TOKEN: "123",
   };
 }
 
@@ -159,7 +104,7 @@ describe("handlePublicStart - HTTP Method Validation", () => {
       },
       env,
     } as unknown as HonoCtx;
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
 
     expect(response.status).toBe(405);
   });
@@ -175,7 +120,7 @@ describe("handlePublicStart - HTTP Method Validation", () => {
       data: { id: 1, name: "repo", owner: { login: "owner" } },
     } as never);
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
 
     expect(response.status).not.toBe(405);
   });
@@ -191,7 +136,7 @@ describe("handlePublicStart - HTTP Method Validation", () => {
       data: { id: 1, name: "repo", owner: { login: "owner" } },
     } as never);
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
 
     expect(response.status).not.toBe(405);
   });
@@ -202,7 +147,7 @@ describe("handlePublicStart - Authentication", () => {
     const request = createMockRequest({ userId: 123 });
     const env = createMockEnv();
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -223,7 +168,7 @@ describe("handlePublicStart - Authentication", () => {
       data: { id: 1, name: "repo", owner: { login: "owner" } },
     } as never);
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
 
     expect(response.status).not.toBe(401);
   });
@@ -232,7 +177,7 @@ describe("handlePublicStart - Authentication", () => {
     const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", INVALID_JWT);
     const env = createMockEnv();
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -260,7 +205,7 @@ describe("handlePublicStart - Request Query Validation", () => {
       },
     } as unknown as HonoCtx;
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -274,7 +219,7 @@ describe("handlePublicStart - Request Query Validation", () => {
     const request = createMockRequest({}, "GET", "ghu_valid_token");
     const env = createMockEnv();
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -288,15 +233,21 @@ describe("handlePublicStart - Request Query Validation", () => {
 describe("handlePublicStart - Rate Limiting", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    if (mockKvStore) {
-      mockKvStore.clear();
-    }
+    // Reset the in-memory KV store to ensure clean state between tests
+    resetInMemoryKvStore();
+  });
+
+  afterEach(() => {
+    // Also reset after each test to ensure clean state
+    resetInMemoryKvStore();
   });
 
   it("should enforce rate limits for execute mode (3 requests per minute)", async () => {
     const userId = 456;
     const env = createMockEnv();
     process.env = env as unknown as NodeJS.ProcessEnv;
+    // Ensure clean state before importing worker
+    resetInMemoryKvStore();
     const worker = (await import("../src/worker")).default;
 
     mockOctokit.rest.issues.get.mockResolvedValue({
@@ -347,6 +298,8 @@ describe("handlePublicStart - Rate Limiting", () => {
     const userId = 678;
     const env = createMockEnv();
     process.env = env as unknown as NodeJS.ProcessEnv;
+    // Ensure clean state before importing worker
+    resetInMemoryKvStore();
     const worker = (await import("../src/worker")).default;
 
     // MSW handlers will handle Supabase auth automatically
@@ -410,7 +363,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
       data: { id: 1, name: "repo", owner: { login: "owner" } },
     } as never);
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
 
     expect(response.status).not.toBe(401);
   });
@@ -427,7 +380,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
       data: { id: 1, name: "repo", owner: { login: "owner" } },
     } as never);
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
 
     expect(response.status).not.toBe(401);
   });
@@ -436,7 +389,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
     const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", INVALID_JWT);
     const env = createMockEnv();
 
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
     const data = await response.json();
 
     console.log("Response Data:", data);
@@ -454,7 +407,7 @@ describe("handlePublicStart - Error Handling", () => {
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockRejectedValueOnce(new Error("Unauthorized") as never);
-    const response = await handlePublicStart(request, env);
+    const response = await handlePublicStart(request, env, createLogger(env));
     expect(response.status).toBe(401);
   });
 });

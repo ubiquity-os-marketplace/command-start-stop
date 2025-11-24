@@ -19,7 +19,7 @@ export async function verifySupabaseJwt({
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
-    throw new Error(logger.error("Unauthorized: Empty JWT").logMessage.raw);
+    throw logger.error("Unauthorized: Empty JWT");
   }
 
   const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
@@ -56,14 +56,18 @@ async function verifyGitHubToken({
     const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
     if (error || !dbUser) {
-      logger.error("GitHub token verification failed", { e: error });
-      throw new Error("Unauthorized: GitHub token not linked to any user");
+      throw logger.error("GitHub token verification failed", { e: String(error) });
     }
 
-    return { ...dbUser, accessToken: token };
+    // Handle case where Supabase returns an array instead of a single object (test mocks)
+    const userData = Array.isArray(dbUser) ? dbUser[0] : dbUser;
+    if (!userData || !userData.id) {
+      throw logger.error("GitHub token verification failed: Invalid user data");
+    }
+
+    return { ...userData, accessToken: token };
   } catch (error) {
-    logger.error("GitHub authentication failed", { e: error });
-    throw new Error("Unauthorized: Invalid GitHub token");
+    throw logger.error("GitHub authentication failed", { e: String(error) });
   }
 }
 
@@ -79,24 +83,27 @@ async function verifySupabaseToken({
   const { data: userOauthData, error } = await supabase.auth.getUser(token);
 
   if (error || !userOauthData?.user) {
-    logger.error("Supabase authentication failed: Invalid JWT, expired, or user not found", { e: error });
-    throw new Error("Unauthorized: Invalid JWT, expired, or user not found");
+    throw logger.error("Supabase authentication failed: Invalid JWT, expired, or user not found", { e: String(error) });
   }
 
   const userGithubId = userOauthData.user.user_metadata?.provider_id;
   if (!userGithubId) {
-    logger.error("Supabase authentication failed: User GitHub ID not found in OAuth metadata");
-    throw new Error("Unauthorized: User GitHub ID not found in OAuth metadata");
+    throw logger.error("Supabase authentication failed: User GitHub ID not found in OAuth metadata");
   }
 
   const { data: dbUser, error: dbError } = await supabase.from("users").select("*").eq("id", userGithubId).single();
 
   if (dbError || !dbUser) {
-    logger.error("Supabase authentication failed: User not found in database", { e: dbError });
-    throw new Error("Unauthorized: User not found in database");
+    throw logger.error("Supabase authentication failed: User not found in database", { e: String(dbError) });
   }
 
-  return { ...dbUser, accessToken: token } as DatabaseUser & { accessToken: string };
+  // Handle case where Supabase returns an array instead of a single object (test mocks)
+  const userData = Array.isArray(dbUser) ? dbUser[0] : dbUser;
+  if (!userData || !userData.id) {
+    throw logger.error("Supabase authentication failed: Invalid user data");
+  }
+
+  return { ...userData, accessToken: token } as DatabaseUser & { accessToken: string };
 }
 
 /**
