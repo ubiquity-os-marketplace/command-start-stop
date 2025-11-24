@@ -16,6 +16,7 @@
   "useGitignore": true,
   "language": "en",
   "words": [
+    "versionstamp",
     "workerd",
     "dataurl",
     "devpool",
