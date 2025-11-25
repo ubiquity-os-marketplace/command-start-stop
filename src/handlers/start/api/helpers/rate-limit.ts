@@ -9,7 +9,7 @@ export class KvStore implements Store {
   _options: ConfigType | undefined;
   prefix = "rate-limiter";
 
-  constructor(readonly _store: Kv) {}
+  constructor(readonly _store: Kv | Deno.Kv) {}
 
   init(options: ConfigType): void {
     this._options = options;
@@ -80,9 +80,7 @@ export class KvStore implements Store {
 }
 
 export async function createKvStore(): Promise<KvStore> {
-  // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
   if (typeof Deno !== "undefined" && Deno.openKv) {
-    // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
     const kv = await Deno.openKv();
     if (!kv) {
       throw new Error("Failed to open Deno KV");
@@ -136,31 +134,6 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
     return;
   }
 
-  // Helper to create rate limit response
-  function createRateLimitResponse(resetAt: number, user: { id: number }) {
-    const logMessage = logger.warn("RateLimit: exceeded", {
-      key: `user:${user.id}:${mode}`,
-      resetAt,
-      limit,
-    });
-
-    return Response.json(
-      {
-        ok: false,
-        reasons: [logMessage.logMessage.raw],
-        resetAt,
-      },
-      {
-        status: 429,
-        headers: {
-          "x-ratelimit-limit": limit.toString(),
-          "x-ratelimit-reset": resetAt.toString(),
-        },
-      }
-    );
-  }
-
-  // Use hono-rate-limiter with user-specific key and custom handler
   const rateLimitKey = `user:${user.id}:${mode}`;
   const { rateLimiter } = await import("hono-rate-limiter");
   const userLimiter = rateLimiter({
@@ -171,22 +144,7 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
     store: kvStore,
     skipSuccessfulRequests: false,
     skipFailedRequests: false,
-    handler: async (c) => {
-      const rateLimitInfo = await kvStore.get(rateLimitKey);
-      const resetAt = rateLimitInfo?.resetTime?.getTime() ?? Date.now() + 60 * 1000;
-      const response = createRateLimitResponse(resetAt, user);
-      c.res = response;
-    },
   });
 
-  // Execute rate limiter - it will call next() internally if not rate limited
-  // If rate limited, it will call our custom handler which sets c.res
-  await userLimiter(c, next);
-
-  // If rate limit was exceeded, the handler set c.res
-  // hono-rate-limiter should prevent next() from being called, but we check anyway
-  // to ensure we don't continue processing if a response was already set
-  if (c.res && c.res.status === 429) {
-    return;
-  }
+  return await userLimiter(c, next);
 }

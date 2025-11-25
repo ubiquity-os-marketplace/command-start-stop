@@ -35,18 +35,14 @@ function mockOpenKv() {
   return Promise.resolve(mockKv);
 }
 
-// @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
 if (globalThis.Deno) {
-  // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
   Object.defineProperty(globalThis.Deno, "openKv", {
     value: mockOpenKv,
     writable: true,
     configurable: true,
   });
 } else {
-  // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
   globalThis.Deno = {
     openKv: mockOpenKv,
-    // @ts-expect-error - Deno isn't defined without having the DenoLand extension installed or within the runtime
   } as unknown as typeof Deno;
 }
