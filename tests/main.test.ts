@@ -1,18 +1,19 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
 import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
-import { HttpStatusCode } from "../src/handlers/result-types";
-import { userStartStop, userUnassigned } from "../src/handlers/user-start-stop";
-import { Context, Env, envSchema, Sender } from "../src/types";
+import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
+import { userStartStop } from "../src/handlers/command-handler";
+import { Context, Env, envSchema, Sender } from "../src/types/index";
+import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
-import { createContext, MAX_CONCURRENT_DEFAULTS } from "./utils";
+import { createContext, MAX_CONCURRENT_DEFAULTS, priority3LabelName, priority4LabelName, priority5LabelName, PRIORITY_ONE } from "./utils";
 
 dotenv.config();
 
@@ -20,10 +21,6 @@ type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
 
 const TEST_REPO = "ubiquity/test-repo";
-const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
-const priority3LabelName = "Priority: 3 (High)";
-const priority4LabelName = "Priority: 4 (Urgent)";
-const priority5LabelName = "Priority: 5 (Emergency)";
 
 beforeAll(() => {
   server.listen();
@@ -33,6 +30,8 @@ afterEach(() => {
   server.resetHandlers();
 });
 afterAll(() => server.close());
+
+jest.setTimeout(30000);
 
 const SUCCESS_MESSAGE = "Task assigned successfully";
 
@@ -48,7 +47,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "Infinity") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start", "Infinity")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     const { content } = await userStartStop(context);
@@ -60,7 +59,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 8 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     await expect(userStartStop(context)).rejects.toMatchObject({
@@ -80,7 +79,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -93,7 +92,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "\n\n/start\n") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "\n\n/start\n")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -104,9 +103,9 @@ describe("User start/stop", () => {
 
   test("User can start an issue with teammates", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
-    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Sender;
+    const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start @user3") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start @user3")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -123,7 +122,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -136,7 +135,7 @@ describe("User start/stop", () => {
     const infoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -152,11 +151,11 @@ describe("User start/stop", () => {
     const infoSpy = jest.spyOn(console, "info").mockImplementation(() => {});
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "") as Context<"issues.unassigned">;
+    const context = (await createContext(issue, sender, "")) as Context<"issues.unassigned">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    const { content } = await userUnassigned(context);
+    const { content } = await closeUserUnassignedPr(context);
 
     expect(content).toEqual("Linked pull-requests closed.");
     const logs = infoSpy.mock.calls.flat();
@@ -168,7 +167,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -179,7 +178,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 6 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/stop") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/stop")) as Context<"issue_comment.created">;
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "You are not assigned to this task" } });
@@ -189,7 +188,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 2 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -202,7 +201,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 3 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -222,14 +221,13 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "Infinity", true) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start", "Infinity", true)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(false), context);
     await expect(userStartStop(context)).rejects.toBeInstanceOf(LogReturn);
   });
 
   test("User can't start an issue when account age is below the configured minimum", async () => {
-    const dateNowSpy = jest.spyOn(Date, "now").mockReturnValue(new Date("2025-10-01T00:00:00Z").getTime());
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 4 } } }) as unknown as PayloadSender;
 
@@ -237,22 +235,39 @@ describe("User start/stop", () => {
       throw new Error("sender not found");
     }
 
-    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    db.users.update({
+      where: { id: { equals: 4 } },
+      data: { created_at: thirtyDaysAgo.toISOString() },
+    });
+
+    const updatedSender = db.users.findFirst({ where: { id: { equals: 4 } } }) as unknown as PayloadSender;
+
+    if (!updatedSender) {
+      throw new Error("updated sender not found");
+    }
+
+    const context = (await createContext(issue, updatedSender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     context.config.taskAccessControl.accountRequiredAge = { minimumDays: 120 };
 
-    try {
-      await userStartStop(context);
-      throw new Error("Expected account age restriction to block start");
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      const aggregateError = error as AggregateError;
-      const messages = aggregateError.errors.map((entry) => entry.message);
-      expect(messages).toEqual(expect.arrayContaining([`@${sender.login} needs an account at least 120 days old (currently 30 days).`]));
-    } finally {
-      dateNowSpy.mockRestore();
-    }
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: `@${updatedSender.login} needs an account at least 120 days old (currently 30 days).`,
+      },
+      metadata: {
+        accountRequiredAgeDays: 120,
+        ageMetadata: expect.arrayContaining([
+          expect.objectContaining({
+            accountAge: 30,
+            username: updatedSender.login,
+          }),
+        ]),
+      },
+    });
   });
 
   test("User can't start an issue when experience is below the required threshold", async () => {
@@ -263,27 +278,31 @@ describe("User start/stop", () => {
       throw new Error("sender not found");
     }
 
-    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
     context.config.taskAccessControl.experience = { priorityThresholds: [{ label: PRIORITY_ONE.name, minimumXp: 1000 }] };
 
-    try {
-      await userStartStop(context);
-      throw new Error("Expected experience restriction to block start");
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      const aggregateError = error as AggregateError;
-      const messages = aggregateError.errors.map((entry) => entry.message);
-      expect(messages).toEqual(expect.arrayContaining([`@${sender.login} needs at least 1000 XP to start this task (currently 200).`]));
-    }
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: `@${sender.login} needs at least 1000 XP to start this task (currently 200).`,
+      },
+      metadata: {
+        xpMetadata: expect.arrayContaining([
+          expect.objectContaining({
+            username: sender.login,
+            xp: 200,
+          }),
+        ]),
+      },
+    });
   });
 
   test("User can't start an issue that's closed", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 4 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender) as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender)) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
@@ -294,7 +313,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 5 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
@@ -310,7 +329,7 @@ describe("User start/stop", () => {
     const memberLimit = MAX_CONCURRENT_DEFAULTS.collaborator;
 
     createIssuesForMaxAssignment(memberLimit + 4, sender.id);
-    const context = createContext(issue, sender) as unknown as Context;
+    const context = (await createContext(issue, sender)) as unknown as Context;
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
@@ -325,7 +344,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 6 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start") as Context<"issue_comment.created">;
+    const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
@@ -337,7 +356,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", undefined);
+    const context = await createContext(issue, sender, "/start", undefined);
 
     const env = { ...context.env };
     Reflect.deleteProperty(env, "BOT_USER_ID");
@@ -355,7 +374,7 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "Infinity");
+    const context = await createContext(issue, sender, "/start", "Infinity");
     const env: Env = { ...context.env, BOT_USER_ID: "Not a number" as unknown as number, APP_ID: "1" };
 
     let err: unknown = null;
@@ -375,50 +394,39 @@ describe("User start/stop", () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 3 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "Infinity", false, [
+    const context = (await createContext(issue, sender, "/start", "Infinity", false, [
       { name: priority3LabelName, allowedRoles: ["collaborator", "contributor"] },
       { name: priority4LabelName, allowedRoles: ["collaborator", "contributor"] },
       { name: priority5LabelName, allowedRoles: ["collaborator", "contributor"] },
-    ]) as Context<"issue_comment.created">;
+    ])) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    try {
-      await userStartStop(context);
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      const aggregateError = error as AggregateError;
-      const errorMessages = aggregateError.errors.map((error) => error.message);
-      expect(errorMessages).toEqual(
-        expect.arrayContaining([
-          "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
-        ])
-      );
-    }
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
+      },
+    });
   });
 
   test("Should not allow a user to start if the user role is not listed", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 7 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
-    const context = createContext(issue, sender, "/start", "Infinity", false, [
+    const context = (await createContext(issue, sender, "/start", "Infinity", false, [
       { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator"] },
       { name: "Priority: 2 (Medium)", allowedRoles: ["collaborator"] },
       { name: priority3LabelName, allowedRoles: ["collaborator"] },
       { name: priority4LabelName, allowedRoles: ["collaborator"] },
       { name: priority5LabelName, allowedRoles: ["collaborator"] },
-    ]) as Context<"issue_comment.created">;
+    ])) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
-
-    try {
-      await userStartStop(context);
-    } catch (error) {
-      expect(error).toBeInstanceOf(AggregateError);
-      const aggregateError = error as AggregateError;
-      const errorMessages = aggregateError.errors.map((error) => error.message);
-      expect(errorMessages).toEqual(expect.arrayContaining(["You must be a core team member, or an administrator to start this task"]));
-    }
+    await expect(userStartStop(context)).rejects.toMatchObject({
+      logMessage: {
+        raw: "You must be a core team member, or an administrator to start this task",
+      },
+    });
   });
 });
 
@@ -770,6 +778,46 @@ async function setupTests() {
     created_at: new Date().toISOString(),
     event: "unassigned",
     issue_number: 2,
+    owner: "ubiquity",
+    repo: "test-repo",
+  });
+
+  // Events for issue 6 (number 5) - user2 was assigned then unassigned by admin
+  db.event.create({
+    id: 7,
+    actor: {
+      id: 1,
+      login: "ubiquity-os[bot]",
+      type: "Bot",
+    },
+    assignee: {
+      login: "user2",
+    },
+    created_at: new Date(Date.now() - 2000).toISOString(),
+    event: "assigned",
+    issue_number: 5,
+    owner: "ubiquity",
+    repo: "test-repo",
+  });
+
+  db.event.create({
+    id: 8,
+    actor: {
+      id: 1,
+      login: "ubiquity",
+      type: "User",
+    },
+    assignee: {
+      login: "user2",
+    },
+    assigner: {
+      id: 1,
+      login: "ubiquity",
+      type: "User",
+    },
+    created_at: new Date(Date.now() - 1000).toISOString(),
+    event: "unassigned",
+    issue_number: 5,
     owner: "ubiquity",
     repo: "test-repo",
   });

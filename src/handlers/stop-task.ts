@@ -1,6 +1,6 @@
-import { Assignee, Context, Sender } from "../../types/index";
-import { closePullRequestForAnIssue } from "../../utils/issue";
-import { HttpStatusCode, Result } from "../result-types";
+import { Assignee, Context, Sender } from "../types/index";
+import { HttpStatusCode, Result } from "../types/result-types";
+import { closePullRequestForAnIssue } from "../utils/issue";
 
 export async function stop(
   context: Context,
@@ -38,13 +38,11 @@ export async function stop(
       assignees: [userToUnassign.login],
     });
   } catch (err) {
-    throw new Error(
-      logger.error(`Error while removing ${userToUnassign.login} from the issue: `, {
-        err,
-        issueNumber,
-        user: userToUnassign.login,
-      }).logMessage.raw
-    );
+    throw logger.error(`Error while removing ${userToUnassign.login} from the issue: `, {
+      err,
+      issueNumber,
+      user: userToUnassign.login,
+    });
   }
 
   return { content: "Task unassigned successfully", status: HttpStatusCode.OK };

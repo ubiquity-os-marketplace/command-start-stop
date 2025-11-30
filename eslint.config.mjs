@@ -3,6 +3,7 @@ import tsEslint from "typescript-eslint";
 import eslint from "@eslint/js";
 import sonarjs from "eslint-plugin-sonarjs";
 import checkFile from "eslint-plugin-check-file";
+import importPlugin from "eslint-plugin-import";
 
 export default tsEslint.config([
   { ignores: [".github/knip.ts", ".github/cspell.ts", ".wrangler/**/*.ts", ".wrangler/**/*.js", "dist/**", "eslint.config.mjs", ".husky/**"] },
@@ -10,6 +11,7 @@ export default tsEslint.config([
     plugins: {
       "@typescript-eslint": tsEslint.plugin,
       "check-file": checkFile,
+      import: importPlugin,
     },
     extends: [eslint.configs.recommended, ...tsEslint.configs.recommended, sonarjs.configs.recommended],
     languageOptions: {
@@ -121,6 +123,17 @@ export default tsEslint.config([
         {
           selector: ["function", "variable"],
           format: ["strictCamelCase"],
+        },
+      ],
+      "import/order": [
+        "error",
+        {
+          groups: ["builtin", "external", "internal", "parent", "sibling", "index", "object", "type"],
+          "newlines-between": "never",
+          alphabetize: {
+            order: "asc",
+            caseInsensitive: true,
+          },
         },
       ],
     },

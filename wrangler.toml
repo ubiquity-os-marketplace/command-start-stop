@@ -4,8 +4,20 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 upload_source_maps = true
 
+# KV namespace for rate limiting
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "PLACEHOLDER_KV_ID" # Replace with actual KV namespace ID after creating it
+
 [env.dev]
+[[env.dev.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "PLACEHOLDER_KV_ID_DEV"
+
 [env.prod]
+[[env.prod.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "PLACEHOLDER_KV_ID_PROD"
 
 [observability]
 enabled = true

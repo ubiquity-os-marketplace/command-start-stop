@@ -1,5 +1,5 @@
-import { Issue, TimelineEventResponse, TimelineEvents } from "../types/index";
 import { Context } from "../types/context";
+import { Issue, TimelineEventResponse, TimelineEvents } from "../types/index";
 
 interface GetLinkedParams {
   owner: string;
@@ -19,7 +19,7 @@ export interface GetLinkedResults {
 
 export async function getLinkedPullRequests(context: Context, { owner, repository, issue }: GetLinkedParams): Promise<GetLinkedResults[]> {
   if (!issue) {
-    throw new Error("Issue is not defined");
+    throw context.logger.error("Issue is not defined");
   }
 
   const { data: timeline } = (await context.octokit.rest.issues.listEventsForTimeline({
