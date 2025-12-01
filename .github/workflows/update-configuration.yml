@@ -24,7 +24,7 @@ jobs:
           bun install
           bun run sdk:build
           bun pm pack
-          bun add ./plugin-sdk/plugin-sdk-v*.tgz
+          bun add ./plugin-sdk/ubiquity-os-plugin-sdk-*.tgz
 
       - name: Update Manifest and Commit Changes
         uses: ubiquity-os/action-deploy-plugin@main
