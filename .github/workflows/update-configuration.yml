@@ -25,6 +25,7 @@ jobs:
           bun run sdk:build
           bun pm pack
           TARBALL=$(ls ubiquity-os-plugin-sdk-*.tgz)
+          cd ..
           bun add "./plugin-sdk/$TARBALL"
 
       - name: Update Manifest and Commit Changes
