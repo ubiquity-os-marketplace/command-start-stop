@@ -23,10 +23,9 @@ jobs:
           cd plugin-sdk
           bun install
           bun run sdk:build
-          bun pm pack
-          TARBALL=$(ls ubiquity-os-plugin-sdk-*.tgz)
+          bun link
           cd ..
-          bun add "./plugin-sdk/$TARBALL"
+          bun link @ubiquity-os/plugin-sdk
 
       - name: Update Manifest and Commit Changes
         uses: ubiquity-os/action-deploy-plugin@main
