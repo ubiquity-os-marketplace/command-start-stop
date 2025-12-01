@@ -23,7 +23,7 @@ jobs:
           cd plugin-sdk
           bun install
           bun run sdk:build
-          bun pack
+          bun pm pack
           bun add ./plugin-sdk/plugin-sdk-v*.tgz
 
       - name: Update Manifest and Commit Changes
