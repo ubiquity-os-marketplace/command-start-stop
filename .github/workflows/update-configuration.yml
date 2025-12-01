@@ -17,6 +17,7 @@ jobs:
           repository: ubiquity-os/plugin-sdk
           ref: feat/config
           path: plugin-sdk
+      - uses: oven-sh/setup-bun@v2
       - name: Build SDK
         run: |
           cd plugin-sdk
