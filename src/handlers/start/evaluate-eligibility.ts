@@ -50,7 +50,7 @@ export async function evaluateStartEligibility(
 
   // Collaborators need price label
   if (!priceLabel && userRole === "contributor") {
-    errors.push(context.logger.error(ERROR_MESSAGES.PRICE_LABEL_REQUIRED));
+    errors.push(context.logger.warn(ERROR_MESSAGES.PRICE_LABEL_REQUIRED));
     return unableToStartError({ override: { errors } });
   }
 
