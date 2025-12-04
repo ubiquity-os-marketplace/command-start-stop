@@ -48,7 +48,7 @@ export async function evaluateStartEligibility(
   const userAssociation = await getUserRoleAndTaskLimit(context, sender.login);
   const userRole = userAssociation.role;
 
-  // Collaborators need price label
+  // Contributors need price label
   if (!priceLabel && userRole === "contributor") {
     errors.push(context.logger.warn(ERROR_MESSAGES.PRICE_LABEL_REQUIRED));
     return unableToStartError({ override: { errors } });
