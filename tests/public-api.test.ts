@@ -1,3 +1,13 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import { drop } from "@mswjs/data";
+import { Context as HonoCtx } from "hono";
+import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
+import { handlePublicStart } from "../src/handlers/start/api/public-api";
+import { Env } from "../src/types/env";
+import { db } from "./__mocks__/db";
+import { server } from "./__mocks__/node";
+import "./__mocks__/deno-kv";
+
 // Mock Octokit before other imports
 const mockOctokit = {
   rest: {
@@ -42,7 +52,7 @@ jest.mock("../src/handlers/start/api/helpers/get-plugin-config", () => ({
 }));
 
 jest.mock("../src/handlers/start/api/helpers/auth", () => ({
-  ...jest.requireActual("../src/handlers/start/api/helpers/auth"),
+  ...(jest.requireActual("../src/handlers/start/api/helpers/auth") as object),
   verifySupabaseJwt: jest.fn(({ jwt }) => {
     if (jwt === "invalid-jwt") {
       return Promise.reject(new Error("Unauthorized: Invalid JWT, expired, or user not found"));
@@ -50,16 +60,6 @@ jest.mock("../src/handlers/start/api/helpers/auth", () => ({
     return Promise.resolve({ id: 123, accessToken: "test-token" });
   }),
 }));
-
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "@jest/globals";
-import { drop } from "@mswjs/data";
-import { Context as HonoCtx } from "hono";
-import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
-import { handlePublicStart } from "../src/handlers/start/api/public-api";
-import { Env } from "../src/types/env";
-import { db } from "./__mocks__/db";
-import { server } from "./__mocks__/node";
-import "./__mocks__/deno-kv";
 
 const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
 const INVALID_JWT = "invalid-jwt";

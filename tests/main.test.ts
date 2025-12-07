@@ -1,9 +1,8 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
 import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
-import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
 import { userStartStop } from "../src/handlers/command-handler";
@@ -14,8 +13,6 @@ import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
 import { createContext, MAX_CONCURRENT_DEFAULTS, priority3LabelName, priority4LabelName, priority5LabelName, PRIORITY_ONE } from "./utils";
-
-dotenv.config();
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
