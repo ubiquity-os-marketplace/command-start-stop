@@ -107,5 +107,6 @@ ${issues}
     throw new AggregateError(errorMessages.map((e) => new Error(e.logMessage.raw)));
   }
 
-  throw errorMessages[0];
+  await context.commentHandler.postComment(context, errorMessages[0]);
+  return { content: errorMessages[0].logMessage.raw, status: HttpStatusCode.BAD_REQUEST };
 }
