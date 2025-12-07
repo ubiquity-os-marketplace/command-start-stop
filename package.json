@@ -17,7 +17,7 @@
     "knip": "knip --config .github/knip.ts",
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "node .husky/install.mjs",
-    "test": "jest --setupFiles dotenv/config --coverage",
+    "test:jest": "jest --setupFiles dotenv/config --coverage",
     "worker": "wrangler dev --env dev --port 4000",
     "dev": "bun --watch --no-clear-screen --port 4000 src/worker.ts",
     "dev:deno": "deno serve -A --unstable-kv --watch --no-clear-screen --port 4000 src/worker.ts",

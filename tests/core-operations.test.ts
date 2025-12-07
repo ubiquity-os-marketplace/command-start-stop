@@ -68,8 +68,9 @@ describe("test", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: { raw: "External contributors are not eligible for rewards at this time. We are preserving resources for core team only." },
+    await expect(startStopTask(context)).resolves.toMatchObject({
+      status: 400,
+      content: expect.stringContaining("External contributors are not eligible for rewards at this time"),
     });
   });
 });

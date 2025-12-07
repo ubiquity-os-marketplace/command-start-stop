@@ -59,16 +59,12 @@ describe("User start/stop", () => {
     const context = (await createContext(issue, sender, "/start")) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "While we appreciate your enthusiasm @user3, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
-      },
-      metadata: {
-        userRole: "collaborator",
-        price: 15000,
-        userAllowedMaxPrice: 10000,
-        issueNumber: 8,
-      },
+    const result = await userStartStop(context);
+
+    expect(result).toMatchObject({
+      content:
+        "While we appreciate your enthusiasm @user3, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
+      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -189,8 +185,11 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: { raw: "This issue is already assigned. Please choose another unassigned task." },
+    const result = await userStartStop(context);
+
+    expect(result).toMatchObject({
+      content: "This issue is already assigned. Please choose another unassigned task.",
+      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -251,19 +250,11 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
     context.config.taskAccessControl.accountRequiredAge = { minimumDays: 120 };
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: `@${updatedSender.login} needs an account at least 120 days old (currently 30 days).`,
-      },
-      metadata: {
-        accountRequiredAgeDays: 120,
-        ageMetadata: expect.arrayContaining([
-          expect.objectContaining({
-            accountAge: 30,
-            username: updatedSender.login,
-          }),
-        ]),
-      },
+    const result = await userStartStop(context);
+
+    expect(result).toMatchObject({
+      content: `@${updatedSender.login} needs an account at least 120 days old (currently 30 days).`,
+      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -280,18 +271,11 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
     context.config.taskAccessControl.experience = { priorityThresholds: [{ label: PRIORITY_ONE.name, minimumXp: 1000 }] };
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: `@${sender.login} needs at least 1000 XP to start this task (currently 200).`,
-      },
-      metadata: {
-        xpMetadata: expect.arrayContaining([
-          expect.objectContaining({
-            username: sender.login,
-            xp: 200,
-          }),
-        ]),
-      },
+    const result = await userStartStop(context);
+
+    expect(result).toMatchObject({
+      content: `@${sender.login} needs at least 1000 XP to start this task (currently 200).`,
+      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -303,7 +287,12 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({ logMessage: { raw: "This issue is closed, please choose another." } });
+    const result = await userStartStop(context as Context<"issue_comment.created">);
+
+    expect(result).toMatchObject({
+      content: "This issue is closed, please choose another.",
+      status: HttpStatusCode.BAD_REQUEST,
+    });
   });
 
   test("User can't start an issue that's a parent issue", async () => {
@@ -315,7 +304,9 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: { raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues." },
+      logMessage: {
+        raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.",
+      },
     });
   });
 
@@ -399,10 +390,12 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
-      },
+    const result = await userStartStop(context);
+
+    expect(result).toMatchObject({
+      content:
+        "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
+      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -419,10 +412,11 @@ describe("User start/stop", () => {
     ])) as Context<"issue_comment.created">;
 
     context.adapters = createAdapters(getSupabase(), context);
-    await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: "You must be a core team member, or an administrator to start this task",
-      },
+    const result = await userStartStop(context);
+
+    expect(result).toMatchObject({
+      content: "You must be a core team member, or an administrator to start this task",
+      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 });

@@ -66,8 +66,8 @@ describe("Pull-request tests", () => {
   beforeEach(async () => {
     drop(db);
     jest.clearAllMocks();
-    jest.resetModules();
     jest.resetAllMocks();
+    jest.resetModules();
     await setupTests();
   });
 
@@ -76,6 +76,22 @@ describe("Pull-request tests", () => {
     const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const missingPriceRepoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+        },
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
+        },
+        repos: {
+          get: jest.fn(() => Promise.resolve({ data: repo })),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+        },
+      },
+    } as const;
 
     const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
@@ -124,54 +140,22 @@ describe("Pull-request tests", () => {
       createAdapters: jest.fn(),
     }));
     jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
-      customOctokit: jest.fn().mockReturnValue({
-        rest: {
-          apps: {
-            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-          },
-          issues: {
-            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
-          },
-          repos: {
-            get: jest.fn(() => Promise.resolve({ data: repo })),
-          },
-          orgs: {
-            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
-          },
-        },
-      }),
+      customOctokit: jest.fn().mockReturnValue(missingPriceRepoOctokit),
     }));
-    jest.mock("../src/handlers/start/api/helpers/octokit", () => {
-      const mockRepoOctokit = {
-        rest: {
-          apps: {
-            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-          },
-          issues: {
-            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
-          },
-          repos: {
-            get: jest.fn(() => Promise.resolve({ data: repo })),
-          },
-          orgs: {
-            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
-          },
-        },
-      };
-      return {
-        createUserOctokit: jest.fn(() => mockRepoOctokit),
-        createAppOctokit: jest.fn(() => mockRepoOctokit),
-        createRepoOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
-      };
-    });
+    jest.mock("../src/handlers/start/api/helpers/octokit", () => ({
+      createUserOctokit: jest.fn(() => missingPriceRepoOctokit),
+      createAppOctokit: jest.fn(() => missingPriceRepoOctokit),
+      createRepoOctokit: jest.fn(() => Promise.resolve(missingPriceRepoOctokit)),
+    }));
     context.commentHandler = {
       postComment: jest.fn(async () => null),
     } as unknown as Context["commentHandler"];
+    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(missingPriceRepoOctokit as never);
     const { startStopTask } = await import("../src/plugin");
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: expect.stringContaining("You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing."),
-      },
+    await expect(startStopTask(context)).resolves.toMatchObject({
+      status: 400,
+      content: expect.stringContaining("You may not start the task because the issue requires a price label"),
     });
   });
 
@@ -225,19 +209,7 @@ describe("Pull-request tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-    jest.mock("@supabase/supabase-js", () => ({
-      createClient: jest.fn(),
-    }));
-    jest.mock("../src/adapters", () => ({
-      createAdapters: jest.fn(() => ({
-        supabase: {
-          user: {
-            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
-          },
-        },
-      })),
-    }));
-    const mockRepoOctokit = {
+    const pricedRepoOctokit = {
       paginate: jest.fn(() => Promise.resolve([])),
       rest: {
         apps: {
@@ -283,14 +255,26 @@ describe("Pull-request tests", () => {
           }),
         },
       },
-    };
+    } as const;
+    jest.mock("@supabase/supabase-js", () => ({
+      createClient: jest.fn(),
+    }));
+    jest.mock("../src/adapters", () => ({
+      createAdapters: jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      })),
+    }));
     jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
-      customOctokit: jest.fn().mockReturnValue(mockRepoOctokit),
+      customOctokit: jest.fn().mockReturnValue(pricedRepoOctokit),
     }));
     jest.mock("../src/handlers/start/api/helpers/octokit", () => ({
-      createUserOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
-      createAppOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
-      createRepoOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
+      createUserOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
+      createAppOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
+      createRepoOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
     }));
     context.commentHandler = {
       postComment: jest.fn(async () => null),
@@ -298,15 +282,17 @@ describe("Pull-request tests", () => {
     const { startStopTask } = await import("../src/plugin");
     expect.assertions(1);
 
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: expect.stringContaining(
-          ERROR_MESSAGES.NOT_BUSINESS_PRIORITY.replace(
-            "{{requiredLabelsToStart}}",
-            "`Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`"
-          )
-        ),
-      },
+    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(pricedRepoOctokit as never);
+
+    await expect(startStopTask(context)).resolves.toMatchObject({
+      status: 400,
+      content: expect.stringContaining(
+        ERROR_MESSAGES.NOT_BUSINESS_PRIORITY.replace(
+          "{{requiredLabelsToStart}}",
+          "`Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`"
+        )
+      ),
     });
   });
 });

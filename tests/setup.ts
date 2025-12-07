@@ -1,7 +1,13 @@
 import { jest } from "@jest/globals";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import "./__mocks__/deno-kv";
+
 export const mockOctokit = new customOctokit({ auth: "mock-token" });
+
+// const jestRef = jest as unknown as Record<string, unknown>;
+// if (typeof jestRef.resetModules !== "function") {
+//   Object.defineProperty(jestRef, "resetModules", { value: () => {}, writable: true });
+// }
 
 jest.mock("@ubiquity-os/plugin-sdk", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
