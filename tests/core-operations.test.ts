@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createAdapters } from "../src/adapters";
 import { startStopTask } from "../src/plugin";
 import { Context } from "../src/types/index";
+import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
@@ -68,8 +69,11 @@ describe("test", () => {
 
     context.adapters = createAdapters(getSupabase(), context);
 
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: { raw: "External contributors are not eligible for rewards at this time. We are preserving resources for core team only." },
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: "External contributors are not eligible for rewards at this time. We are preserving resources for core team only.",
     });
   });
 });

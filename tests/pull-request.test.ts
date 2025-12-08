@@ -4,6 +4,7 @@ import { Repository } from "@octokit/graphql-schema";
 import dotenv from "dotenv";
 import { ERROR_MESSAGES } from "../src/handlers/start/helpers/error-messages";
 import { Context } from "../src/types/index";
+import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
@@ -168,10 +169,11 @@ describe("Pull-request tests", () => {
       postComment: jest.fn(async () => null),
     } as unknown as Context["commentHandler"];
     const { startStopTask } = await import("../src/plugin");
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: expect.stringContaining("You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing."),
-      },
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: expect.stringContaining("You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing."),
     });
   });
 
@@ -298,15 +300,16 @@ describe("Pull-request tests", () => {
     const { startStopTask } = await import("../src/plugin");
     expect.assertions(1);
 
-    await expect(startStopTask(context)).rejects.toMatchObject({
-      logMessage: {
-        raw: expect.stringContaining(
-          ERROR_MESSAGES.NOT_BUSINESS_PRIORITY.replace(
-            "{{requiredLabelsToStart}}",
-            "`Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`"
-          )
-        ),
-      },
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: expect.stringContaining(
+        ERROR_MESSAGES.NOT_BUSINESS_PRIORITY.replace(
+          "{{requiredLabelsToStart}}",
+          "`Priority: 1 (Normal)`, `Priority: 2 (Medium)`, `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`"
+        )
+      ),
     });
   });
 });
