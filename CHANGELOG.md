@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.11.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.10.0...v1.11.0) (2025-07-12)
+
+
+### Features
+
+* deno ([ffe0906](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ffe0906e16613260aaf8789ca1cfd9ea6f407715))
+
+
+### Bug Fixes
+
+* added a default for transformedRole to enable empty configs ([d616699](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/d6166997265f2b3571cfed21593445a47bebb8f8))
+* added a default for transformedRole to enable empty configs ([8445aa3](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8445aa3db11fb2cee0d0b0b0e8cf6bd08b0f2f7f))
+* handle owner-type when fetching repositories ([811d3c4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/811d3c498a75cc6ea9239977620ecb4a379af37f))
+* handle owner-type when fetching repositories ([006c465](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/006c4655ebcdaa9a0df8df7ad110557a6b5a786a))
+
 ## [1.10.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.9.0...v1.10.0) (2025-05-07)
 
 

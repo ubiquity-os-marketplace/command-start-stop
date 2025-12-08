@@ -62,9 +62,9 @@ describe("User start/stop", () => {
     const result = await userStartStop(context);
 
     expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
       content:
         "While we appreciate your enthusiasm @user3, the price of this task exceeds your allowed limit. Please choose a task with a price of $10000 or less.",
-      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -188,8 +188,8 @@ describe("User start/stop", () => {
     const result = await userStartStop(context);
 
     expect(result).toMatchObject({
-      content: "This issue is already assigned. Please choose another unassigned task.",
       status: HttpStatusCode.BAD_REQUEST,
+      content: "This issue is already assigned. Please choose another unassigned task.",
     });
   });
 
@@ -253,8 +253,8 @@ describe("User start/stop", () => {
     const result = await userStartStop(context);
 
     expect(result).toMatchObject({
-      content: `@${updatedSender.login} needs an account at least 120 days old (currently 30 days).`,
       status: HttpStatusCode.BAD_REQUEST,
+      content: `@${updatedSender.login} needs an account at least 120 days old (currently 30 days).`,
     });
   });
 
@@ -274,8 +274,8 @@ describe("User start/stop", () => {
     const result = await userStartStop(context);
 
     expect(result).toMatchObject({
-      content: `@${sender.login} needs at least 1000 XP to start this task (currently 200).`,
       status: HttpStatusCode.BAD_REQUEST,
+      content: `@${sender.login} needs at least 1000 XP to start this task (currently 200).`,
     });
   });
 
@@ -287,11 +287,11 @@ describe("User start/stop", () => {
 
     context.adapters = createAdapters(getSupabase(), context as unknown as Context);
 
-    const result = await userStartStop(context as Context<"issue_comment.created">);
+    const result = await userStartStop(context);
 
     expect(result).toMatchObject({
-      content: "This issue is closed, please choose another.",
       status: HttpStatusCode.BAD_REQUEST,
+      content: "This issue is closed, please choose another.",
     });
   });
 
@@ -393,9 +393,9 @@ describe("User start/stop", () => {
     const result = await userStartStop(context);
 
     expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
       content:
         "This task does not reflect a business priority at the moment.\nYou may start tasks with one of the following labels: `Priority: 3 (High)`, `Priority: 4 (Urgent)`, `Priority: 5 (Emergency)`",
-      status: HttpStatusCode.BAD_REQUEST,
     });
   });
 
@@ -415,8 +415,8 @@ describe("User start/stop", () => {
     const result = await userStartStop(context);
 
     expect(result).toMatchObject({
-      content: "You must be a core team member, or an administrator to start this task",
       status: HttpStatusCode.BAD_REQUEST,
+      content: "You must be a core team member, or an administrator to start this task",
     });
   });
 });

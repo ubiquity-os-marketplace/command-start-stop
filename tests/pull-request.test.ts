@@ -4,6 +4,7 @@ import { Repository } from "@octokit/graphql-schema";
 import dotenv from "dotenv";
 import { ERROR_MESSAGES } from "../src/handlers/start/helpers/error-messages";
 import { Context } from "../src/types/index";
+import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
@@ -153,9 +154,11 @@ describe("Pull-request tests", () => {
     const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
     jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(missingPriceRepoOctokit as never);
     const { startStopTask } = await import("../src/plugin");
-    await expect(startStopTask(context)).resolves.toMatchObject({
-      status: 400,
-      content: expect.stringContaining("You may not start the task because the issue requires a price label"),
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: expect.stringContaining("You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing."),
     });
   });
 
@@ -282,11 +285,10 @@ describe("Pull-request tests", () => {
     const { startStopTask } = await import("../src/plugin");
     expect.assertions(1);
 
-    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
-    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(pricedRepoOctokit as never);
+    const result = await startStopTask(context);
 
-    await expect(startStopTask(context)).resolves.toMatchObject({
-      status: 400,
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
       content: expect.stringContaining(
         ERROR_MESSAGES.NOT_BUSINESS_PRIORITY.replace(
           "{{requiredLabelsToStart}}",
