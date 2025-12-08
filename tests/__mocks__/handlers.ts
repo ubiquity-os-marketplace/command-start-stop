@@ -6,6 +6,69 @@ import issueTemplate from "./issue-template";
  * Intercepts the routes and returns a custom payload
  */
 export const handlers = [
+  // --- Supabase Auth: GET /auth/v1/user ---
+  http.get("https://test.supabase.co/auth/v1/user", ({ request }) => {
+    const auth = request.headers.get("authorization") || request.headers.get("Authorization");
+    if (!auth || !auth.toLowerCase().startsWith("bearer ")) {
+      return HttpResponse.json({ user: null }, { status: 401 });
+    }
+    const token = auth.split(" ")[1];
+    // Simulate invalid token by checking for specific test token
+    if (token === "invalid-jwt") {
+      return HttpResponse.json({ user: null, error: { message: "Invalid token" } }, { status: 401 });
+    }
+    // Return a minimal supabase auth payload shape for valid tokens
+    return HttpResponse.json({
+      user: {
+        id: "test-id",
+        user_metadata: {
+          provider_id: 123,
+          access_token: "metadata-token",
+        },
+      },
+    });
+  }),
+  // --- Supabase REST: users table lookups ---
+  http.get("https://test.supabase.co/rest/v1/users", ({ request }) => {
+    const url = new URL(request.url);
+    // Expect queries like: select=*&id=eq.123&limit=1
+    const idEq = url.searchParams.get("id");
+    const id = idEq?.startsWith("eq.") ? idEq.slice(3) : null;
+    if (!id) {
+      return HttpResponse.json([], { status: 200 });
+    }
+    const numericId = Number.isNaN(Number(id)) ? id : Number(id);
+    const row = { id: numericId, wallet_id: null, location_id: null, user_metadata: { access_token: "metadata-token" } };
+    return HttpResponse.json([row], { status: 200, headers: { "content-range": "0-0/1" } });
+  }),
+  http.get("*/xp", ({ request }) => {
+    const url = new URL(request.url);
+    const identifier = url.searchParams.get("user");
+    if (!identifier) {
+      return HttpResponse.json({ users: [] });
+    }
+    const normalized = identifier.toLowerCase();
+    const account =
+      db.users.findFirst({ where: { login: { equals: identifier } } }) ||
+      db.users.findFirst({ where: { login: { equals: normalized } } }) ||
+      db.users.findFirst({ where: { wallet: { equals: identifier } } }) ||
+      null;
+    if (!account) {
+      return HttpResponse.json({ users: [] });
+    }
+    const xp = Number.isFinite(account.xp) ? account.xp : 0;
+    return HttpResponse.json({
+      users: [
+        {
+          login: account.login,
+          id: account.id,
+          hasData: true,
+          total: xp,
+          permitCount: 0,
+        },
+      ],
+    });
+  }),
   // get repo
   http.get("https://api.github.com/repos/:owner/:repo", ({ params: { owner, repo } }: { params: { owner: string; repo: string } }) => {
     const item = db.repo.findFirst({ where: { name: { equals: repo }, owner: { login: { equals: owner } } } });
@@ -13,6 +76,19 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 });
     }
     return HttpResponse.json(item);
+  }),
+  // get org
+  http.get("https://api.github.com/orgs/:org", ({ params: { org } }: { params: { org: string } }) => {
+    const orgData = {
+      login: org,
+      id: 1,
+      avatar_url: `https://api.github.com/orgs/${org}/avatar`,
+      description: "Test org",
+      name: "Test Org",
+      url: `https://api.github.com/orgs/${org}`,
+      html_url: `https://github.com/${org}`,
+    };
+    return HttpResponse.json(orgData);
   }),
   //get member
   http.get("https://api.github.com/orgs/:org/memberships/:username", ({ params: { username } }) => {
@@ -55,8 +131,12 @@ export const handlers = [
     HttpResponse.json(db.pull.findMany({ where: { owner: { equals: owner }, repo: { equals: repo } } }))
   ),
   // list events for an issue timeline
-  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/timeline", () => HttpResponse.json(db.event.getAll())),
-  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/events", () => HttpResponse.json(db.event.getAll())),
+  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/timeline", ({ params: { issue_number: issueNumber } }) =>
+    HttpResponse.json(db.event.findMany({ where: { issue_number: { equals: Number(issueNumber) } } }))
+  ),
+  http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/events", ({ params: { issue_number: issueNumber } }) =>
+    HttpResponse.json(db.event.findMany({ where: { issue_number: { equals: Number(issueNumber) } } }))
+  ),
   // update a pull request
   http.patch("https://api.github.com/repos/:owner/:repo/pulls/:pull_number", ({ params: { owner, repo, pull_number: pullNumber } }) =>
     HttpResponse.json({ owner, repo, pullNumber })
@@ -106,9 +186,9 @@ export const handlers = [
     const query = params.get("q");
     const hasAssignee = query?.includes("assignee");
     if (hasAssignee) {
-      return HttpResponse.json(db.issue.getAll());
+      return HttpResponse.json({ items: db.issue.getAll(), total_count: db.issue.count() });
     } else {
-      return HttpResponse.json(db.pull.getAll());
+      return HttpResponse.json({ items: db.pull.getAll(), total_count: db.pull.count() });
     }
   }),
   // get issue by number
@@ -125,8 +205,127 @@ export const handlers = [
     if (!user) {
       return new HttpResponse(null, { status: 404 });
     }
-    return HttpResponse.json(user);
+    return HttpResponse.json({
+      login: user.login,
+      id: user.id,
+      created_at: user.created_at,
+      type: "User",
+      site_admin: false,
+    });
+  }),
+  // get authenticated user
+  http.get("https://api.github.com/user", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123,
+      created_at: "2020-01-01T00:00:00Z",
+      type: "User",
+      site_admin: false,
+    });
   }),
   // get comments for an issue
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", () => HttpResponse.json(db.comments.getAll())),
+  http.get("https://api.github.com/user", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123456,
+      username: "test-user",
+    });
+  }),
+  http.get("https://api.github.com/repos/:owner/:repo", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123456,
+      username: "test-user",
+    });
+  }),
+  http.get("https://api.github.com/repos/owner/repo", () => {
+    return HttpResponse.json({
+      login: "test-user",
+      id: 123456,
+      username: "test-user",
+    });
+  }),
+  // Get app installation for a repository
+  http.get("https://api.github.com/repos/:owner/:repo/installation", ({ params: { owner } }) => {
+    return HttpResponse.json({
+      id: 12345,
+      account: {
+        login: owner,
+        id: 1,
+      },
+      repository_selection: "selected",
+      access_tokens_url: "https://api.github.com/app/installations/12345/access_tokens",
+      repositories_url: "https://api.github.com/installation/repositories",
+    });
+  }),
+  // List installations for authenticated app
+  http.get("https://api.github.com/app/installations", () => {
+    return HttpResponse.json([
+      {
+        id: 12345,
+        account: {
+          login: "test-org",
+          id: 1,
+        },
+      },
+    ]);
+  }),
+  // GET https://api.github.com/repos/test-org/.ubiquity-os/contents/.github%2F.ubiquity-os.config.yml
+  http.get("https://api.github.com/repos/:owner/:repo/contents/:path", ({ params: { owner, repo, path } }) => {
+    if (owner === "test-org" && repo === ".ubiquity-os" && path === ".github/.ubiquity-os.config.yml") {
+      const content = Buffer.from(
+        `plugins: 
+  - uses:
+    - plugin: http://localhost:4000
+      with: 
+        taskAccessControl: 
+          usdPriceMax: 
+            collaborator: 9999999
+            contributor: 1500
+          requiredLabelsToStart:
+            - "Priority: 2 (Medium)"`
+      ).toString("base64");
+
+      return HttpResponse.json({
+        type: "file",
+        encoding: "base64",
+        size: content.length,
+        name: ".ubiquity-os.config.yml",
+        content,
+      });
+    }
+  }),
+  //POST https://api.github.com/graphql
+  http.post("https://api.github.com/graphql", async () => {
+    const responsePayload = {
+      data: {
+        repository: {
+          pullRequest: {
+            closingIssuesReferences: {
+              nodes: [
+                {
+                  assignees: {
+                    nodes: [],
+                  },
+                  repository: {
+                    name: "test-repo",
+                    owner: {
+                      login: "ubiquity",
+                    },
+                  },
+                },
+              ],
+              pageInfo: {
+                hasNextPage: false,
+                endCursor: null,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    return HttpResponse.json(responsePayload);
+  }),
 ];

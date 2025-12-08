@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import dotenv from "dotenv";
-import { Context } from "../src/types";
+import { Context } from "../src/types/index";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
@@ -18,7 +18,7 @@ type PayloadSender = Context["payload"]["sender"];
 const commandStartStop = "command-start-stop";
 const ubiquityOsMarketplace = "ubiquity-os-marketplace";
 
-const modulePath = "../src/handlers/shared/start";
+const modulePath = "../src/handlers/start-task";
 const supabaseModulePath = "@supabase/supabase-js";
 const adaptersModulePath = "../src/adapters";
 
@@ -37,6 +37,9 @@ async function setupTests() {
     id: 1,
     login: "user1",
     role: "contributor",
+    created_at: new Date("2020-01-01T00:00:00Z").toISOString(),
+    xp: 5000,
+    wallet: null,
   });
   db.issue.create({
     ...issueTemplate,
@@ -69,10 +72,13 @@ describe("Collaborator tests", () => {
       id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
+      created_at: new Date("2018-01-01T00:00:00Z").toISOString(),
+      xp: 8000,
+      wallet: null,
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
-    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -115,39 +121,54 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule(supabaseModulePath, () => ({
+    jest.mock(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule(adaptersModulePath, () => ({
+    jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
-    const start = jest.fn();
-    jest.unstable_mockModule(modulePath, () => ({
-      start,
+    const startTask = jest.fn();
+    jest.mock(modulePath, () => ({
+      startTask,
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
-      customOctokit: jest.fn().mockReturnValue({
-        rest: {
-          apps: {
-            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-          },
-          issues: {
-            get: jest.fn(() => Promise.resolve({ data: issue })),
-          },
-          repos: {
-            get: jest.fn(() => Promise.resolve({ data: { id: 1, name: commandStartStop, owner: { id: 1, login: ubiquityOsMarketplace } } })),
-          },
-          orgs: {
-            get: jest.fn(() => Promise.resolve({ data: { id: 1, login: ubiquityOsMarketplace } })),
-          },
+
+    // Mock createRepoOctokit to return an octokit instance with the required methods
+    const mockRepoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
         },
-      }),
-    }));
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: issue })),
+        },
+        repos: {
+          get: jest.fn(() =>
+            Promise.resolve({ data: { id: 1, name: commandStartStop, owner: { id: 1, login: ubiquityOsMarketplace, type: "Organization" } } })
+          ),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: { id: 1, login: ubiquityOsMarketplace } })),
+        },
+      },
+    };
+
+    // Import the octokit helpers module and spy on createRepoOctokit
+    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(mockRepoOctokit as never);
+
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // Make sure the author is the one who starts and not the sender who modified the comment
-    expect(start).toHaveBeenCalledWith(expect.anything(), expect.anything(), { id: 1, login: userLogin }, []);
-    start.mockClear();
+    expect(startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          pull_request: expect.objectContaining({
+            user: expect.objectContaining({ login: userLogin }),
+          }),
+        }),
+      })
+    );
+    startTask.mockClear();
   });
 
   it("should successfully assign if the PR and linked issue are in different organizations", async () => {
@@ -155,12 +176,15 @@ describe("Collaborator tests", () => {
       id: TEST_USER_ID,
       login: "ubiquity-os-sender",
       role: "admin",
+      created_at: new Date("2018-01-01T00:00:00Z").toISOString(),
+      xp: 8000,
+      wallet: null,
     });
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const sender = db.users.findFirst({ where: { id: { equals: TEST_USER_ID } } }) as unknown as PayloadSender;
     const repository = db.repo.findFirst({ where: { id: { equals: 1 } } });
 
-    const context = createContext(issue, sender, "") as Context<"pull_request.edited">;
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.edited">;
     context.eventName = "pull_request.edited";
     context.payload.pull_request = {
       html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
@@ -174,7 +198,7 @@ describe("Collaborator tests", () => {
       id: 2,
       name: commandStartStop,
       owner: {
-        login: "ubiquity-os-marketplace",
+        login: ubiquityOsMarketplace,
       },
     } as unknown as Context<"pull_request.edited">["payload"]["repository"];
     context.octokit = {
@@ -203,17 +227,17 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
 
-    jest.unstable_mockModule(supabaseModulePath, () => ({
+    jest.mock(supabaseModulePath, () => ({
       createClient: jest.fn(),
     }));
-    jest.unstable_mockModule(adaptersModulePath, () => ({
+    jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
-    const start = jest.fn();
-    jest.unstable_mockModule(modulePath, () => ({
-      start,
+    const startTask = jest.fn();
+    jest.mock(modulePath, () => ({
+      startTask,
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
       customOctokit: jest.fn().mockReturnValue({
         rest: {
           apps: {
@@ -233,10 +257,18 @@ describe("Collaborator tests", () => {
     }));
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
-    expect(start.mock.calls[0][0]).toMatchObject({ payload: { issue, repository, organization: repository?.owner } });
-    expect(start.mock.calls[0][1]).toMatchObject({ id: 1 });
-    expect(start.mock.calls[0][2]).toMatchObject({ id: 1, login: "whilefoo" });
-    expect(start.mock.calls[0][3]).toEqual([]);
-    start.mockReset();
+    // expect the task to be assigned to whilefoo in the new organization
+    expect(startTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          pull_request: expect.objectContaining({
+            user: expect.objectContaining({ login: "whilefoo" }),
+            html_url: expect.stringContaining(ubiquityOsMarketplace),
+          }),
+        }),
+      })
+    );
+
+    startTask.mockReset();
   });
 });

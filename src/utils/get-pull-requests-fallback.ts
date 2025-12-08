@@ -27,7 +27,6 @@ async function getRepositories(context: Context) {
     });
   }
 
-  console.log(repositories.map((repo) => repo.name).join("\n"));
   return repositories;
 }
 
@@ -59,8 +58,7 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
           logger.error(`Could not find pull requests for repository ${repo.url}, skipping: ${error}`);
           return;
         }
-        logger.fatal("Failed to fetch pull requests for repository", { error: error as Error });
-        throw error;
+        throw logger.fatal("Failed to fetch pull requests for repository", { error: error as Error });
       }
     });
 
@@ -68,8 +66,7 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
 
     return allPrs;
   } catch (error) {
-    logger.fatal("Failed to fetch pull requests for organization", { error: error as Error });
-    throw error;
+    throw logger.fatal("Failed to fetch pull requests for organization", { error: error as Error });
   }
 }
 
@@ -99,6 +96,6 @@ export async function getAssignedIssuesFallback(context: Context, username: stri
 
     return assignedIssues;
   } catch (err: unknown) {
-    throw new Error(context.logger.error("Fetching assigned issues failed!", { error: err as Error }).logMessage.raw);
+    throw context.logger.error("Fetching assigned issues failed!", { error: err as Error });
   }
 }

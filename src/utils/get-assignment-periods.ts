@@ -1,4 +1,4 @@
-import { Context } from "../../types/index";
+import { Context } from "../types/index";
 
 interface IssueParams {
   owner: string;
@@ -64,6 +64,9 @@ export async function getAssignmentPeriods(octokit: Context["octokit"], issuePar
 
       if ("assigner" in event && event.assigner.type !== "Bot" && event.assigner.login !== username) {
         lastPeriod.reason = "admin";
+      } else if ("actor" in event && event.actor?.type !== "Bot" && event.actor?.login === username) {
+        // User unassigned themselves via the UI button
+        lastPeriod.reason = "user";
       } else {
         const hasStopCommand =
           stopComments.some((comment) => {

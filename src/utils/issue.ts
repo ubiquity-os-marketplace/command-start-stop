@@ -1,7 +1,7 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import ms from "ms";
-import { AssignedIssueScope, PrState, Role } from "../types/index";
 import { Context } from "../types/context";
+import { AssignedIssueScope, PrState, Role } from "../types/index";
 import { GitHubIssueSearch, Review } from "../types/payload";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
@@ -29,7 +29,10 @@ export async function getAssignedIssues(context: Context, username: string) {
       sort: "created",
     });
     return issues.filter((issue) => {
-      return issue.assignee?.login === username || issue.assignees?.some((assignee) => assignee.login === username);
+      return (
+        issue.assignee?.login.toLowerCase() === username.toLowerCase() ||
+        issue.assignees?.some((assignee) => assignee.login.toLowerCase() === username.toLowerCase())
+      );
     });
   } catch (err) {
     context.logger.info("Will try re-fetching assigned issues...", { error: err as Error });
@@ -60,12 +63,10 @@ export async function closePullRequest(context: Context, results: Pick<GetLinked
 export async function closePullRequestForAnIssue(context: Context, issueNumber: number, repository: Context["payload"]["repository"], author: string) {
   const { logger } = context;
   if (!issueNumber) {
-    throw new Error(
-      logger.error("Issue is not defined", {
-        issueNumber,
-        repository: repository.name,
-      }).logMessage.raw
-    );
+    throw logger.error("Issue is not defined", {
+      issueNumber,
+      repository: repository.name,
+    });
   }
 
   const linkedPullRequests = await getLinkedPullRequests(context, {
@@ -140,13 +141,13 @@ async function confirmMultiAssignment(context: Context, issueNumber: number, use
   }
 }
 
-export async function addAssignees(context: Context, issueNo: number, assignees: string[]) {
-  const payload = context.payload;
+export async function addAssignees(context: Context & { installOctokit: Context["octokit"] }, issueNo: number, assignees: string[]) {
+  const repository = context.payload.repository;
 
   try {
-    await context.octokit.rest.issues.addAssignees({
-      owner: payload.repository.owner.login,
-      repo: payload.repository.name,
+    await context.installOctokit.rest.issues.addAssignees({
+      owner: repository.owner.login,
+      repo: repository.name,
       issue_number: issueNo,
       assignees,
     });
@@ -177,7 +178,7 @@ async function getAllPullRequests(context: Context, state = "open", username: st
   try {
     return (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, query)) as GitHubIssueSearch["items"];
   } catch (err: unknown) {
-    throw new Error(context.logger.error("Fetching all pull requests failed!", { error: err as Error, query }).logMessage.raw);
+    throw context.logger.error("Fetching all pull requests failed!", { error: err as Error, query });
   }
 }
 
@@ -207,7 +208,7 @@ export async function getAllPullRequestReviews(context: Context, pullNumber: num
     if (err && typeof err === "object" && "status" in err && err.status === 404) {
       return [];
     } else {
-      throw new Error(context.logger.error("Fetching all pull request reviews failed!", { error: err as Error }).logMessage.raw);
+      throw context.logger.error("Fetching all pull request reviews failed!", { error: err as Error });
     }
   }
 }
@@ -301,6 +302,7 @@ export async function getPendingOpenedPullRequests(context: Context, username: s
       result.push(openedPullRequest);
     }
   }
+
   return result;
 }
 

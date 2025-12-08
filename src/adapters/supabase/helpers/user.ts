@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { ShallowContext } from "../../../handlers/start/api/helpers/context-builder";
 import { Context } from "../../../types/context";
 import { Super } from "./supabase";
 
@@ -7,7 +8,7 @@ type Wallet = {
 };
 
 export class User extends Super {
-  constructor(supabase: SupabaseClient, context: Context) {
+  constructor(supabase: SupabaseClient, context: Context | ShallowContext) {
     super(supabase, context);
   }
 

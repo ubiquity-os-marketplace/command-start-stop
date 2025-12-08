@@ -35,6 +35,37 @@
     "usdPriceMax": {
       "collaborator": "Infinity",
       "contributor": 1000
+    },
+    "accountRequiredAge": {
+      "minimumDays": 365.25
+    },
+    "experience": {
+      "priorityThresholds": [
+        {
+          "label": "Priority: 0 (Regression)",
+          "minimumXp": -2000
+        },
+        {
+          "label": "Priority: 1 (Normal)",
+          "minimumXp": -1000
+        },
+        {
+          "label": "Priority: 2 (Medium)",
+          "minimumXp": 0
+        },
+        {
+          "label": "Priority: 3 (High)",
+          "minimumXp": 1000
+        },
+        {
+          "label": "Priority: 4 (Urgent)",
+          "minimumXp": 2000
+        },
+        {
+          "label": "Priority: 5 (Emergency)",
+          "minimumXp": 3000
+        }
+      ]
     }
   }
 }

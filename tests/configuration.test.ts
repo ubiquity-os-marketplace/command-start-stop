@@ -1,5 +1,5 @@
 import { Value } from "@sinclair/typebox/value";
-import { AssignedIssueScope, PluginSettings, pluginSettingsSchema, Role } from "../src/types";
+import { AssignedIssueScope, PluginSettings, pluginSettingsSchema, Role } from "../src/types/index";
 import cfg from "./__mocks__/valid-configuration.json";
 
 const PRIORITY_LABELS = [

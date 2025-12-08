@@ -1,10 +1,11 @@
 import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { createAdapters } from "../src/adapters/index";
-import { AssignedIssueScope, Context, Role, SupportedEvents } from "../src/types";
+import { AssignedIssueScope, Context, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Role, SupportedEvents } from "../src/types/index";
+import { MAX_CONCURRENT_DEFAULTS } from "../src/utils/constants";
 import { db } from "./__mocks__/db";
+import { mockOctokit } from "./setup";
 
-const octokit = await import("@octokit/rest");
 const PRIORITY_ONE = { name: "Priority: 1 (Normal)", allowedRoles: ["collaborator", "contributor"] };
 const priority3LabelName = "Priority: 3 (High)";
 const priority4LabelName = "Priority: 4 (Urgent)";
@@ -29,19 +30,14 @@ const PRIORITY_LABELS = [
   },
 ];
 
-export const MAX_CONCURRENT_DEFAULTS = {
-  collaborator: 6,
-  contributor: 4,
-};
-
-export function createContext(
+async function createContext(
   issue: Record<string, unknown>,
   sender: Record<string, unknown> | undefined,
   body = "/start",
   collaboratorUsdLimit: string | number = 10000,
   startRequiresWallet = false,
   requiredLabelsToStart = PRIORITY_LABELS
-): Context {
+): Promise<Context> {
   return {
     adapters: {} as ReturnType<typeof createAdapters>,
     payload: {
@@ -71,19 +67,28 @@ export function createContext(
           collaborator: collaboratorUsdLimit,
           contributor: 1000,
         },
+        accountRequiredAge: {
+          minimumDays: 360,
+        },
+        experience: {
+          priorityThresholds: DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS.map((threshold) => ({ ...threshold })),
+        },
       },
     },
-    octokit: new octokit.Octokit(),
+    octokit: mockOctokit as unknown as Context["octokit"],
+    installOctokit: mockOctokit as unknown as Context["octokit"],
     eventName: "issue_comment.created" as SupportedEvents,
     organizations: ["ubiquity"],
     env: {
       APP_ID: 1,
       APP_PRIVATE_KEY: "private_key",
-      SUPABASE_KEY: "key",
-      SUPABASE_URL: "url",
+      SUPABASE_KEY: "supabase_key",
+      SUPABASE_URL: "https://test.supabase.co",
       BOT_USER_ID: 1,
     },
     command: null,
     commentHandler: new CommentHandler(),
   } as unknown as Context;
 }
+
+export { MAX_CONCURRENT_DEFAULTS, createContext, PRIORITY_ONE, priority3LabelName, priority4LabelName, priority5LabelName };
