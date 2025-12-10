@@ -14,7 +14,9 @@ import { createUserRateLimiter } from "./handlers/start/api/helpers/rate-limit";
 import { handlePublicStart } from "./handlers/start/api/public-api";
 import { startStopTask } from "./plugin";
 import { Command } from "./types/command";
-import { Env, envSchema, PluginSettings, pluginSettingsSchema, SupportedEvents } from "./types/index";
+import { SupportedEvents } from "./types/context";
+import { Env, envSchema } from "./types/env";
+import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { validateReqEnv } from "./utils/validate-env";
 import { querySchema, responseSchemaGet, responseSchemaPost } from "./validators/start";
 

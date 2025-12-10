@@ -1,7 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import { Context as HonoContext } from "hono";
+import { Context } from "../../../types/context";
 import { Env } from "../../../types/env";
-import { Context } from "../../../types/index";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";

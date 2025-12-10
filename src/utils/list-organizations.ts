@@ -1,4 +1,5 @@
-import { AssignedIssueScope, Context } from "../types/index";
+import { Context } from "../types/context";
+import { AssignedIssueScope } from "../types/plugin-input";
 
 export async function listOrganizations(context: Context): Promise<string[]> {
   const {

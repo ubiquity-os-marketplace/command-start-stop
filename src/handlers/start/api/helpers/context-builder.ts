@@ -4,7 +4,7 @@ import { LogLevel, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { createAdapters } from "../../../../adapters/index";
 import { Context } from "../../../../types/context";
 import { Env } from "../../../../types/env";
-import { Issue, Organization, Repository } from "../../../../types/index";
+import { Issue, Organization, Repository } from "../../../../types/payload";
 import { AssignedIssueScope, PluginSettings, Role } from "../../../../types/plugin-input";
 import { MAX_CONCURRENT_DEFAULTS } from "../../../../utils/constants";
 import { listOrganizations } from "../../../../utils/list-organizations";

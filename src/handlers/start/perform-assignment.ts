@@ -1,4 +1,5 @@
-import { Context, Label } from "../../types/index";
+import { Context } from "../../types/context";
+import { Label } from "../../types/payload";
 import { HttpStatusCode, Result } from "../../types/result-types";
 import { addAssignees, getTimeValue } from "../../utils/issue";
 import { StartEligibilityResult } from "./api/helpers/types";
