@@ -1,4 +1,3 @@
-import { Kv } from "@deno/kv";
 import { Context } from "hono";
 import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
 import { validateReqEnv } from "../../../../utils/validate-env";
@@ -9,7 +8,7 @@ export class KvStore implements Store {
   _options: ConfigType | undefined;
   prefix = "rate-limiter";
 
-  constructor(readonly _store: Kv | Deno.Kv) {}
+  constructor(readonly _store: Deno.Kv) {}
 
   init(options: ConfigType): void {
     this._options = options;

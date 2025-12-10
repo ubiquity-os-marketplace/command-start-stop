@@ -33,7 +33,6 @@
   ],
   "dependencies": {
     "@azure/functions": "^4.7.0",
-    "@deno/kv": "^0.13.0",
     "@hono/standard-validator": "^0.2.0",
     "@hono/swagger-ui": "^0.5.2",
     "@marplex/hono-azurefunc-adapter": "^1.0.1",
