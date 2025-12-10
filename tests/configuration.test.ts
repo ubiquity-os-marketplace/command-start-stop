@@ -1,5 +1,6 @@
+import { describe, expect, it } from "@jest/globals";
 import { Value } from "@sinclair/typebox/value";
-import { AssignedIssueScope, PluginSettings, pluginSettingsSchema, Role } from "../src/types/index";
+import { AssignedIssueScope, PluginSettings, pluginSettingsSchema, Role } from "../src/types/plugin-input";
 import cfg from "./__mocks__/valid-configuration.json";
 
 const PRIORITY_LABELS = [

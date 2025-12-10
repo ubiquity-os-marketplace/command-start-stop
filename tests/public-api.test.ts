@@ -42,7 +42,7 @@ jest.mock("../src/handlers/start/api/helpers/get-plugin-config", () => ({
 }));
 
 jest.mock("../src/handlers/start/api/helpers/auth", () => ({
-  ...jest.requireActual("../src/handlers/start/api/helpers/auth"),
+  ...(jest.requireActual("../src/handlers/start/api/helpers/auth") as object),
   verifySupabaseJwt: jest.fn(({ jwt }) => {
     if (jwt === "invalid-jwt") {
       return Promise.reject(new Error("Unauthorized: Invalid JWT, expired, or user not found"));
@@ -51,7 +51,7 @@ jest.mock("../src/handlers/start/api/helpers/auth", () => ({
   }),
 }));
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { Context as HonoCtx } from "hono";
 import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
