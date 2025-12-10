@@ -135,7 +135,7 @@ export function getDefaultConfig(): PluginSettings {
   } as PluginSettings;
 }
 
-export function createLogger(env: Env | { LOG_LEVEL?: string }): Logs {
+export function createLogger(env: Env | { LOG_LEVEL?: string }): Context["logger"] {
   return new Logs((env.LOG_LEVEL as LogLevel) ?? "info");
 }
 
