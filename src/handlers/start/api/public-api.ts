@@ -1,12 +1,14 @@
 import { Value } from "@sinclair/typebox/value";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { Context as HonoContext } from "hono";
+import { Context } from "../../../types";
 import { Env } from "../../../types/env";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
 import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
+
+type Logs = Context["logger"];
 
 /**
  * Main handler for the public start API endpoint.
