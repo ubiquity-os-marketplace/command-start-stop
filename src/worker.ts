@@ -16,7 +16,7 @@ import { startStopTask } from "./plugin";
 import { Command } from "./types/command";
 import { Env, envSchema, PluginSettings, pluginSettingsSchema, SupportedEvents } from "./types/index";
 import { validateReqEnv } from "./utils/validate-env";
-import { querySchema, responseSchema } from "./validators/start";
+import { querySchema, responseSchemaGet, responseSchemaPost } from "./validators/start";
 
 const START_API_PATH = "/start";
 
@@ -93,7 +93,7 @@ export default {
           200: {
             description: "Successful response",
             content: {
-              "application/json": { schema: resolver(responseSchema) },
+              "application/json": { schema: resolver(responseSchemaGet) },
             },
           },
         },
@@ -110,14 +110,30 @@ export default {
     );
 
     // POST route for execution
-    honoApp.post(START_API_PATH, async (c) => {
-      const validatedEnv = validateReqEnv(c);
-      if (validatedEnv instanceof Response) {
-        return validatedEnv;
-      }
+    honoApp.post(
+      START_API_PATH,
+      describeRoute({
+        description: "Starts the task for a given user.",
+        security: [{ Bearer: [] }],
+        responses: {
+          200: {
+            description: "Successful response",
+            content: {
+              "application/json": { schema: resolver(responseSchemaPost) },
+            },
+          },
+        },
+      }),
+      validator("json", querySchema),
+      async (c) => {
+        const validatedEnv = validateReqEnv(c);
+        if (validatedEnv instanceof Response) {
+          return validatedEnv;
+        }
 
-      return await handlePublicStart(c, validatedEnv, createLogger(env));
-    });
+        return await handlePublicStart(c, validatedEnv, createLogger(env));
+      }
+    );
 
     honoApp.get(
       "/openapi",

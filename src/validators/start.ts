@@ -7,7 +7,7 @@ export const querySchema = v.object({
   userId: v.union([v.string(), v.number()]),
 });
 
-export const responseSchema = v.record(
+export const responseSchemaGet = v.record(
   v.string(),
   v.union([
     v.object({
@@ -30,3 +30,17 @@ export const responseSchema = v.record(
     v.null(),
   ])
 );
+
+export const responseSchemaPost = v.object({
+  ok: v.boolean(),
+  content: v.string(),
+  metadata: v.object({
+    deadline: v.date(),
+    isTaskStale: v.boolean(),
+    wallet: v.string(),
+    toAssign: v.array(v.string()),
+    senderRole: v.string(),
+    consideredCount: v.number(),
+    assignedIssues: v.array(v.object({ title: v.string(), html_url: v.string() })),
+  }),
+});
