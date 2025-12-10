@@ -2,7 +2,7 @@ import { Value } from "@sinclair/typebox/value";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { getRuntimeKey } from "hono/adapter";
 import PKG from "../../../../../../package.json" with { type: "json" };
-import { Env } from "../../../../../types/index";
+import { Env } from "../../../../../types/env";
 import { PluginSettings, pluginSettingsSchema } from "../../../../../types/plugin-input";
 import { RawConfiguration } from "./types";
 
