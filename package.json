@@ -41,7 +41,7 @@
     "@octokit/rest": "^22.0.1",
     "@sinclair/typebox": "^0.34.41",
     "@supabase/supabase-js": "2.42.0",
-    "@ubiquity-os/plugin-sdk": "3.5.0",
+    "@ubiquity-os/plugin-sdk": "3.5.4",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "eslint-plugin-import": "^2.32.0",
     "hono": "4.10.3",
