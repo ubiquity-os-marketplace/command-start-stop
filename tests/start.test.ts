@@ -62,8 +62,8 @@ describe("Collaborator tests", () => {
   beforeEach(async () => {
     drop(db);
     jest.clearAllMocks();
-    jest.resetModules();
     jest.resetAllMocks();
+    jest.resetModules();
     await setupTests();
   });
 
@@ -131,9 +131,7 @@ describe("Collaborator tests", () => {
     jest.mock(modulePath, () => ({
       startTask,
     }));
-
-    // Mock createRepoOctokit to return an octokit instance with the required methods
-    const mockRepoOctokit = {
+    const authorRepoOctokit = {
       rest: {
         apps: {
           getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
@@ -150,11 +148,9 @@ describe("Collaborator tests", () => {
           get: jest.fn(() => Promise.resolve({ data: { id: 1, login: ubiquityOsMarketplace } })),
         },
       },
-    };
-
-    // Import the octokit helpers module and spy on createRepoOctokit
-    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
-    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(mockRepoOctokit as never);
+    } as const;
+    const authorOctokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(authorOctokitHelpers, "createRepoOctokit").mockResolvedValue(authorRepoOctokit as never);
 
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
@@ -255,6 +251,24 @@ describe("Collaborator tests", () => {
         },
       }),
     }));
+    const crossOrgRepoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+        },
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: issue })),
+        },
+        repos: {
+          get: jest.fn(() => Promise.resolve({ data: repository })),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: repository?.owner })),
+        },
+      },
+    } as const;
+    const crossOrgOctokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(crossOrgOctokitHelpers, "createRepoOctokit").mockResolvedValue(crossOrgRepoOctokit as never);
     const { startStopTask } = await import("../src/plugin");
     await startStopTask(context);
     // expect the task to be assigned to whilefoo in the new organization

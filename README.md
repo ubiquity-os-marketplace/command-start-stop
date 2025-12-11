@@ -274,7 +274,7 @@ bun run worker
 Run the full test suite:
 
 ```bash
-bun run test
+bun run test:jest
 ```
 
 ### Code Quality
