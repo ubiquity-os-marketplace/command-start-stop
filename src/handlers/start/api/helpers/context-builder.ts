@@ -136,7 +136,7 @@ export function getDefaultConfig(): PluginSettings {
 }
 
 export function createLogger(env: Env | { LOG_LEVEL?: string }): Context["logger"] {
-  return new Logs((env.LOG_LEVEL as LogLevel) ?? "info") as Context["logger"];
+  return new Logs((env.LOG_LEVEL as LogLevel) ?? "info") as unknown as Context["logger"];
 }
 
 async function initializeClients(env: Env, accessToken: string) {

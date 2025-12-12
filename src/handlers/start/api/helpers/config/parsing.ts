@@ -1,5 +1,5 @@
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { parse } from "yaml";
+import { Logs } from "../../../../../types/context";
 import { RawConfiguration, RawPluginSettings } from "./types";
 
 export function safeParseYaml(text: string | null): RawConfiguration {
