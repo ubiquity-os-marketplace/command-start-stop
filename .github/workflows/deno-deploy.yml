@@ -24,6 +24,11 @@ jobs:
         id: adapter
         with:
           pluginEntry: "./worker"
+      - uses: denoland/setup-deno@v2
+      - name: Rebuild lock file
+        run: |
+          rm *.lock
+          deno install
       - uses: ubiquity-os/deno-deploy@main
         env:
           APP_ID: ${{ secrets.APP_ID }}
