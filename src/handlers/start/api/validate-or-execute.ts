@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { HttpStatusCode } from "../../../types/result-types";
 import { evaluateStartEligibility } from "../evaluate-eligibility";
 import { performAssignment } from "../perform-assignment";

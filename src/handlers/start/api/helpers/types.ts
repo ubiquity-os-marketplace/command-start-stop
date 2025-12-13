@@ -1,6 +1,6 @@
 import { StaticDecode, Type as T } from "@sinclair/typebox";
 import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
-import { AssignedIssue } from "../../../../types/index";
+import { AssignedIssue } from "../../../../types/payload";
 import { getTransformedRole } from "../../../../utils/get-user-task-limit-and-role";
 
 export const startQueryParamSchema = T.Object(

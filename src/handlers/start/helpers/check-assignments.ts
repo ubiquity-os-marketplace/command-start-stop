@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { getAssignmentPeriods } from "../../../utils/get-assignment-periods";
 import { getUserRoleAndTaskLimit } from "../../../utils/get-user-task-limit-and-role";
 import { getAssignedIssues, getOwnerRepoFromHtmlUrl, getPendingOpenedPullRequests } from "../../../utils/issue";

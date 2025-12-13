@@ -1,5 +1,6 @@
 import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
-import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
+import { Context } from "../../types/context";
+import { AssignedIssue, ISSUE_TYPE, Label } from "../../types/payload";
 import { getTransformedRole, getUserRoleAndTaskLimit } from "../../utils/get-user-task-limit-and-role";
 import { getTimeValue, isParentIssue } from "../../utils/issue";
 import { DeepPartial, StartEligibilityResult } from "./api/helpers/types";

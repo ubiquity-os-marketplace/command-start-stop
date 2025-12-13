@@ -1,8 +1,8 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import ms from "ms";
 import { Context } from "../types/context";
-import { AssignedIssueScope, PrState, Role } from "../types/index";
-import { GitHubIssueSearch, Review } from "../types/payload";
+import { GitHubIssueSearch, PrState, Review } from "../types/payload";
+import { AssignedIssueScope, Role } from "../types/plugin-input";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 

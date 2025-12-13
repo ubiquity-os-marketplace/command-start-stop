@@ -1,6 +1,6 @@
 import { StaticDecode, Type as T } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
-import { Context } from "../types/index";
+import { Context } from "../types/context";
 
 const xpUserSchema = T.Object({
   login: T.String({ minLength: 1 }),

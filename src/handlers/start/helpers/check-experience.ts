@@ -1,4 +1,5 @@
-import { Context, Label } from "../../../types/index";
+import { Context } from "../../../types/context";
+import { Label } from "../../../types/payload";
 import { getUserExperience } from "../../../utils/get-user-experience";
 
 export type ExperienceResult = {

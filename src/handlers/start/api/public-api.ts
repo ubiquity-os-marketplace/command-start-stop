@@ -1,6 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { Context as HonoContext } from "hono";
+import { Logs } from "../../../types/context";
 import { Env } from "../../../types/env";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";

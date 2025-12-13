@@ -1,4 +1,4 @@
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { Logs } from "../../../../types/context";
 import { IssueUrlParts } from "./types";
 
 export function parseIssueUrl(url: string, logger: Logs): IssueUrlParts {

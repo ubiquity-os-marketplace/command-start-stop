@@ -1,5 +1,6 @@
 import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
-import { Context, Issue } from "../../../types/index";
+import { Context } from "../../../types/context";
+import { Issue } from "../../../types/payload";
 import { getTransformedRole } from "../../../utils/get-user-task-limit-and-role";
 import { ERROR_MESSAGES } from "./error-messages";
 
