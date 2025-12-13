@@ -7,40 +7,40 @@ export const querySchema = v.object({
   userId: v.union([v.string(), v.number()]),
 });
 
-export const responseSchemaGet = v.record(
-  v.string(),
-  v.union([
+const taskSchema = v.object({
+  deadline: v.date(),
+  isTaskStale: v.boolean(),
+  wallet: v.string(),
+  toAssign: v.array(v.string()),
+  senderRole: v.string(),
+  consideredCount: v.number(),
+  assignedIssues: v.array(
     v.object({
-      matchResultArray: v.record(v.string(), v.array(v.string())),
-      similarIssues: v.array(
-        v.object({
-          id: v.string(),
-          issue_id: v.string(),
-          similarity: v.number(),
-        })
-      ),
-      sortedContributors: v.array(
-        v.object({
-          login: v.string(),
-          matches: v.array(v.string()),
-          maxSimilarity: v.number(),
-        })
-      ),
-    }),
-    v.null(),
-  ])
-);
+      title: v.string(),
+      html_url: v.string(),
+    })
+  ),
+});
+
+export const responseSchemaGet = v.object({
+  ok: v.boolean(),
+  computed: taskSchema,
+  warnings: v.array(
+    v.object({
+      logMessage: v.object({
+        level: v.string(),
+        raw: v.string(),
+        diff: v.string(),
+        type: v.string(),
+      }),
+      metadata: v.object({}),
+    })
+  ),
+  reasons: v.union([v.array(v.string()), v.null()]),
+});
 
 export const responseSchemaPost = v.object({
   ok: v.boolean(),
   content: v.string(),
-  metadata: v.object({
-    deadline: v.date(),
-    isTaskStale: v.boolean(),
-    wallet: v.string(),
-    toAssign: v.array(v.string()),
-    senderRole: v.string(),
-    consideredCount: v.number(),
-    assignedIssues: v.array(v.object({ title: v.string(), html_url: v.string() })),
-  }),
+  metadata: taskSchema,
 });
