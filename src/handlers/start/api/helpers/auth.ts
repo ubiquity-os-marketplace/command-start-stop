@@ -2,20 +2,13 @@ import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
+import { createAppOctokit } from "./octokit";
 import { DatabaseUser } from "./types";
 
 /**
- * Verifies Supabase JWT token.
+ * Verifies JWT token, Supabase and GitHub are supported.
  */
-export async function verifySupabaseJwt({
-  env,
-  jwt,
-  logger,
-}: {
-  env: Env;
-  jwt: string;
-  logger: Logs;
-}): Promise<(DatabaseUser & { accessToken: string }) | null> {
+export async function verifyJwt({ env, jwt, logger }: { env: Env; jwt: string; logger: Logs }): Promise<(DatabaseUser & { accessToken: string }) | null> {
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
@@ -32,7 +25,7 @@ export async function verifySupabaseJwt({
   const isValidGithubOrOauthToken = isValidGitAccessToken(trimmedJwt);
 
   if (isValidGithubOrOauthToken) {
-    user = await verifyGitHubToken({ supabase, token: trimmedJwt, logger });
+    user = await verifyGitHubToken({ supabase, token: trimmedJwt, logger, env });
   } else {
     user = await verifySupabaseToken({ supabase, token: trimmedJwt, logger });
   }
@@ -44,14 +37,21 @@ async function verifyGitHubToken({
   supabase,
   token,
   logger,
+  env,
 }: {
   supabase: SupabaseClient;
   token: string;
   logger: Logs;
+  env: Env;
 }): Promise<DatabaseUser & { accessToken: string }> {
   try {
     const octokit = new Octokit({ auth: token });
     const { data: user } = await octokit.users.getAuthenticated();
+    const superuser = await createAppOctokit(env);
+
+    if ((await superuser.rest.users.getAuthenticated()).data.id === user.id) {
+      return { id: user.id, location_id: null, wallet_id: null, accessToken: token };
+    }
 
     const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
