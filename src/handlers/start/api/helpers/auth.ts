@@ -65,7 +65,6 @@ async function verifyGitHubToken({
 
     return { ...userData, accessToken: token };
   } catch (error) {
-    console.log("!!!!", JSON.stringify(error, null, 2));
     throw logger.error("GitHub authentication failed", { e: String(error) });
   }
 }
