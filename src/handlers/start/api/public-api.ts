@@ -2,7 +2,7 @@ import { Value } from "@sinclair/typebox/value";
 import { Context as HonoContext } from "hono";
 import { Logs } from "../../../types/context";
 import { Env } from "../../../types/env";
-import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
+import { extractJwtFromHeader, verifyJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
 import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
@@ -62,12 +62,13 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
     // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { issueUrl } = params;
+    const { issueUrl, userId } = params;
 
     // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
       env,
       accessToken: user.accessToken,
+      userId,
       logger,
     });
 
@@ -127,7 +128,7 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
  */
 async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Logs; jwt: string }) {
   try {
-    const user = await verifySupabaseJwt({
+    const user = await verifyJwt({
       env,
       jwt,
       logger,
