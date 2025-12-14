@@ -1,0 +1,47 @@
+name: "@ubiquity-os-marketplace/command-start-stop"
+description: "Assign or un-assign yourself from an issue/task."
+
+inputs:
+  stateId:
+    description: "State Id"
+    required: true
+  eventName:
+    description: "Event Name"
+    required: true
+  eventPayload:
+    description: "Event Payload"
+    required: true
+  settings:
+    description: "Settings"
+    required: true
+  authToken:
+    description: "Auth Token"
+    required: true
+  ref:
+    description: "Ref"
+    required: false
+  signature:
+    description: "Signature to identify the Kernel"
+    required: true
+  command:
+    description: "Command"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: setup node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20.10.0"
+
+    - name: execute directive
+      shell: bash
+      run: node dist/index.js
+      env:
+        PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
