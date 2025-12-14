@@ -1,5 +1,5 @@
 import { Repository } from "@octokit/graphql-schema";
-import { Context } from "../types/index";
+import { Context } from "../types/context";
 import { HttpStatusCode, Result } from "../types/result-types";
 import { QUERY_CLOSING_ISSUE_REFERENCES } from "../utils/get-closing-issue-references";
 import { closePullRequest, getOwnerRepoFromHtmlUrl } from "../utils/issue";

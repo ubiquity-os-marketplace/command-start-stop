@@ -1,4 +1,4 @@
-import { Context, isIssueCommentEvent } from "../types/index";
+import { Context, isIssueCommentEvent } from "../types/context";
 import { HttpStatusCode, Result } from "../types/result-types";
 import { startTask } from "./start-task";
 import { stop } from "./stop-task";

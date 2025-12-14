@@ -1,4 +1,4 @@
-import { Context } from "../types/index";
+import { Context } from "../types/context";
 import { Result } from "../types/result-types";
 import { createRepoOctokit } from "./start/api/helpers/octokit";
 import { evaluateStartEligibility } from "./start/evaluate-eligibility";

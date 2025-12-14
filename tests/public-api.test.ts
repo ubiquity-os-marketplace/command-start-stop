@@ -42,7 +42,7 @@ jest.mock("../src/handlers/start/api/helpers/get-plugin-config", () => ({
 }));
 
 jest.mock("../src/handlers/start/api/helpers/auth", () => ({
-  ...jest.requireActual("../src/handlers/start/api/helpers/auth"),
+  ...(jest.requireActual("../src/handlers/start/api/helpers/auth") as object),
   verifySupabaseJwt: jest.fn(({ jwt }) => {
     if (jwt === "invalid-jwt") {
       return Promise.reject(new Error("Unauthorized: Invalid JWT, expired, or user not found"));
@@ -51,7 +51,7 @@ jest.mock("../src/handlers/start/api/helpers/auth", () => ({
   }),
 }));
 
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { Context as HonoCtx } from "hono";
 import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
@@ -181,7 +181,7 @@ describe("handlePublicStart - Authentication", () => {
   });
 
   it("should verify JWT token with Supabase", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "sb_valid_token");
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
@@ -222,7 +222,7 @@ describe("handlePublicStart - Request Query Validation", () => {
           method: "GET",
           headers: {
             "content-type": "application/json",
-            authorization: "Bearer ghu_valid_token",
+            authorization: "Bearer sb_valid_token",
           },
         }),
       },
@@ -239,7 +239,7 @@ describe("handlePublicStart - Request Query Validation", () => {
   });
 
   it("should reject missing userId", async () => {
-    const request = createMockRequest({}, "GET", "ghu_valid_token");
+    const request = createMockRequest({}, "GET", "sb_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env, createLogger(env));
@@ -372,7 +372,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
         issueUrl: ISSUE_ONE_URL,
       },
       "GET",
-      "ghu_valid_token"
+      "sb_valid_token"
     );
     const env = createMockEnv();
 
@@ -389,7 +389,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should extract token from user metadata if not provided", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "sb_valid_token");
     const env = createMockEnv();
 
     // MSW handler returns user with metadata containing access_token

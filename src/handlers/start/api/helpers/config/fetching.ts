@@ -1,5 +1,5 @@
 import { CONFIG_FULL_PATH, CONFIG_ORG_REPO, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { Logs } from "../../../../../types/context";
 import { Env } from "../../../../../types/env";
 import { createAppOctokit, createRepoOctokit, CustomOctokit } from "../octokit";
 
