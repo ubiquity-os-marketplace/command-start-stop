@@ -1,7 +1,7 @@
 import { ConfigurationHandler } from "@ubiquity-os/plugin-sdk/configuration";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import manifest from "../../../../../manifest.json" with { type: "json" };
+import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
 import { PluginSettings } from "../../../../types/plugin-input";
 import { createOctokitInstances } from "./config/fetching";

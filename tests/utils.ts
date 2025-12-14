@@ -1,7 +1,8 @@
 import { CommentHandler } from "@ubiquity-os/plugin-sdk";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { createAdapters } from "../src/adapters/index";
-import { AssignedIssueScope, Context, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Role, SupportedEvents } from "../src/types/index";
+import { Context, SupportedEvents } from "../src/types/context";
+import { AssignedIssueScope, DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS, Role } from "../src/types/plugin-input";
 import { MAX_CONCURRENT_DEFAULTS } from "../src/utils/constants";
 import { db } from "./__mocks__/db";
 import { mockOctokit } from "./setup";

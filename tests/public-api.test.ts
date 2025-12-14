@@ -199,7 +199,7 @@ describe("handlePublicStart - Authentication", () => {
   });
 
   it("should verify JWT token with Supabase", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "sb_valid_token");
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
@@ -240,7 +240,7 @@ describe("handlePublicStart - Request Query Validation", () => {
           method: "GET",
           headers: {
             "content-type": "application/json",
-            authorization: "Bearer ghu_valid_token",
+            authorization: "Bearer sb_valid_token",
           },
         }),
       },
@@ -257,7 +257,7 @@ describe("handlePublicStart - Request Query Validation", () => {
   });
 
   it("should reject missing userId", async () => {
-    const request = createMockRequest({}, "GET", "ghu_valid_token");
+    const request = createMockRequest({}, "GET", "sb_valid_token");
     const env = createMockEnv();
 
     const response = await handlePublicStart(request, env, createLogger(env));
@@ -390,7 +390,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
         issueUrl: ISSUE_ONE_URL,
       },
       "GET",
-      "ghu_valid_token"
+      "sb_valid_token"
     );
     const env = createMockEnv();
 
@@ -407,7 +407,7 @@ describe("handlePublicStart - User Access Token Handling", () => {
   });
 
   it("should extract token from user metadata if not provided", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "sb_valid_token");
     const env = createMockEnv();
 
     // MSW handler returns user with metadata containing access_token

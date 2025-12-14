@@ -1,4 +1,4 @@
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { Logs } from "../../../../../types/context";
 import { Env } from "../../../../../types/env";
 import { createAppOctokit, createRepoOctokit } from "../octokit";
 

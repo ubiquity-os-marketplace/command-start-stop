@@ -3,7 +3,7 @@ import { createAdapters } from "./adapters/index";
 import { closeUserUnassignedPr } from "./handlers/close-pull-on-unassign";
 import { commandHandler, userStartStop } from "./handlers/command-handler";
 import { newPullRequestOrEdit } from "./handlers/new-pull-request-or-edit";
-import { Context } from "./types/index";
+import { Context } from "./types/context";
 import { HttpStatusCode } from "./types/result-types";
 import { listOrganizations } from "./utils/list-organizations";
 

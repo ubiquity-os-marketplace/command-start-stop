@@ -1,5 +1,5 @@
-import { Kv } from "@deno/kv";
 import { Context } from "hono";
+import { getConnInfo } from "hono/deno";
 import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
 import { validateReqEnv } from "../../../../utils/validate-env";
 import { extractJwtFromHeader, verifySupabaseJwt } from "./auth";
@@ -9,7 +9,7 @@ export class KvStore implements Store {
   _options: ConfigType | undefined;
   prefix = "rate-limiter";
 
-  constructor(readonly _store: Kv | Deno.Kv) {}
+  constructor(readonly _store: Deno.Kv) {}
 
   init(options: ConfigType): void {
     this._options = options;
@@ -110,31 +110,29 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
   const request = c.req.raw as Request;
   const mode = request.method === "POST" ? "execute" : "validate";
   const limit = mode === "execute" ? 3 : 10; // 3 for POST, 10 for GET
+  let rateLimitKey: string | null = null;
 
   // Authenticate user first
   const jwt = extractJwtFromHeader(request);
-  if (!jwt) {
-    // If no JWT, let the handler deal with it (don't rate limit unauthenticated requests)
-    await next();
-    return;
+
+  if (jwt) {
+    let user: { id: number } | null = null;
+    try {
+      const verifiedUser = await verifySupabaseJwt({ env: validatedEnv, jwt, logger });
+      user = verifiedUser ? { id: verifiedUser.id } : null;
+      if (user) {
+        rateLimitKey = `user:${user.id}:${mode}`;
+      }
+    } catch (err) {
+      // If auth fails, let the handler deal with it
+      console.warn("Failed to authenticate user", err);
+    }
   }
 
-  let user: { id: number } | null = null;
-  try {
-    const verifiedUser = await verifySupabaseJwt({ env: validatedEnv, jwt, logger });
-    user = verifiedUser ? { id: verifiedUser.id } : null;
-  } catch {
-    // If auth fails, let the handler deal with it
-    await next();
-    return;
+  if (rateLimitKey === null) {
+    rateLimitKey = getConnInfo(c).remote.address ?? "";
   }
 
-  if (!user) {
-    await next();
-    return;
-  }
-
-  const rateLimitKey = `user:${user.id}:${mode}`;
   const { rateLimiter } = await import("hono-rate-limiter");
   const userLimiter = rateLimiter({
     windowMs: 60 * 1000,
