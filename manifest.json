@@ -318,5 +318,5 @@
     }
   },
   "homepage_url": "https://command-start-stop-fix-act.deno.dev",
-  "short_name": "ubiquity-os-marketplace/command-start-stop@development"
+  "short_name": "ubiquity-os-marketplace/command-start-stop@fix/action-entry"
 }
