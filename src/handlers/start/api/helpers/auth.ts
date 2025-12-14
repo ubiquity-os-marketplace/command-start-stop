@@ -2,7 +2,6 @@ import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
-import { createAppOctokit } from "./octokit";
 import { DatabaseUser } from "./types";
 
 /**
@@ -25,7 +24,7 @@ export async function verifyJwt({ env, jwt, logger }: { env: Env; jwt: string; l
   const isValidGithubOrOauthToken = isValidGitAccessToken(trimmedJwt);
 
   if (isValidGithubOrOauthToken) {
-    user = await verifyGitHubToken({ supabase, token: trimmedJwt, logger, env });
+    user = await verifyGitHubToken({ supabase, token: trimmedJwt, logger });
   } else {
     user = await verifySupabaseToken({ supabase, token: trimmedJwt, logger });
   }
@@ -37,21 +36,19 @@ async function verifyGitHubToken({
   supabase,
   token,
   logger,
-  env,
 }: {
   supabase: SupabaseClient;
   token: string;
   logger: Logs;
-  env: Env;
 }): Promise<DatabaseUser & { accessToken: string }> {
   try {
+    if (token.startsWith("ghs_")) {
+      logger.info("Received an installation token, will use as is");
+      return { accessToken: token, wallet_id: null, location_id: null, id: 0 };
+    }
+
     const octokit = new Octokit({ auth: token });
     const { data: user } = await octokit.users.getAuthenticated();
-    const superuser = await createAppOctokit(env);
-
-    if ((await superuser.rest.users.getAuthenticated()).data.id === user.id) {
-      return { id: user.id, location_id: null, wallet_id: null, accessToken: token };
-    }
 
     const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
@@ -67,6 +64,7 @@ async function verifyGitHubToken({
 
     return { ...userData, accessToken: token };
   } catch (error) {
+    console.log("!!!!", JSON.stringify(error, null, 2));
     throw logger.error("GitHub authentication failed", { e: String(error) });
   }
 }
