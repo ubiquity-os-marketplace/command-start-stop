@@ -8,6 +8,7 @@ import { Issue, Organization, Repository } from "../../../../types/payload";
 import { AssignedIssueScope, PluginSettings, Role } from "../../../../types/plugin-input";
 import { MAX_CONCURRENT_DEFAULTS } from "../../../../utils/constants";
 import { listOrganizations } from "../../../../utils/list-organizations";
+import { isInstallationToken } from "../../../../utils/token";
 import { createUserOctokit } from "./octokit";
 
 export type ShallowContext = Omit<Context<"issue_comment.created">, "repository" | "issue" | "organization" | "payload"> & {
@@ -29,14 +30,21 @@ export type ShallowContext = Omit<Context<"issue_comment.created">, "repository"
 export async function buildShallowContextObject({
   env,
   accessToken,
+  userId,
   logger,
 }: {
   env: Env;
   accessToken: string;
+  userId: number;
   logger: Context["logger"];
 }): Promise<ShallowContext> {
   const { octokit, supabase } = await initializeClients(env, accessToken);
-  const userData = await octokit.rest.users.getAuthenticated();
+  let userData;
+  if (isInstallationToken(accessToken)) {
+    userData = await octokit.rest.users.getById({ account_id: userId });
+  } else {
+    userData = await octokit.rest.users.getAuthenticated();
+  }
 
   const ctx: ShallowContext = {
     env,

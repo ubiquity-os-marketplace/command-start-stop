@@ -2,6 +2,7 @@ import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
+import { isInstallationToken } from "../../../../utils/token";
 import { DatabaseUser } from "./types";
 
 /**
@@ -42,7 +43,7 @@ async function verifyGitHubToken({
   logger: Logs;
 }): Promise<DatabaseUser & { accessToken: string }> {
   try {
-    if (token.startsWith("ghs_")) {
+    if (isInstallationToken(token)) {
       logger.info("Received an installation token, will use as is");
       return { accessToken: token, wallet_id: null, location_id: null, id: 0 };
     }
