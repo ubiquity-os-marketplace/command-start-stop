@@ -35,13 +35,20 @@ export async function buildShallowContextObject({
 }: {
   env: Env;
   accessToken: string;
-  userId: number;
+  userId: number | string;
   logger: Context["logger"];
 }): Promise<ShallowContext> {
   const { octokit, supabase } = await initializeClients(env, accessToken);
+  let userGithubId: number;
+  if (typeof userId !== "number") {
+    const d = await octokit.rest.users.getByUsername({ username: userId });
+    userGithubId = d.data.id;
+  } else {
+    userGithubId = userId;
+  }
   let userData;
   if (isInstallationToken(accessToken)) {
-    userData = await octokit.rest.users.getById({ account_id: userId });
+    userData = await octokit.rest.users.getById({ account_id: userGithubId });
   } else {
     userData = await octokit.rest.users.getAuthenticated();
   }
