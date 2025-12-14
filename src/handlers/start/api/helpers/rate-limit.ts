@@ -2,8 +2,6 @@ import { Context } from "hono";
 import { getConnInfo } from "hono/deno";
 import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
 import { validateReqEnv } from "../../../../utils/validate-env";
-import { extractJwtFromHeader, verifySupabaseJwt } from "./auth";
-import { createLogger } from "./context-builder";
 
 export class KvStore implements Store {
   _options: ConfigType | undefined;
@@ -64,7 +62,9 @@ export class KvStore implements Store {
       resetTime: isActiveWindow && existingResetTimeMs ? new Date(existingResetTimeMs) : defaultResetTime,
     };
 
-    await this.updateRecord(key, payload);
+    // Use atomic operation with TTL (expire after windowMs + some buffer)
+    const expireIn = (this._options?.windowMs ?? 60000) + 30000; // 30 second buffer
+    await this._store.atomic().set([this.prefix, key], payload, { expireIn }).commit();
 
     return payload;
   }
@@ -92,49 +92,28 @@ export async function createKvStore(): Promise<KvStore> {
 }
 
 /**
- * Creates a user-specific rate limiter middleware for the /start endpoint.
- * Uses hono-rate-limiter with custom keyGenerator that includes user ID and mode.
+ * Creates an IP-based rate limiter middleware for the /start endpoint.
+ * Uses hono-rate-limiter with IP-based keys.
  * Different limits apply: 10 for validate (GET), 3 for execute (POST).
  *
- * Note: This middleware authenticates the user first. If authentication fails,
- * it allows the request to proceed (the handler will return 401).
+ * Rate limiting happens before authentication to prevent abuse.
  */
 export async function createUserRateLimiter(c: Context, next: () => Promise<void>) {
   const validatedEnv = validateReqEnv(c);
   if (validatedEnv instanceof Response) {
     return validatedEnv;
   }
-  const logger = createLogger(validatedEnv);
   const kvStore = await createKvStore();
 
   const request = c.req.raw as Request;
   const mode = request.method === "POST" ? "execute" : "validate";
   const limit = mode === "execute" ? 3 : 10; // 3 for POST, 10 for GET
-  let rateLimitKey: string | null = null;
 
-  // Authenticate user first
-  const jwt = extractJwtFromHeader(request);
-
-  if (jwt) {
-    let user: { id: number } | null = null;
-    try {
-      const verifiedUser = await verifySupabaseJwt({ env: validatedEnv, jwt, logger });
-      user = verifiedUser ? { id: verifiedUser.id } : null;
-      if (user) {
-        rateLimitKey = `user:${user.id}:${mode}`;
-      }
-    } catch (err) {
-      // If auth fails, let the handler deal with it
-      console.warn("Failed to authenticate user", err);
-    }
-  }
-
-  if (rateLimitKey === null) {
-    rateLimitKey = getConnInfo(c).remote.address ?? "";
-  }
+  const remoteAddr = getConnInfo(c).remote.address;
+  const rateLimitKey = remoteAddr ? `ip:${remoteAddr}:${mode}` : `unknown:${mode}`;
 
   const { rateLimiter } = await import("hono-rate-limiter");
-  const userLimiter = rateLimiter({
+  const ipLimiter = rateLimiter({
     windowMs: 60 * 1000,
     limit,
     standardHeaders: "draft-7",
@@ -144,5 +123,5 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
     skipFailedRequests: false,
   });
 
-  return await userLimiter(c, next);
+  return await ipLimiter(c, next);
 }

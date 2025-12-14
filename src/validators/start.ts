@@ -8,9 +8,9 @@ export const querySchema = v.object({
 });
 
 const taskSchema = v.object({
-  deadline: v.date(),
+  deadline: v.nullable(v.string()),
   isTaskStale: v.boolean(),
-  wallet: v.string(),
+  wallet: v.nullable(v.string()),
   toAssign: v.array(v.string()),
   senderRole: v.string(),
   consideredCount: v.number(),
@@ -25,16 +25,18 @@ const taskSchema = v.object({
 export const responseSchemaGet = v.object({
   ok: v.boolean(),
   computed: taskSchema,
-  warnings: v.array(
-    v.object({
-      logMessage: v.object({
-        level: v.string(),
-        raw: v.string(),
-        diff: v.string(),
-        type: v.string(),
-      }),
-      metadata: v.object({}),
-    })
+  warnings: v.nullable(
+    v.array(
+      v.object({
+        logMessage: v.object({
+          level: v.string(),
+          raw: v.string(),
+          diff: v.string(),
+          type: v.string(),
+        }),
+        metadata: v.object({}),
+      })
+    )
   ),
   reasons: v.union([v.array(v.string()), v.null()]),
 });

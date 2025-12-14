@@ -26,7 +26,7 @@ export async function verifySupabaseJwt({
   let user: DatabaseUser & { accessToken: string };
 
   function isValidGitAccessToken(token: string) {
-    return token.startsWith("ghu_") || token.startsWith("ghs_") || token.startsWith("gho_");
+    return token.startsWith("ghu_") || token.startsWith("ghs_") || token.startsWith("gho_") || token.startsWith("ghp_") || token.startsWith("github_pat_");
   }
 
   const isValidGithubOrOauthToken = isValidGitAccessToken(trimmedJwt);
@@ -103,7 +103,14 @@ async function verifySupabaseToken({
     throw logger.error("Supabase authentication failed: Invalid user data");
   }
 
-  return { ...userData, accessToken: token } as DatabaseUser & { accessToken: string };
+  // For Supabase JWTs, we need to get the actual GitHub access token from OAuth data
+  const githubToken = userOauthData.user.app_metadata?.provider_token || userOauthData.user.user_metadata?.provider_token;
+
+  if (!githubToken) {
+    throw logger.error("Supabase authentication failed: GitHub access token not found in OAuth metadata");
+  }
+
+  return { ...userData, accessToken: githubToken } as DatabaseUser & { accessToken: string };
 }
 
 /**
