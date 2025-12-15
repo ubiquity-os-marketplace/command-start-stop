@@ -2,7 +2,7 @@
   "name": "Start | Stop",
   "description": "Assign or un-assign yourself from an issue/task.",
   "ubiquity:listeners": ["issues.unassigned", "pull_request.opened", "pull_request.edited"],
-  "workflowId": "action.yml",
+  "workflowId": "dispatch.yml",
   "commands": {
     "start": {
       "ubiquity:example": "/start",
