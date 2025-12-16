@@ -52,7 +52,6 @@ export async function handleValidateOrExecute({
   const preflight = await evaluateStartEligibility(ctx);
 
   if (mode === "validate") {
-    const status = preflight.ok ? 200 : 400;
     return Response.json(
       {
         ok: preflight.ok,
@@ -60,7 +59,7 @@ export async function handleValidateOrExecute({
         warnings: preflight.warnings ?? null,
         reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
-      { status }
+      { status: 200 }
     );
   }
 
