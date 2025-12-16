@@ -1,10 +1,10 @@
-import { CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
+import { ConfigurationHandler } from "@ubiquity-os/plugin-sdk/configuration";
+import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
+import manifest from "../../../../../manifest.json" with { type: "json" };
 import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
 import { PluginSettings } from "../../../../types/plugin-input";
-import { createOctokitInstances, fetchOrgAndRepoConfigTexts, pickConfigPath } from "./config/fetching";
-import { parseAndMergeConfigs } from "./config/parsing";
-import { extractAndValidatePluginSettings } from "./config/validation";
+import { createOctokitInstances } from "./config/fetching";
 import { getDefaultConfig } from "./context-builder";
 import { parseIssueUrl } from "./parsers";
 
@@ -12,19 +12,10 @@ export async function fetchMergedPluginSettings({ env, issueUrl, logger }: { env
   const repoParts = parseIssueUrl(issueUrl, logger);
   const { owner, repo } = repoParts;
 
-  // Resolve dev/prod config path using SDK constants
-  const path = pickConfigPath(env);
-
   // Use App-authenticated Octokit to read configs (user PAT may lack perms)
   const { orgOctokit, repoOctokit } = await createOctokitInstances(env, owner, repo, logger);
 
-  const { orgText, repoText } = await fetchOrgAndRepoConfigTexts({ owner, repo, path, orgOctokit, repoOctokit, logger, env });
+  const cfgParser = new ConfigurationHandler(logger, repoOctokit ?? orgOctokit);
 
-  const mergedCfg = parseAndMergeConfigs(orgText, repoText, logger);
-
-  const settings = await extractAndValidatePluginSettings({ mergedCfg, owner, repo, logger, env });
-  if (settings) return settings;
-
-  logger.info(`Neither configuration found for ${owner}/${CONFIG_ORG_REPO} or ${owner}/${repo}, using default settings.`);
-  return getDefaultConfig();
+  return (await cfgParser.getSelfConfiguration<PluginSettings>(manifest as Manifest, { owner, repo })) || getDefaultConfig();
 }

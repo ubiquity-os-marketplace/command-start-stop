@@ -306,7 +306,9 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: { raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues." },
+      logMessage: {
+        raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.",
+      },
     });
   });
 

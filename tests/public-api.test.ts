@@ -1,3 +1,15 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from "@jest/globals";
+import { drop } from "@mswjs/data";
+import { Context as HonoCtx } from "hono";
+import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
+import { Env } from "../src/types/env";
+import { db } from "./__mocks__/db";
+import "./__mocks__/deno-kv";
+import { server } from "./__mocks__/node";
+
+type HandlePublicStart = typeof import("../src/handlers/start/api/public-api").handlePublicStart;
+let handlePublicStart!: HandlePublicStart;
+
 // Mock Octokit before other imports
 const mockOctokit = {
   rest: {
@@ -37,6 +49,19 @@ jest.mock("@octokit/rest", () => ({
   Octokit: jest.fn(() => mockOctokit),
 }));
 
+jest.mock(
+  "@octokit/webhooks-methods",
+  () => ({
+    sign: jest.fn(),
+    verify: jest.fn(),
+    signWithOptions: jest.fn(),
+    verifyWithOptions: jest.fn(),
+    signPayloadWithEncoding: jest.fn(),
+    verifyPayloadWithEncoding: jest.fn(),
+  }),
+  { virtual: true }
+);
+
 jest.mock("../src/handlers/start/api/helpers/get-plugin-config", () => ({
   fetchMergedPluginSettings: jest.fn(() => Promise.resolve({})),
 }));
@@ -51,21 +76,14 @@ jest.mock("../src/handlers/start/api/helpers/auth", () => ({
   }),
 }));
 
-import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from "@jest/globals";
-import { drop } from "@mswjs/data";
-import { Context as HonoCtx } from "hono";
-import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
-import { handlePublicStart } from "../src/handlers/start/api/public-api";
-import { Env } from "../src/types/env";
-import { db } from "./__mocks__/db";
-import { server } from "./__mocks__/node";
-import "./__mocks__/deno-kv";
-
 const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
 const INVALID_JWT = "invalid-jwt";
 const START_URL = "https://test.com/start";
 
-beforeAll(() => server.listen());
+beforeAll(async () => {
+  ({ handlePublicStart } = await import("../src/handlers/start/api/public-api"));
+  server.listen();
+});
 afterEach(() => {
   server.resetHandlers();
   drop(db);
