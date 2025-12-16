@@ -1,17 +1,17 @@
 import { Context } from "hono";
 import { getConnInfo } from "hono/deno";
-import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
+import { ClientRateLimitInfo, HonoConfigType, Store } from "hono-rate-limiter";
 import { validateReqEnv } from "../../../../utils/validate-env";
 import { extractJwtFromHeader, verifyJwt } from "./auth";
 import { createLogger } from "./context-builder";
 
 export class KvStore implements Store {
-  _options: ConfigType | undefined;
+  _options: HonoConfigType | undefined;
   prefix = "rate-limiter";
 
   constructor(readonly _store: Deno.Kv) {}
 
-  init(options: ConfigType): void {
+  init(options: HonoConfigType): void {
     this._options = options;
   }
 
