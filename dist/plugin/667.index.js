@@ -8,7 +8,7 @@ export const modules = {
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   toJsonSchema: () => (/* binding */ toJsonSchema)
 /* harmony export */ });
-/* unused harmony exports addGlobalDefs, getGlobalDefs, toJsonSchemaDefs */
+/* unused harmony exports addGlobalDefs, getGlobalDefs, toJsonSchemaDefs, toStandardJsonSchema */
 /* harmony import */ var valibot__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(7934);
 
 
@@ -247,7 +247,7 @@ function convertSchema(jsonSchema, valibotSchema, config, context, skipRef = fal
 		let startIndex = 0;
 		let stopIndex = flatPipe.length - 1;
 		if (config?.typeMode === "input") {
-			const inputStopIndex = flatPipe.slice(1).findIndex((item) => item.kind === "schema" || item.kind === "transformation" && (item.type === "find_item" || item.type === "parse_json" || item.type === "raw_transform" || item.type === "reduce_items" || item.type === "stringify_json" || item.type === "transform"));
+			const inputStopIndex = flatPipe.slice(1).findIndex((item) => item.kind === "schema" || item.kind === "transformation" && (item.type === "find_item" || item.type === "parse_json" || item.type === "raw_transform" || item.type === "reduce_items" || item.type === "stringify_json" || item.type === "to_bigint" || item.type === "to_boolean" || item.type === "to_date" || item.type === "to_number" || item.type === "to_string" || item.type === "transform"));
 			if (inputStopIndex !== -1) stopIndex = inputStopIndex;
 		} else if (config?.typeMode === "output") {
 			const outputStartIndex = flatPipe.findLastIndex((item) => item.kind === "schema");
@@ -268,7 +268,8 @@ function convertSchema(jsonSchema, valibotSchema, config, context, skipRef = fal
 			jsonSchema.type = "boolean";
 			break;
 		case "null":
-			jsonSchema.type = "null";
+			if (config?.target === "openapi-3.0") jsonSchema.enum = [null];
+			else jsonSchema.type = "null";
 			break;
 		case "number":
 			jsonSchema.type = "number";
@@ -285,11 +286,25 @@ function convertSchema(jsonSchema, valibotSchema, config, context, skipRef = fal
 		case "loose_tuple":
 		case "strict_tuple":
 			jsonSchema.type = "array";
-			jsonSchema.items = [];
-			jsonSchema.minItems = valibotSchema.items.length;
-			for (const item of valibotSchema.items) jsonSchema.items.push(convertSchema({}, item, config, context));
-			if (valibotSchema.type === "tuple_with_rest") jsonSchema.additionalItems = convertSchema({}, valibotSchema.rest, config, context);
-			else if (valibotSchema.type === "strict_tuple") jsonSchema.additionalItems = false;
+			if (config?.target === "openapi-3.0") {
+				jsonSchema.items = { anyOf: [] };
+				jsonSchema.minItems = valibotSchema.items.length;
+				for (const item of valibotSchema.items) jsonSchema.items.anyOf.push(convertSchema({}, item, config, context));
+				if (valibotSchema.type === "tuple_with_rest") jsonSchema.items.anyOf.push(convertSchema({}, valibotSchema.rest, config, context));
+				else if (valibotSchema.type === "strict_tuple" || valibotSchema.type === "tuple") jsonSchema.maxItems = valibotSchema.items.length;
+			} else if (config?.target === "draft-2020-12") {
+				jsonSchema.prefixItems = [];
+				jsonSchema.minItems = valibotSchema.items.length;
+				for (const item of valibotSchema.items) jsonSchema.prefixItems.push(convertSchema({}, item, config, context));
+				if (valibotSchema.type === "tuple_with_rest") jsonSchema.items = convertSchema({}, valibotSchema.rest, config, context);
+				else if (valibotSchema.type === "strict_tuple") jsonSchema.items = false;
+			} else {
+				jsonSchema.items = [];
+				jsonSchema.minItems = valibotSchema.items.length;
+				for (const item of valibotSchema.items) jsonSchema.items.push(convertSchema({}, item, config, context));
+				if (valibotSchema.type === "tuple_with_rest") jsonSchema.additionalItems = convertSchema({}, valibotSchema.rest, config, context);
+				else if (valibotSchema.type === "strict_tuple") jsonSchema.additionalItems = false;
+			}
 			break;
 		case "object":
 		case "object_with_rest":
@@ -307,16 +322,21 @@ function convertSchema(jsonSchema, valibotSchema, config, context, skipRef = fal
 			else if (valibotSchema.type === "strict_object") jsonSchema.additionalProperties = false;
 			break;
 		case "record":
-			if ("pipe" in valibotSchema.key) errors = addError(errors, "The \"record\" schema with a schema for the key that contains a \"pipe\" cannot be converted to JSON Schema.");
+			if (config?.target === "openapi-3.0" && "pipe" in valibotSchema.key) errors = addError(errors, "The \"record\" schema with a schema for the key that contains a \"pipe\" cannot be converted to JSON Schema.");
 			if (valibotSchema.key.type !== "string") errors = addError(errors, `The "record" schema with the "${valibotSchema.key.type}" schema for the key cannot be converted to JSON Schema.`);
 			jsonSchema.type = "object";
+			if (config?.target !== "openapi-3.0") jsonSchema.propertyNames = convertSchema({}, valibotSchema.key, config, context);
 			jsonSchema.additionalProperties = convertSchema({}, valibotSchema.value, config, context);
 			break;
 		case "any":
 		case "unknown": break;
 		case "nullable":
 		case "nullish":
-			jsonSchema.anyOf = [convertSchema({}, valibotSchema.wrapped, config, context), { type: "null" }];
+			if (config?.target === "openapi-3.0") {
+				const innerSchema = convertSchema({}, valibotSchema.wrapped, config, context);
+				Object.assign(jsonSchema, innerSchema);
+				jsonSchema.nullable = true;
+			} else jsonSchema.anyOf = [convertSchema({}, valibotSchema.wrapped, config, context), { type: "null" }];
 			if (valibotSchema.default !== void 0) jsonSchema.default = valibot__WEBPACK_IMPORTED_MODULE_0__/* .getDefault */ .UdM(valibotSchema);
 			break;
 		case "exact_optional":
@@ -327,7 +347,8 @@ function convertSchema(jsonSchema, valibotSchema, config, context, skipRef = fal
 			break;
 		case "literal":
 			if (typeof valibotSchema.literal !== "boolean" && typeof valibotSchema.literal !== "number" && typeof valibotSchema.literal !== "string") errors = addError(errors, "The value of the \"literal\" schema is not JSON compatible.");
-			jsonSchema.const = valibotSchema.literal;
+			if (config?.target === "openapi-3.0") jsonSchema.enum = [valibotSchema.literal];
+			else jsonSchema.const = valibotSchema.literal;
 			break;
 		case "enum":
 			jsonSchema.enum = valibotSchema.options;
@@ -433,7 +454,10 @@ function toJsonSchema(schema, config) {
 		for (const key in definitions) context.referenceMap.set(definitions[key], key);
 		for (const key in definitions) context.definitions[key] = convertSchema({}, definitions[key], config, context, true);
 	}
-	const jsonSchema = convertSchema({ $schema: "http://json-schema.org/draft-07/schema#" }, schema, config, context);
+	const jsonSchema = convertSchema({}, schema, config, context);
+	const target = config?.target ?? "draft-07";
+	if (target === "draft-2020-12") jsonSchema.$schema = "https://json-schema.org/draft/2020-12/schema";
+	else if (target === "draft-07") jsonSchema.$schema = "http://json-schema.org/draft-07/schema#";
 	if (context.referenceMap.size) jsonSchema.$defs = context.definitions;
 	return jsonSchema;
 }
@@ -457,6 +481,44 @@ function toJsonSchemaDefs(definitions, config) {
 	for (const key in definitions) context.referenceMap.set(definitions[key], key);
 	for (const key in definitions) context.definitions[key] = convertSchema({}, definitions[key], config, context, true);
 	return context.definitions;
+}
+
+//#endregion
+//#region src/functions/toStandardJsonSchema/toStandardJsonSchema.ts
+const SUPPORTED_TARGETS = (/* unused pure expression or super */ null && ([
+	"draft-07",
+	"draft-2020-12",
+	"openapi-3.0"
+]));
+/**
+* Converts a Valibot schema to the Standard JSON Schema format.
+*
+* @param schema The Valibot schema object.
+*
+* @returns The Standard JSON Schema.
+*/
+function toStandardJsonSchema(schema) {
+	return { "~standard": {
+		...schema["~standard"],
+		jsonSchema: {
+			input(options) {
+				if (SUPPORTED_TARGETS.includes(options.target)) return toJsonSchema(schema, {
+					typeMode: "input",
+					target: options.target,
+					...options.libraryOptions
+				});
+				throw new Error(`Unsupported target: ${options.target}`);
+			},
+			output(options) {
+				if (SUPPORTED_TARGETS.includes(options.target)) return toJsonSchema(schema, {
+					typeMode: "output",
+					target: options.target,
+					...options.libraryOptions
+				});
+				throw new Error(`Unsupported target: ${options.target}`);
+			}
+		}
+	} };
 }
 
 //#endregion
