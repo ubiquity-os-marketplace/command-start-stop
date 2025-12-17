@@ -62,7 +62,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
     // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { issueUrl } = params;
+    const { issueUrl, environment } = params;
 
     // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
@@ -75,6 +75,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       env,
       issueUrl,
       logger,
+      environment,
     });
 
     return await handleValidateOrExecute({ context, mode, issueUrl });
