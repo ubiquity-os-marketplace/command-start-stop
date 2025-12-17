@@ -102,5 +102,8 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
+  },
+  "resolutions": {
+    "hono": "4.11.1"
   }
 }

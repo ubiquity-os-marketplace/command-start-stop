@@ -100,7 +100,7 @@ export default {
           },
         },
       }),
-      validator("query", querySchema) as never,
+      validator("query", querySchema),
       async (c) => {
         const validatedEnv = validateReqEnv(c);
         if (validatedEnv instanceof Response) {
@@ -126,7 +126,7 @@ export default {
           },
         },
       }),
-      validator("json", querySchema) as never,
+      validator("json", querySchema),
       async (c) => {
         const validatedEnv = validateReqEnv(c);
         if (validatedEnv instanceof Response) {
@@ -139,7 +139,7 @@ export default {
 
     honoApp.get(
       "/openapi",
-      openAPIRouteHandler(honoApp as never, {
+      openAPIRouteHandler(honoApp, {
         documentation: {
           info: {
             title: pkg.name,
@@ -163,7 +163,7 @@ export default {
         },
       })
     );
-    honoApp.get("/docs", swaggerUI({ url: "/openapi" }) as never);
+    honoApp.get("/docs", swaggerUI({ url: "/openapi" }));
 
     return honoApp.fetch(request, env, executionCtx);
   },
