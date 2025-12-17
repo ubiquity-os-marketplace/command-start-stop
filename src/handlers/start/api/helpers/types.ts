@@ -14,6 +14,7 @@ export const startQueryParamSchema = T.Object(
       })
       .Encode((val) => val.toString()),
     issueUrl: T.String({ minLength: 1 }),
+    environment: T.Optional(T.Union([T.Literal("development"), T.Literal("production")])),
   },
   {
     additionalProperties: false,

@@ -19,7 +19,7 @@ async function getToJsonSchemaFn() {
     let handler;
     if ("_zod" in schema) {
       try {
-        const mod = await __webpack_require__.e(/* import() */ 460).then(__webpack_require__.bind(__webpack_require__, 8460));
+        const mod = await __webpack_require__.e(/* import() */ 859).then(__webpack_require__.bind(__webpack_require__, 3859));
         handler = mod.toJSONSchema;
       } catch {
         throw zodv4Error;
