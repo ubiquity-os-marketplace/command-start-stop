@@ -14,6 +14,16 @@ let handlePublicStart!: HandlePublicStart;
 const mockOctokit = {
   rest: {
     users: {
+      getById: jest.fn(() =>
+        Promise.resolve({
+          data: { login: "test-user", id: 123 },
+        })
+      ),
+      getByUsername: jest.fn(({ username }) =>
+        Promise.resolve({
+          data: { login: username, id: 123 },
+        })
+      ),
       getAuthenticated: jest.fn(() =>
         Promise.resolve({
           data: { login: "test-user", id: 123 },
