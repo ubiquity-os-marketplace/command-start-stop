@@ -7,15 +7,26 @@ import { PluginSettings } from "../../../../types/plugin-input";
 import { createOctokitInstances } from "./config/fetching";
 import { getDefaultConfig } from "./context-builder";
 import { parseIssueUrl } from "./parsers";
+import { StartQueryParams } from "./types";
 
-export async function fetchMergedPluginSettings({ env, issueUrl, logger }: { env: Env; issueUrl: string; logger: Logs }): Promise<PluginSettings> {
+export async function fetchMergedPluginSettings({
+  env,
+  issueUrl,
+  logger,
+  environment,
+}: {
+  env: Env;
+  issueUrl: string;
+  logger: Logs;
+  environment: StartQueryParams["environment"];
+}): Promise<PluginSettings> {
   const repoParts = parseIssueUrl(issueUrl, logger);
   const { owner, repo } = repoParts;
 
   // Use App-authenticated Octokit to read configs (user PAT may lack perms)
   const { orgOctokit, repoOctokit } = await createOctokitInstances(env, owner, repo, logger);
 
-  const cfgParser = new ConfigurationHandler(logger, repoOctokit ?? orgOctokit);
+  const cfgParser = new ConfigurationHandler(logger, repoOctokit ?? orgOctokit, environment ?? null);
 
   return (await cfgParser.getSelfConfiguration<PluginSettings>(manifest as Manifest, { owner, repo })) || getDefaultConfig();
 }
