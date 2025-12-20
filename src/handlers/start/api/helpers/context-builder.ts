@@ -132,8 +132,8 @@ export function getDefaultConfig(): PluginSettings {
     ],
     taskAccessControl: {
       usdPriceMax: {
-        collaborator: -1,
-        contributor: -1,
+        collaborator: 5000,
+        contributor: 5000,
       },
     },
   } as PluginSettings;
