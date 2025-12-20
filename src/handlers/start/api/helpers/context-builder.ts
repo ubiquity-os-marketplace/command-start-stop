@@ -119,21 +119,21 @@ export function getDefaultConfig(): PluginSettings {
       },
       {
         name: "Priority: 3 (High)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 4 (Urgent)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 5 (Emergency)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
     ],
     taskAccessControl: {
       usdPriceMax: {
         collaborator: 5000,
-        contributor: 5000,
+        contributor: -1,
       },
     },
   } as PluginSettings;
