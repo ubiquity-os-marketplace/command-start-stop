@@ -79,7 +79,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       environment,
     });
 
-    return await handleValidateOrExecute({ context, mode, issueUrl });
+    return await handleValidateOrExecute({ context, mode, issueUrl, jwt });
   } catch (error) {
     return handleError(error, logger);
   }
