@@ -317,5 +317,5 @@
     }
   },
   "homepage_url": "https://command-start-stop-develop.deno.dev",
-  "short_name": "gentlementlegen/command-start-stop@fix/installation-auth"
+  "short_name": "ubiquity-os-marketplace/command-start-stop@fix/http-codes"
 }
