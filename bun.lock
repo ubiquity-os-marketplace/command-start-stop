@@ -54,6 +54,7 @@
         "jest-md-dashboard": "0.8.0",
         "knip": "5.73.0",
         "lint-staged": "15.2.7",
+        "msw": "^2.12.4",
         "npm-run-all": "4.1.5",
         "prettier": "3.3.2",
         "rimraf": "^6.0.1",
