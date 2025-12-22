@@ -1,8 +1,10 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { Context as HonoCtx } from "hono";
-import { createLogger } from "../src/handlers/start/api/helpers/context-builder";
+import { http, HttpResponse } from "msw";
+import { createLogger, getDefaultConfig } from "../src/handlers/start/api/helpers/context-builder";
 import { Env } from "../src/types/env";
+import { AssignedIssueScope } from "../src/types/plugin-input";
 import { db } from "./__mocks__/db";
 import "./__mocks__/deno-kv";
 import { server } from "./__mocks__/node";
@@ -12,6 +14,14 @@ let handlePublicStart!: HandlePublicStart;
 
 // Mock Octokit before other imports
 const mockOctokit = {
+  paginate: jest.fn(),
+  users: {
+    getAuthenticated: jest.fn(() =>
+      Promise.resolve({
+        data: { login: "test-user", id: 123 },
+      })
+    ),
+  },
   rest: {
     users: {
       getAuthenticated: jest.fn(() =>
@@ -19,10 +29,14 @@ const mockOctokit = {
           data: { login: "test-user", id: 123 },
         })
       ),
+      getByUsername: jest.fn(),
     },
     issues: {
       get: jest.fn(),
       createComment: jest.fn(),
+      listEvents: jest.fn(),
+      listComments: jest.fn(),
+      listForRepo: jest.fn(),
     },
     repos: {
       get: jest.fn(),
@@ -31,9 +45,19 @@ const mockOctokit = {
           data: { content: Buffer.from("plugins: []").toString("base64") },
         })
       ),
+      listForOrg: jest.fn(),
+      listForUser: jest.fn(),
+      getCollaboratorPermissionLevel: jest.fn(),
     },
     orgs: {
       get: jest.fn(),
+      getMembershipForUser: jest.fn(),
+    },
+    search: {
+      issuesAndPullRequests: jest.fn(),
+    },
+    pulls: {
+      listReviews: jest.fn(),
     },
     apps: {
       listInstallations: jest.fn(() =>
@@ -41,6 +65,7 @@ const mockOctokit = {
           data: [{ id: 12345, account: { login: "test-org" } }],
         })
       ),
+      getRepoInstallation: jest.fn(),
     },
   },
 };
@@ -66,6 +91,24 @@ jest.mock("../src/handlers/start/api/helpers/get-plugin-config", () => ({
   fetchMergedPluginSettings: jest.fn(() => Promise.resolve({})),
 }));
 
+const mockGetUserRoleAndTaskLimit = jest.fn();
+jest.mock("../src/utils/get-user-task-limit-and-role", () => ({
+  getUserRoleAndTaskLimit: (...args: unknown[]) => mockGetUserRoleAndTaskLimit(...args),
+}));
+
+const mockGetAssignmentPeriods = jest.fn();
+jest.mock("../src/utils/get-assignment-periods", () => ({
+  getAssignmentPeriods: (...args: unknown[]) => mockGetAssignmentPeriods(...args),
+}));
+
+jest.mock("../src/utils/issue", () => {
+  const actual = jest.requireActual("../src/utils/issue");
+  return {
+    ...(actual as object),
+    getPendingOpenedPullRequests: jest.fn(async () => []),
+  };
+});
+
 jest.mock("../src/handlers/start/api/helpers/auth", () => ({
   ...(jest.requireActual("../src/handlers/start/api/helpers/auth") as object),
   verifySupabaseJwt: jest.fn(({ jwt }) => {
@@ -79,6 +122,10 @@ jest.mock("../src/handlers/start/api/helpers/auth", () => ({
 const ISSUE_ONE_URL = "https://github.com/owner/repo/issues/1";
 const INVALID_JWT = "invalid-jwt";
 const START_URL = "https://test.com/start";
+const TEST_ISSUE_TITLE = "Test Issue";
+const PRICE_LABEL = "Price: 100";
+const GITHUB_VALID_TOKEN = "ghu_valid_token";
+const USER_WHILEFOO = "whilefoo";
 
 beforeAll(async () => {
   ({ handlePublicStart } = await import("../src/handlers/start/api/public-api"));
@@ -105,7 +152,7 @@ function createMockEnv(): Env {
 
 function createMockRequest(
   body: {
-    userId?: number;
+    userId?: number | string;
     issueUrl?: string;
   },
   method = "GET",
@@ -151,11 +198,11 @@ describe("handlePublicStart - HTTP Method Validation", () => {
   });
 
   it("should accept GET requests", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", GITHUB_VALID_TOKEN);
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
-      data: { number: 1, title: "Test Issue", state: "open", assignees: [], labels: [] },
+      data: { number: 1, title: TEST_ISSUE_TITLE, state: "open", assignees: [], labels: [] },
     } as never);
     mockOctokit.rest.repos.get.mockResolvedValueOnce({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
@@ -167,11 +214,11 @@ describe("handlePublicStart - HTTP Method Validation", () => {
   });
 
   it("should accept POST requests", async () => {
-    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", "ghu_valid_token");
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "POST", GITHUB_VALID_TOKEN);
     const env = createMockEnv();
 
     mockOctokit.rest.issues.get.mockResolvedValueOnce({
-      data: { number: 1, title: "Test Issue", state: "open", assignees: [], labels: [] },
+      data: { number: 1, title: TEST_ISSUE_TITLE, state: "open", assignees: [], labels: [] },
     } as never);
     mockOctokit.rest.repos.get.mockResolvedValueOnce({
       data: { id: 1, name: "repo", owner: { login: "owner" } },
@@ -447,5 +494,129 @@ describe("handlePublicStart - Error Handling", () => {
     mockOctokit.rest.issues.get.mockRejectedValueOnce(new Error("Unauthorized") as never);
     const response = await handlePublicStart(request, env, createLogger(env));
     expect(response.status).toBe(401);
+  });
+});
+
+describe("handlePublicStart - Assigned issue filtering", () => {
+  it(`omits archived assigned issues for ${USER_WHILEFOO}`, async () => {
+    const env = createMockEnv();
+    const request = createMockRequest({ userId: USER_WHILEFOO, issueUrl: ISSUE_ONE_URL }, "GET", GITHUB_VALID_TOKEN);
+    server.use(
+      http.get("https://api.github.com/user", () =>
+        HttpResponse.json({ login: USER_WHILEFOO, id: 42, created_at: new Date().toISOString(), type: "User", site_admin: false })
+      ),
+      http.get("https://api.github.com/repos/:owner/:repo", ({ params: { owner, repo } }) =>
+        HttpResponse.json({
+          id: 1,
+          name: repo,
+          full_name: `${owner}/${repo}`,
+          owner: { login: owner, id: 7, type: "Organization" },
+          organization: { login: owner },
+          html_url: `https://github.com/${owner}/${repo}`,
+        })
+      ),
+      http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number", () =>
+        HttpResponse.json({
+          id: 1,
+          number: 1,
+          title: TEST_ISSUE_TITLE,
+          assignees: [],
+          html_url: ISSUE_ONE_URL,
+          state: "open",
+          labels: [{ name: PRICE_LABEL }],
+          body: null,
+          repository_url: "https://api.github.com/repos/owner/repo",
+          user: { login: "owner" },
+        })
+      ),
+      http.get("https://api.github.com/search/issues", () =>
+        HttpResponse.json({
+          items: [
+            {
+              html_url: "https://github.com/owner/archived-repo/issues/99",
+              title: "Archived Issue",
+              assignee: { login: USER_WHILEFOO },
+              assignees: [{ login: USER_WHILEFOO }],
+              repository: { archived: true },
+            },
+          ],
+          total_count: 1,
+        })
+      )
+    );
+    mockGetUserRoleAndTaskLimit.mockResolvedValue({ role: "admin", limit: Infinity } as never);
+    mockGetAssignmentPeriods.mockResolvedValue({} as never);
+    db.repo.create({
+      id: 1,
+      html_url: ISSUE_ONE_URL,
+      name: "repo",
+      full_name: "owner/repo",
+      owner: { login: "owner", id: 7, type: "Organization" },
+      issues: [],
+    });
+    db.issue.create({
+      id: 1,
+      assignees: [],
+      html_url: ISSUE_ONE_URL,
+      repository_url: "https://api.github.com/repos/owner/repo",
+      state: "open",
+      owner: "owner",
+      repo: "repo",
+      labels: [{ name: PRICE_LABEL }],
+      author_association: "CONTRIBUTOR",
+      body: null,
+      closed_at: null,
+      created_at: new Date().toISOString(),
+      comments: 0,
+      comments_url: "https://api.github.com/repos/owner/repo/issues/1/comments",
+      events_url: "https://api.github.com/repos/owner/repo/issues/1/events",
+      labels_url: "https://api.github.com/repos/owner/repo/issues/1/labels{/name}",
+      locked: false,
+      node_id: "MDU6SXNzdWUx",
+      title: TEST_ISSUE_TITLE,
+      number: 1,
+      updated_at: new Date().toISOString(),
+      url: ISSUE_ONE_URL,
+      user: null,
+      milestone: null,
+      assignee: null,
+    });
+    db.users.create({ id: 42, login: USER_WHILEFOO, role: "admin", created_at: new Date().toISOString(), xp: 0, wallet: null });
+    const pluginConfigMock = (await import("../src/handlers/start/api/helpers/get-plugin-config")).fetchMergedPluginSettings as jest.Mock;
+    pluginConfigMock.mockResolvedValueOnce({ ...getDefaultConfig(), assignedIssueScope: AssignedIssueScope.ORG } as never);
+
+    mockOctokit.users.getAuthenticated.mockResolvedValueOnce({ data: { login: USER_WHILEFOO, id: 42 } } as never);
+    mockOctokit.rest.users.getAuthenticated.mockResolvedValueOnce({ data: { login: USER_WHILEFOO, id: 42 } } as never);
+    mockOctokit.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 42, login: USER_WHILEFOO, type: "User" } } as never);
+    mockOctokit.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 7, login: "owner", type: "Organization" } } as never);
+    mockOctokit.rest.issues.get.mockResolvedValueOnce({
+      data: { number: 1, title: TEST_ISSUE_TITLE, state: "open", assignees: [], labels: [{ name: PRICE_LABEL }], body: "", html_url: ISSUE_ONE_URL },
+    } as never);
+    mockOctokit.rest.repos.get.mockResolvedValueOnce({ data: { id: 1, name: "repo", owner: { login: "owner" }, organization: { login: "owner" } } } as never);
+    mockOctokit.rest.orgs.getMembershipForUser.mockResolvedValueOnce({ data: { role: "admin" } } as never);
+    mockOctokit.paginate.mockImplementation((arg, params) => {
+      if (params && typeof params === "object" && "q" in params) {
+        const query = (params as { q?: string }).q || "";
+        if (query.includes(`assignee:${USER_WHILEFOO}`)) {
+          return Promise.resolve([
+            {
+              html_url: "https://github.com/owner/archived-repo/issues/99",
+              title: "Archived Issue",
+              assignee: { login: USER_WHILEFOO },
+              assignees: [{ login: USER_WHILEFOO }],
+              repository: { archived: true },
+            },
+          ]);
+        }
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const response = await handlePublicStart(request, env, createLogger(env));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.computed.assignedIssues).toEqual([]);
   });
 });
