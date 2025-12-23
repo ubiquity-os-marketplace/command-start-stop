@@ -77,7 +77,7 @@ export async function handleValidateOrExecute({
         warnings: preflight.warnings ?? null,
         reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -94,6 +94,6 @@ export async function handleValidateOrExecute({
     );
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Start failed";
-    return Response.json({ ok: false, reasons: [reason] }, { status: 400 });
+    return Response.json({ ok: false, reasons: [reason] }, { status: 200 });
   }
 }
