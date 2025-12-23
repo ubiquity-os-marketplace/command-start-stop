@@ -23,7 +23,7 @@ const taskSchema = v.object({
   ),
 });
 
-export const responseSchemaGet = v.object({
+export const responseSchemaPost = v.object({
   ok: v.boolean(),
   computed: taskSchema,
   warnings: v.array(
@@ -40,7 +40,7 @@ export const responseSchemaGet = v.object({
   reasons: v.union([v.array(v.string()), v.null()]),
 });
 
-export const responseSchemaPost = v.object({
+export const responseSchemaGet = v.object({
   ok: v.boolean(),
   content: v.string(),
   metadata: taskSchema,
