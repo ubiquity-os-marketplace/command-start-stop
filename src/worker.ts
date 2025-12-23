@@ -18,7 +18,7 @@ import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { validateReqEnv } from "./utils/validate-env";
-import { querySchema, responseSchemaGet, responseSchemaPost } from "./validators/start";
+import { querySchema, responseSchema } from "./validators/start";
 
 const START_API_PATH = "/start";
 
@@ -95,12 +95,12 @@ export default {
           200: {
             description: "Successful response",
             content: {
-              "application/json": { schema: resolver(responseSchemaGet) },
+              "application/json": { schema: resolver(responseSchema) },
             },
           },
         },
       }),
-      validator("query", querySchema) as never,
+      validator("query", querySchema),
       async (c) => {
         const validatedEnv = validateReqEnv(c);
         if (validatedEnv instanceof Response) {
@@ -121,12 +121,12 @@ export default {
           200: {
             description: "Successful response",
             content: {
-              "application/json": { schema: resolver(responseSchemaPost) },
+              "application/json": { schema: resolver(responseSchema) },
             },
           },
         },
       }),
-      validator("json", querySchema) as never,
+      validator("json", querySchema),
       async (c) => {
         const validatedEnv = validateReqEnv(c);
         if (validatedEnv instanceof Response) {
@@ -139,7 +139,7 @@ export default {
 
     honoApp.get(
       "/openapi",
-      openAPIRouteHandler(honoApp as never, {
+      openAPIRouteHandler(honoApp, {
         documentation: {
           info: {
             title: pkg.name,
@@ -163,7 +163,7 @@ export default {
         },
       })
     );
-    honoApp.get("/docs", swaggerUI({ url: "/openapi" }) as never);
+    honoApp.get("/docs", swaggerUI({ url: "/openapi" }));
 
     return honoApp.fetch(request, env, executionCtx);
   },
