@@ -2,7 +2,7 @@ import { Context } from "hono";
 import { getConnInfo } from "hono/deno";
 import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
 import { validateReqEnv } from "../../../../utils/validate-env";
-import { extractJwtFromHeader, verifySupabaseJwt } from "./auth";
+import { extractJwtFromHeader, verifyJwt } from "./auth";
 import { createLogger } from "./context-builder";
 
 export class KvStore implements Store {
@@ -118,7 +118,7 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
   if (jwt) {
     let user: { id: number } | null = null;
     try {
-      const verifiedUser = await verifySupabaseJwt({ env: validatedEnv, jwt, logger });
+      const verifiedUser = await verifyJwt({ env: validatedEnv, jwt, logger });
       user = verifiedUser ? { id: verifiedUser.id } : null;
       if (user) {
         rateLimitKey = `user:${user.id}:${mode}`;
