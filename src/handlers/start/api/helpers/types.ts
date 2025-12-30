@@ -30,7 +30,7 @@ export type IssueUrlParts = {
 };
 
 export type DatabaseUser = {
-  id: number;
+  id: number | string;
   wallet_id: number | null;
   location_id: number | null;
 };
