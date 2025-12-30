@@ -1,21 +1,15 @@
+import crypto from "node:crypto";
 import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
+import { isInstallationToken } from "../../../../utils/token";
 import { DatabaseUser } from "./types";
 
 /**
- * Verifies Supabase JWT token.
+ * Verifies JWT token, Supabase and GitHub are supported.
  */
-export async function verifySupabaseJwt({
-  env,
-  jwt,
-  logger,
-}: {
-  env: Env;
-  jwt: string;
-  logger: Logs;
-}): Promise<(DatabaseUser & { accessToken: string }) | null> {
+export async function verifyJwt({ env, jwt, logger }: { env: Env; jwt: string; logger: Logs }): Promise<(DatabaseUser & { accessToken: string }) | null> {
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
@@ -50,6 +44,11 @@ async function verifyGitHubToken({
   logger: Logs;
 }): Promise<DatabaseUser & { accessToken: string }> {
   try {
+    if (isInstallationToken(token)) {
+      logger.info("Received an installation token, will use as is");
+      return { accessToken: token, wallet_id: null, location_id: null, id: crypto.createHash("sha256").update(token).digest("hex").substring(0, 16) };
+    }
+
     const octokit = new Octokit({ auth: token });
     const { data: user } = await octokit.users.getAuthenticated();
 
