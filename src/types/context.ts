@@ -12,6 +12,7 @@ export function isIssueCommentEvent(context: Context): context is Context<"issue
 
 export type Context<TEvents extends SupportedEvents = SupportedEvents> = PluginContext<PluginSettings, Env, Command, TEvents> & {
   adapters: ReturnType<typeof createAdapters>;
+  authToken: string;
   organizations: string[];
 };
 
