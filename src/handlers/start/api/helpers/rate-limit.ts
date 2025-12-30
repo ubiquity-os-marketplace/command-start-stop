@@ -116,7 +116,7 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
   const jwt = extractJwtFromHeader(request);
 
   if (jwt) {
-    let user: { id: number } | null = null;
+    let user: { id: number | string } | null = null;
     try {
       const verifiedUser = await verifyJwt({ env: validatedEnv, jwt, logger });
       user = verifiedUser ? { id: verifiedUser.id } : null;
