@@ -1,6 +1,7 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Context } from "../types/context";
 import { PrState } from "../types/payload";
+import { AssignedIssue } from "./issue";
 
 function isHttpError(error: unknown): error is { status: number; message: string } {
   return typeof error === "object" && error !== null && "status" in error && "message" in error;
@@ -71,9 +72,9 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
   }
 }
 
-export async function getAssignedIssuesFallback(context: Context, username: string) {
+export async function getAssignedIssuesFallback(context: Context, username: string): Promise<AssignedIssue[]> {
   const org = context.payload.repository.owner.login;
-  const assignedIssues = [];
+  const assignedIssues: AssignedIssue[] = [];
 
   try {
     const repositories = await getRepositories(context);

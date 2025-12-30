@@ -1,3 +1,4 @@
+import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { Context } from "../types/context";
 
 interface IssueParams {
@@ -16,13 +17,16 @@ interface AssignmentPeriod {
   reason: "user" | "bot" | "admin";
 }
 
+type IssueEvent = RestEndpointMethodTypes["issues"]["listEvents"]["response"]["data"][number];
+type IssueComment = RestEndpointMethodTypes["issues"]["listComments"]["response"]["data"][number];
+
 /*
  * Returns all the assignment periods by user, with the reason of the un-assignments. If it is instigated by the user,
  * (e.g. GitHub UI or using /stop), the reason will be "user", otherwise "bot", or "admin" if the admin is the
  * instigator.
  */
 export async function getAssignmentPeriods(octokit: Context["octokit"], issueParams: IssueParams) {
-  const [events, comments] = await Promise.all([
+  const [events, comments] = (await Promise.all([
     octokit.paginate(octokit.rest.issues.listEvents, {
       ...issueParams,
       per_page: 100,
@@ -31,7 +35,7 @@ export async function getAssignmentPeriods(octokit: Context["octokit"], issuePar
       ...issueParams,
       per_page: 100,
     }),
-  ]);
+  ])) as [IssueEvent[], IssueComment[]];
   const stopComments = comments
     .filter((comment) => comment.body?.trim() === "/stop")
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());

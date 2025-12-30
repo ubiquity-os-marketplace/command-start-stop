@@ -6,12 +6,20 @@ import { AssignedIssueScope, Role } from "../types/plugin-input";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 
+export type AssignedIssue = {
+  title: string;
+  html_url: string;
+  assignee?: { login: string | null } | null;
+  assignees?: { login: string | null }[] | null;
+  pull_request?: unknown;
+};
+
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
   return body.match(parentPattern);
 }
 
-export async function getAssignedIssues(context: Context, username: string) {
+export async function getAssignedIssues(context: Context, username: string): Promise<AssignedIssue[]> {
   let repoOrgQuery = "";
   if (context.config.assignedIssueScope === AssignedIssueScope.REPO) {
     repoOrgQuery = `repo:${context.payload.repository.full_name}`;
@@ -22,12 +30,12 @@ export async function getAssignedIssues(context: Context, username: string) {
   }
 
   try {
-    const issues = await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
+    const issues = (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
       q: `${repoOrgQuery} is:open is:issue assignee:${username}`,
       per_page: 100,
       order: "desc",
       sort: "created",
-    });
+    })) as AssignedIssue[];
     return issues.filter((issue) => {
       return (
         issue.assignee?.login.toLowerCase() === username.toLowerCase() ||
