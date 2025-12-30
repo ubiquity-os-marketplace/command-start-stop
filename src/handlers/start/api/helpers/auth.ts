@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "../../../../types/context";
@@ -45,7 +46,7 @@ async function verifyGitHubToken({
   try {
     if (isInstallationToken(token)) {
       logger.info("Received an installation token, will use as is");
-      return { accessToken: token, wallet_id: null, location_id: null, id: 0 };
+      return { accessToken: token, wallet_id: null, location_id: null, id: crypto.createHash("sha256").update(token).digest("hex").substring(0, 16) };
     }
 
     const octokit = new Octokit({ auth: token });

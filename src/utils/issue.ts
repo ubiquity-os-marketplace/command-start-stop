@@ -29,9 +29,8 @@ export async function getAssignedIssues(context: Context, username: string) {
       sort: "created",
     });
     return issues.filter((issue) => {
-      const repository = "repository" in issue ? (issue as { repository?: { archived?: boolean } }).repository : undefined;
-      const isArchived = Boolean(repository?.archived);
-      if (isArchived) return false;
+      const repository = issue.repository;
+      if (repository?.archived) return false;
       return (
         issue.assignee?.login.toLowerCase() === username.toLowerCase() ||
         issue.assignees?.some((assignee) => assignee.login.toLowerCase() === username.toLowerCase())
