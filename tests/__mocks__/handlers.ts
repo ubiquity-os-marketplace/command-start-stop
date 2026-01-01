@@ -223,6 +223,17 @@ export const handlers = [
       site_admin: false,
     });
   }),
+  // get user by id (Octokit: GET /user/{account_id})
+  http.get("https://api.github.com/user/:account_id", ({ params: { account_id: accountId } }) => {
+    const numericId = Number(accountId);
+    return HttpResponse.json({
+      login: "test-user",
+      id: Number.isFinite(numericId) ? numericId : 123,
+      created_at: "2020-01-01T00:00:00Z",
+      type: "User",
+      site_admin: false,
+    });
+  }),
   // get comments for an issue
   http.get("https://api.github.com/repos/:owner/:repo/issues/:issue_number/comments", () => HttpResponse.json(db.comments.getAll())),
   http.get("https://api.github.com/user", () => {

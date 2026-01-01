@@ -24,6 +24,16 @@ const mockOctokit = {
   },
   rest: {
     users: {
+      getById: jest.fn(() =>
+        Promise.resolve({
+          data: { login: "test-user", id: 123 },
+        })
+      ),
+      getByUsername: jest.fn(({ username }) =>
+        Promise.resolve({
+          data: { login: username, id: 123 },
+        })
+      ),
       getAuthenticated: jest.fn(() =>
         Promise.resolve({
           data: { login: "test-user", id: 123 },
@@ -269,6 +279,79 @@ describe("handlePublicStart - Authentication", () => {
     const data = await response.json();
 
     expect(response.status).toBe(401);
+    expect(data.ok).toBe(false);
+  });
+});
+
+describe("handlePublicStart - Execute mode HTTP codes", () => {
+  it("returns 200 when user is ineligible to start", async () => {
+    const env = createMockEnv();
+    const jwt = "sb_valid_token";
+
+    db.repo.create({
+      id: 1,
+      name: "repo",
+      full_name: "owner/repo",
+      html_url: "https://github.com/owner/repo",
+      owner: { login: "owner", id: 7, type: "Organization" },
+      issues: [],
+    });
+    db.issue.create({
+      id: 1,
+      title: TEST_ISSUE_TITLE,
+      number: 1,
+      state: "open",
+      owner: "owner",
+      repo: "repo",
+      assignees: [],
+      labels: [],
+      author_association: "NONE",
+      body: "",
+      html_url: ISSUE_ONE_URL,
+      repository_url: "https://github.com/owner/repo",
+      url: "https://api.github.com/repos/owner/repo/issues/1",
+      updated_at: new Date(),
+      created_at: new Date(),
+      closed_at: null,
+      comments: 0,
+      comments_url: "",
+      events_url: "",
+      labels_url: "",
+      locked: false,
+      node_id: "1",
+      user: null,
+      milestone: null,
+      assignee: null,
+    });
+
+    const request = new Request(START_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({ userId: 123, issueUrl: ISSUE_ONE_URL }),
+    });
+
+    const honoCtx = {
+      env,
+      req: {
+        raw: request,
+        json: () => request.json(),
+      },
+      header: (name: string) => request.headers.get(name) || undefined,
+    } as unknown as HonoCtx;
+
+    const pluginConfigMock = (await import("../src/handlers/start/api/helpers/get-plugin-config")).fetchMergedPluginSettings as jest.Mock;
+    pluginConfigMock.mockResolvedValueOnce(getDefaultConfig());
+
+    mockGetUserRoleAndTaskLimit.mockResolvedValue({ role: "contributor", limit: 1 });
+    mockGetAssignmentPeriods.mockResolvedValue({});
+
+    const response = await handlePublicStart(honoCtx, env, createLogger(env));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
     expect(data.ok).toBe(false);
   });
 });

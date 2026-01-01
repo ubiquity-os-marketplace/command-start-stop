@@ -28,7 +28,7 @@ async function getRepositories(context: Context) {
     });
   }
 
-  return (repositories || []).filter((repo) => !repo.archived);
+  return repositories.filter((repo) => !repo.archived);
 }
 
 /**

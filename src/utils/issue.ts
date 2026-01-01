@@ -171,7 +171,7 @@ async function getAllPullRequests(context: Context, state = "open", username: st
   }
 
   const query: RestEndpointMethodTypes["search"]["issuesAndPullRequests"]["parameters"] = {
-    q: `${repoOrgQuery} author:${username} state:${state} is:pr`,
+    q: `${repoOrgQuery} author:${username} state:${state} is:pr archived:false`,
     per_page: 100,
     order: "desc",
     sort: "created",

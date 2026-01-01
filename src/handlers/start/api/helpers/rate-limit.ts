@@ -1,17 +1,17 @@
 import { Context } from "hono";
 import { getConnInfo } from "hono/deno";
-import { ClientRateLimitInfo, ConfigType, Store } from "hono-rate-limiter";
+import { ClientRateLimitInfo, HonoConfigType, Store } from "hono-rate-limiter";
 import { validateReqEnv } from "../../../../utils/validate-env";
 import { extractJwtFromHeader, verifyJwt } from "./auth";
 import { createLogger } from "./context-builder";
 
 export class KvStore implements Store {
-  _options: ConfigType | undefined;
+  _options: HonoConfigType | undefined;
   prefix = "rate-limiter";
 
   constructor(readonly _store: Deno.Kv) {}
 
-  init(options: ConfigType): void {
+  init(options: HonoConfigType): void {
     this._options = options;
   }
 
@@ -116,7 +116,7 @@ export async function createUserRateLimiter(c: Context, next: () => Promise<void
   const jwt = extractJwtFromHeader(request);
 
   if (jwt) {
-    let user: { id: number } | null = null;
+    let user: { id: number | string } | null = null;
     try {
       const verifiedUser = await verifyJwt({ env: validatedEnv, jwt, logger });
       user = verifiedUser ? { id: verifiedUser.id } : null;

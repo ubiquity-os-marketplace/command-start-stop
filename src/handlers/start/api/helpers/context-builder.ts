@@ -8,7 +8,6 @@ import { Issue, Organization, Repository } from "../../../../types/payload";
 import { AssignedIssueScope, PluginSettings, Role } from "../../../../types/plugin-input";
 import { MAX_CONCURRENT_DEFAULTS } from "../../../../utils/constants";
 import { listOrganizations } from "../../../../utils/list-organizations";
-import { isInstallationToken } from "../../../../utils/token";
 import { createUserOctokit } from "./octokit";
 
 export type ShallowContext = Omit<Context<"issue_comment.created">, "repository" | "issue" | "organization" | "payload"> & {
@@ -39,19 +38,9 @@ export async function buildShallowContextObject({
   logger: Context["logger"];
 }): Promise<ShallowContext> {
   const { octokit, supabase } = await initializeClients(env, accessToken);
-  let userGithubId: number;
-  if (typeof userId !== "number") {
-    const d = await octokit.rest.users.getByUsername({ username: userId });
-    userGithubId = d.data.id;
-  } else {
-    userGithubId = userId;
-  }
-  let userData;
-  if (isInstallationToken(accessToken)) {
-    userData = await octokit.rest.users.getById({ account_id: userGithubId });
-  } else {
-    userData = await octokit.rest.users.getAuthenticated();
-  }
+
+  const userData =
+    typeof userId === "number" ? await octokit.rest.users.getById({ account_id: userId }) : await octokit.rest.users.getByUsername({ username: userId });
 
   const ctx: ShallowContext = {
     env,
@@ -130,20 +119,20 @@ export function getDefaultConfig(): PluginSettings {
       },
       {
         name: "Priority: 3 (High)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 4 (Urgent)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 5 (Emergency)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
     ],
     taskAccessControl: {
       usdPriceMax: {
-        collaborator: -1,
+        collaborator: 5000,
         contributor: -1,
       },
     },

@@ -57,7 +57,6 @@ export async function handleValidateOrExecute({
   const preflight = await evaluateStartEligibility(ctx);
 
   if (mode === "validate") {
-    const status = preflight.ok ? 200 : 400;
     return Response.json(
       {
         ok: preflight.ok,
@@ -65,7 +64,7 @@ export async function handleValidateOrExecute({
         warnings: preflight.warnings ?? null,
         reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
-      { status }
+      { status: 200 }
     );
   }
 
@@ -78,7 +77,7 @@ export async function handleValidateOrExecute({
         warnings: preflight.warnings ?? null,
         reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -95,6 +94,6 @@ export async function handleValidateOrExecute({
     );
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Start failed";
-    return Response.json({ ok: false, reasons: [reason] }, { status: 400 });
+    return Response.json({ ok: false, reasons: [reason] }, { status: 200 });
   }
 }
