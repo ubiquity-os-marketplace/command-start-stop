@@ -7,51 +7,40 @@ on:
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
     environment: ${{ (github.event.ref == 'refs/heads/main' || github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
     permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-    uses: ubiquity/deno-deploy-workflow/.github/workflows/deno-deploy-reusable.yml@main
-    with:
-      project: ${{ secrets.DENO_PROJECT_NAME }}
-      entrypoint: src/deno.ts
-      build_command: |
-        set -euo pipefail
-        mkdir -p src
-        cat << 'EOF' > src/deno.ts
-        import worker from "./worker";
-        export default {
-          async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
-            Object.assign(env, Deno.env.toObject());
-            return worker.fetch(request, env, executionCtx);
-          },
-        };
-        EOF
-        find src -name "*.ts" -type f -exec sh -c '
-          sed -i.bak "
-            s/from \"\(\.[^\"]*\.json\)\";$/from \"\1\" with { type: \"json\" };/g;
-            s/from '"'"'\(\.[^'"'"']*\.json\)'"'"';$/from '"'"'\1'"'"' with { type: \"json\" };/g;
-            s/\" with { type: \"json\" }\" with { type: \"json\" }/\" with { type: \"json\" }/g;
-            s/'"'"' with { type: \"json\" }'"'"' with { type: \"json\" }/'"'"' with { type: \"json\" }/g;
-            /\.json\" with { type: \"json\" };$/!s/from \"\(\.[^\"]*\)\";$/from \"\1.ts\";/g;
-            /\.json'"'"' with { type: \"json\" };$/!s/from '"'"'\(\.[^'"'"']*\)'"'"';$/from '"'"'\1.ts'"'"';/g;
-            s/\.css\.ts/.css/g;
-            s/\.svg\.ts/.svg/g;
-            s/\.ts\.ts/.ts/g
-          " "$1"
-        ' _ {} \;
-        find src -name "*.ts.bak" -delete
-      env_var_keys: |
-        APP_ID
-        APP_PRIVATE_KEY
-        KERNEL_PUBLIC_KEY
-        GITHUB_TOKEN
-        SUPABASE_URL
-        SUPABASE_KEY
-        BOT_USER_ID
-      build_env: |
-        SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY || secrets.SUPABASE_KEY }}
-      required_env: |
-        DENO_DEPLOY_TOKEN
-    secrets: inherit
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Set ACTION_REF environment variable
+        run: |
+          branch_name=$(echo '${{ github.event.ref || github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
+          echo "ACTION_REF=${GITHUB_REPOSITORY}@${branch_name}" >> $GITHUB_ENV
+      - uses: actions/checkout@v5
+      - uses: ubiquity-os/deno-plugin-adapter@main
+        id: adapter
+        with:
+          pluginEntry: "./worker"
+      - uses: denoland/setup-deno@v2
+      - name: Rebuild lock file
+        run: |
+          rm *.lock
+          deno install
+      - uses: ubiquity-os/deno-deploy@main
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
+        with:
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
+          organization: ${{ secrets.DENO_ORG_NAME }}
+          entrypoint: ${{ steps.adapter.outputs.entrypoint }}
+          project_name: ${{ secrets.DENO_PROJECT_NAME }}
