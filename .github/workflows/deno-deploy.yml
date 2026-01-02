@@ -15,7 +15,33 @@ jobs:
     uses: ubiquity/deno-deploy-workflow/.github/workflows/deno-deploy-reusable.yml@main
     with:
       project: ${{ secrets.DENO_PROJECT_NAME }}
-      entrypoint: ./worker
+      entrypoint: src/deno.ts
+      build_command: |
+        set -euo pipefail
+        mkdir -p src
+        cat << 'EOF' > src/deno.ts
+        import worker from "./worker";
+        export default {
+          async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+            Object.assign(env, Deno.env.toObject());
+            return worker.fetch(request, env, executionCtx);
+          },
+        };
+        EOF
+        find src -name "*.ts" -type f -exec sh -c '
+          sed -i.bak "
+            s/from \"\(\.[^\"]*\.json\)\";$/from \"\1\" with { type: \"json\" };/g;
+            s/from '"'"'\(\.[^'"'"']*\.json\)'"'"';$/from '"'"'\1'"'"' with { type: \"json\" };/g;
+            s/\" with { type: \"json\" }\" with { type: \"json\" }/\" with { type: \"json\" }/g;
+            s/'"'"' with { type: \"json\" }'"'"' with { type: \"json\" }/'"'"' with { type: \"json\" }/g;
+            /\.json\" with { type: \"json\" };$/!s/from \"\(\.[^\"]*\)\";$/from \"\1.ts\";/g;
+            /\.json'"'"' with { type: \"json\" };$/!s/from '"'"'\(\.[^'"'"']*\)'"'"';$/from '"'"'\1.ts'"'"';/g;
+            s/\.css\.ts/.css/g;
+            s/\.svg\.ts/.svg/g;
+            s/\.ts\.ts/.ts/g
+          " "$1"
+        ' _ {} \;
+        find src -name "*.ts.bak" -delete
       env_var_keys: |
         APP_ID
         APP_PRIVATE_KEY
@@ -24,6 +50,8 @@ jobs:
         SUPABASE_URL
         SUPABASE_KEY
         BOT_USER_ID
+      build_env: |
+        SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY || secrets.SUPABASE_KEY }}
       required_env: |
         DENO_DEPLOY_TOKEN
     secrets: inherit
