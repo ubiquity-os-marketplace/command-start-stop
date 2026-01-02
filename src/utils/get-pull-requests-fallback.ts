@@ -57,7 +57,7 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
         allPrs.push(...userPrs);
       } catch (error) {
         if (isHttpError(error) && (error.status === 404 || error.status === 403)) {
-          logger.error(`Could not find pull requests for repository ${repo.url}, skipping: ${error}`);
+          logger.warn(`Could not find pull requests for repository ${repo.url}, skipping: ${error}`);
           return;
         }
         throw logger.fatal("Failed to fetch pull requests for repository", { error: error as Error });

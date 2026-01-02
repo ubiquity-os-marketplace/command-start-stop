@@ -34,7 +34,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       return Response.json(
         {
           ok: false,
-          reasons: [logger.error("Missing Authorization header").logMessage.raw],
+          reasons: [logger.warn("Missing Authorization header").logMessage.raw],
         },
         { status: 401 }
       );
@@ -46,14 +46,14 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       jwt,
     });
     if (authError) {
-      logger.error(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
+      logger.warn(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
       return authError;
     }
     if (!user) {
       return Response.json(
         {
           ok: false,
-          reasons: [logger.error("Unauthorized: User authentication failed").logMessage.raw],
+          reasons: [logger.warn("Unauthorized: User authentication failed").logMessage.raw],
         },
         { status: 401 }
       );
@@ -90,7 +90,7 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
     try {
       params = await honoCtx.req.json();
     } catch (error) {
-      logger.error("Invalid JSON body", { e: error });
+      logger.warn("Invalid JSON body", { e: error });
       return Response.json(
         { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
         {
@@ -106,13 +106,13 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
     if (!Value.Check(startQueryParamSchema, params)) {
       const errors = [...Value.Errors(startQueryParamSchema, params)];
       const reasons = errors.map((e) => `JSON validation: ${e.path}: ${e.message}`);
-      logger.error("Request body validation failed", { reasons });
+      logger.warn("Request body validation failed", { reasons });
       return Response.json({ ok: false, reasons }, { status: 400 });
     }
 
     params = Value.Decode(startQueryParamSchema, Value.Default(startQueryParamSchema, params));
   } catch (error) {
-    logger.error("Invalid JSON body", { e: error });
+    logger.warn("Invalid JSON body", { e: error });
     return Response.json(
       { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
       {
@@ -135,7 +135,7 @@ async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Log
     });
 
     if (!user) {
-      throw logger.error("Unauthorized: User not found");
+      throw logger.warn("Unauthorized: User not found");
     }
 
     return { user };

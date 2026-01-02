@@ -12,7 +12,7 @@ export async function startTask(context: Context<"issue_comment.created">): Prom
   } = context;
 
   if (!sender) {
-    throw logger.error(`Skipping '/start' since there is no sender in the context.`);
+    throw logger.warn(`Skipping '/start' since there is no sender in the context.`);
   }
 
   const installOctokit = await createRepoOctokit(context.env, context.payload.repository.owner.login, context.payload.repository.name);

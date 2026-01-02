@@ -17,11 +17,11 @@ export async function listOrganizations(context: Context): Promise<string[]> {
     const url = "https://raw.githubusercontent.com/devpool-directory/devpool-directory/refs/heads/__STORAGE__/issues-map.json";
     const response = await fetch(url);
     if (!response.ok) {
-      if (response.status === 404) {
-        throw logger.error(`Error 404: unable to fetch file devpool-issues.json ${url}`);
-      } else {
-        throw logger.error("Error fetching file devpool-issues.json.", { status: response.status });
+      const payload = { status: response.status };
+      if (response.status >= 500) {
+        throw logger.error(`Error fetching file devpool-issues.json.`, payload);
       }
+      throw logger.warn(`Error fetching file devpool-issues.json.`, payload);
     }
 
     const devpoolStorage = await response.json();
@@ -46,5 +46,5 @@ export async function listOrganizations(context: Context): Promise<string[]> {
     return [...orgsSet];
   }
 
-  throw logger.error("Unknown assignedIssueScope value. Supported values: ['org', 'repo', 'network']", { assignedIssueScope, payload });
+  throw logger.warn("Unknown assignedIssueScope value. Supported values: ['org', 'repo', 'network']", { assignedIssueScope, payload });
 }
