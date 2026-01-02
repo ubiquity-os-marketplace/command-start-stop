@@ -2,26 +2,41 @@
   {
     "id": 1,
     "login": "ubiquity",
-    "role": "admin"
+    "role": "admin",
+    "created_at": "2015-01-01T00:00:00.000Z",
+    "xp": 5000,
+    "wallet": null
   },
   {
     "id": 2,
     "login": "user2",
-    "role": "contributor"
+    "role": "contributor",
+    "created_at": "2024-07-01T00:00:00.000Z",
+    "xp": 200,
+    "wallet": null
   },
   {
     "id": 3,
     "login": "user3",
-    "role": "collaborator"
+    "role": "collaborator",
+    "created_at": "2020-06-01T00:00:00.000Z",
+    "xp": 6000,
+    "wallet": null
   },
   {
     "id": 4,
     "login": "user4",
-    "role": "new-start"
+    "role": "new-start",
+    "created_at": "2025-09-01T00:00:00.000Z",
+    "xp": -100,
+    "wallet": null
   },
   {
     "id": 5,
     "login": "user5",
-    "role": "member"
+    "role": "member",
+    "created_at": "2019-03-15T00:00:00.000Z",
+    "xp": 4000,
+    "wallet": null
   }
 ]

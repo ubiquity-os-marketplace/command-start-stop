@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-import { getUserRoleAndTaskLimit } from "../src/handlers/shared/get-user-task-limit-and-role";
-import { Context } from "../src/types";
+import { Context } from "../src/types/context";
+import { getUserRoleAndTaskLimit } from "../src/utils/get-user-task-limit-and-role";
 
 describe("Role tests", () => {
   it("Should retrieve the user role from organization", async () => {
@@ -32,17 +32,29 @@ describe("Role tests", () => {
           },
         },
       },
-    } as unknown as Context;
+      installOctokit: {
+        rest: {
+          orgs: {
+            getMembershipForUser: jest.fn(() => ({ data: { role: "admin" } })),
+          },
+        },
+      },
+    } as unknown as Context & { installOctokit: Context["octokit"] };
 
     let result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
     expect(result).toEqual({ limit: Infinity, role: "admin" });
-    ctx.octokit = {
+
+    const mockOctokit = {
       rest: {
         repos: {
           getCollaboratorPermissionLevel: jest.fn(() => ({ data: { role_name: "contributor" } })),
         },
       },
-    } as unknown as Context["octokit"];
+    };
+
+    ctx.octokit = mockOctokit as unknown as Context["octokit"];
+    ctx.installOctokit = mockOctokit as unknown as Context["octokit"];
+
     result = await getUserRoleAndTaskLimit(ctx, "ubiquity-os");
     expect(result).toEqual({ limit: 1, role: "contributor" });
   });
