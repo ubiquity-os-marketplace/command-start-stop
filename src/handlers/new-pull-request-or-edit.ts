@@ -17,7 +17,7 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
   });
   const issues = linkedIssues.repository.pullRequest?.closingIssuesReferences?.nodes;
   if (!issues) {
-    context.logger.info("No linked issues were found, nothing to do.");
+    context.logger.debug("No linked issues were found, nothing to do.");
     return { status: HttpStatusCode.NOT_MODIFIED };
   }
 
@@ -51,7 +51,7 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
       ).data;
     }
     if (!pull_request.user) {
-      context.logger.info("Pull request has no user associated, skipping.");
+      context.logger.debug("Pull request has no user associated, skipping.");
       continue;
     }
 

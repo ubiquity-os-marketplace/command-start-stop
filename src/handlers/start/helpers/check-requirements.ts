@@ -34,7 +34,7 @@ export async function checkRequirements(
         requiredLabelsToStart.map((label) => `\`${label.name}\``).join(", ")
       );
 
-      return logger.error(errorText, {
+      return logger.warn(errorText, {
         requiredLabelsToStart,
         issueLabels,
         issue: issue.html_url,
@@ -46,7 +46,7 @@ export async function checkRequirements(
         "an administrator",
       ].join(", or ");
       const errorText = `You must be ${humanReadableRoles} to start this task`;
-      return logger.error(errorText, {
+      return logger.warn(errorText, {
         currentLabelConfiguration,
         issueLabels,
         issue: issue.html_url,

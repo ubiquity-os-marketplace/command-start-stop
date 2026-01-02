@@ -25,7 +25,7 @@ export async function startStopTask(context: Context) {
       case "issues.unassigned":
         return await closeUserUnassignedPr(context as Context<"issues.unassigned">);
       default:
-        context.logger.error(`Unsupported event: ${context.eventName}`);
+        context.logger.warn(`Unsupported event: ${context.eventName}`);
         return { status: HttpStatusCode.BAD_REQUEST };
     }
   } catch (error) {

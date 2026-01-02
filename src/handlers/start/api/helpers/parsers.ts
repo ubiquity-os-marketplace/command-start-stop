@@ -4,7 +4,7 @@ import { IssueUrlParts } from "./types";
 export function parseIssueUrl(url: string, logger: Logs): IssueUrlParts {
   const match = url.match(/github\.com\/(.+?)\/(.+?)\/issues\/(\d+)/i);
   if (!match) {
-    throw logger.error("Invalid issueUrl");
+    throw logger.warn("Invalid issueUrl");
   }
   return {
     owner: match[1],
