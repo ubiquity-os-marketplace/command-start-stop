@@ -30,8 +30,8 @@ export async function getAssignedIssues(context: Context, username: string): Pro
     })) as AssignedIssue[];
     return issues.filter((issue) => {
       return (
-        issue.assignee?.login.toLowerCase() === username.toLowerCase() ||
-        issue.assignees?.some((assignee) => assignee.login.toLowerCase() === username.toLowerCase())
+        issue.assignee?.login?.toLowerCase() === username.toLowerCase() ||
+        issue.assignees?.some((assignee) => assignee.login?.toLowerCase() === username.toLowerCase())
       );
     });
   } catch (err) {
