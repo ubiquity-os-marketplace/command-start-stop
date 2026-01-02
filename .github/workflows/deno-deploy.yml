@@ -29,7 +29,35 @@ jobs:
         run: |
           rm *.lock
           deno install
-      - uses: ubiquity-os/deno-deploy@main
+      - name: Compute Deno Deploy project name
+        env:
+          DENO_PROJECT_NAME_BASE: ${{ secrets.DENO_PROJECT_NAME }}
+        run: |
+          set -euo pipefail
+          base_name="${DENO_PROJECT_NAME_BASE}"
+          if [ -z "${base_name}" ]; then
+            base_name="${GITHUB_REPOSITORY#*/}"
+          fi
+          project_name=$(echo "${base_name}" | sed 's#[^a-zA-Z0-9]#-#g')
+          branch_name=$(echo '${{ github.event.ref || github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
+          new_name="${project_name}-${branch_name}"
+          new_name=$(echo "${new_name}" | sed 's#[^a-zA-Z0-9-]#-#g' | sed 's#^-*##' | sed 's#-*$##' | cut -c 1-26)
+          new_name=$(echo "${new_name}" | sed 's#-*$##')
+          if [ ${#new_name} -lt 3 ]; then
+            new_name="${new_name}app"
+          fi
+          echo "DENO_PROJECT_NAME=${new_name}" >> "${GITHUB_ENV}"
+          echo "PROJECT_URL=https://${new_name}.deno.dev" >> "${GITHUB_ENV}"
+      - name: Update manifest homepage URL
+        if: github.event_name != 'delete'
+        run: |
+          if [ ! -f manifest.json ]; then
+            echo "manifest.json not found. Skipping update."
+            exit 0
+          fi
+          node -e "const fs = require('fs'); const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8')); manifest.homepage_url = process.env.PROJECT_URL; fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2));"
+      - name: Write deployment env file
+        if: github.event_name != 'delete'
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
@@ -38,9 +66,48 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
-        with:
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
-          organization: ${{ secrets.DENO_ORG_NAME }}
-          entrypoint: ${{ steps.adapter.outputs.entrypoint }}
-          project_name: ${{ secrets.DENO_PROJECT_NAME }}
+        run: |
+          : > .env
+          printf 'APP_ID=%s\n' "$APP_ID" >> .env
+          printf 'APP_PRIVATE_KEY=%s\n' "$APP_PRIVATE_KEY" >> .env
+          printf 'KERNEL_PUBLIC_KEY=%s\n' "$KERNEL_PUBLIC_KEY" >> .env
+          printf 'GITHUB_TOKEN=%s\n' "$GITHUB_TOKEN" >> .env
+          printf 'SUPABASE_URL=%s\n' "$SUPABASE_URL" >> .env
+          printf 'SUPABASE_KEY=%s\n' "$SUPABASE_KEY" >> .env
+          printf 'BOT_USER_ID=%s\n' "$BOT_USER_ID" >> .env
+      - name: Deploy to Deno
+        if: github.event_name != 'delete'
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_ORG_NAME: ${{ secrets.DENO_ORG_NAME }}
+        run: |
+          set -euo pipefail
+          org_arg=()
+          if [ -n "${DENO_ORG_NAME}" ]; then
+            org_arg=(--org="${DENO_ORG_NAME}")
+          fi
+          deno run -A jsr:@deno/deployctl deploy \
+            --token="${DENO_DEPLOY_TOKEN}" \
+            --project="${DENO_PROJECT_NAME}" \
+            "${org_arg[@]}" \
+            --entrypoint="${{ steps.adapter.outputs.entrypoint }}" \
+            --env-file=.env \
+            --prod \
+            --color=never
+      - name: Delete Deno project
+        if: github.event_name == 'delete'
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          DENO_ORG_NAME: ${{ secrets.DENO_ORG_NAME }}
+        run: |
+          set -euo pipefail
+          org_arg=()
+          if [ -n "${DENO_ORG_NAME}" ]; then
+            org_arg=(--org="${DENO_ORG_NAME}")
+          fi
+          deno run -A jsr:@deno/deployctl projects delete \
+            --token="${DENO_DEPLOY_TOKEN}" \
+            --project="${DENO_PROJECT_NAME}" \
+            "${org_arg[@]}" \
+            --force \
+            --color=never || true
