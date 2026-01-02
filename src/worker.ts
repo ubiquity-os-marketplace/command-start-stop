@@ -1,4 +1,5 @@
 import process from "node:process";
+import "@hono/standard-validator"; // Ensure Deno deploy includes optional peer for hono-openapi.
 import { swaggerUI } from "@hono/swagger-ui";
 import { createPlugin, Options } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
