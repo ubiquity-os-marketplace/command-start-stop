@@ -42,6 +42,8 @@ const maxConcurrentTasks = T.Object(
 
 const roles = T.KeyOf(maxConcurrentTasks);
 
+const PRIORITY_EMERGENCY_LABEL = "Priority: 5 (Emergency)";
+
 const requiredLabel = T.Object({
   name: T.String({ description: "The name of the required labels to start the task." }),
   allowedRoles: T.Array(roles, {
@@ -51,6 +53,59 @@ const requiredLabel = T.Object({
     examples: [["collaborator", "contributor"]],
   }),
 });
+
+const accountRequiredAge = T.Object(
+  {
+    minimumDays: T.Number({
+      default: 365.25,
+      minimum: 0,
+      description: "Minimum number of days a GitHub account must exist before starting a task.",
+      examples: [0, 30, 365.25],
+    }),
+  },
+  {
+    default: { minimumDays: 365.25 },
+  }
+);
+
+export const DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS = [
+  { label: "Priority: 0 (Regression)", minimumXp: -2000 },
+  { label: "Priority: 1 (Normal)", minimumXp: -1000 },
+  { label: "Priority: 2 (Medium)", minimumXp: 0 },
+  { label: "Priority: 3 (High)", minimumXp: 1000 },
+  { label: "Priority: 4 (Urgent)", minimumXp: 2000 },
+  { label: PRIORITY_EMERGENCY_LABEL, minimumXp: 3000 },
+] as const;
+
+const experiencePriorityThreshold = T.Object({
+  label: T.String({
+    description: "Issue label to match for experience gating.",
+    examples: ["Priority: 1 (Normal)", "prio 1"],
+  }),
+  minimumXp: T.Number({
+    default: 0,
+    description: "Minimum XP required to start a task with the associated label.",
+    examples: [-2000, 0, 3000],
+  }),
+});
+
+const experienceAccessControl = T.Object(
+  {
+    priorityThresholds: T.Array(experiencePriorityThreshold, {
+      default: DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS,
+      description: "Mappings between priority labels and minimum XP required to start tasks with those labels.",
+      examples: [
+        [
+          { label: "Priority: 0", minimumXp: -2000 },
+          { label: PRIORITY_EMERGENCY_LABEL, minimumXp: 3000 },
+        ],
+      ],
+    }),
+  },
+  {
+    default: { priorityThresholds: DEFAULT_EXPERIENCE_PRIORITY_THRESHOLDS },
+  }
+);
 
 const transformedRole = T.Transform(T.Union([T.Number(), T.Literal("Infinity")], { default: "Infinity" }))
   .Decode((value) => {
@@ -99,7 +154,7 @@ export const pluginSettingsSchema = T.Object(
     requiredLabelsToStart: T.Array(requiredLabel, {
       default: [],
       description: "If set, a task must have at least one of these labels to be started.",
-      examples: [["Priority: 5 (Emergency)"], ["Good First Issue"]],
+      examples: [[PRIORITY_EMERGENCY_LABEL], ["Good First Issue"]],
     }),
     taskAccessControl: T.Object(
       {
@@ -118,6 +173,8 @@ export const pluginSettingsSchema = T.Object(
             ],
           }
         ),
+        accountRequiredAge: T.Optional(accountRequiredAge),
+        experience: T.Optional(experienceAccessControl),
       },
       { default: {} }
     ),
