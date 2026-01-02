@@ -46,7 +46,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       jwt,
     });
     if (authError) {
-      logger.warn(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
+      logger.warn("Authentication failed", { status: authError.status, statusText: authError.statusText });
       return authError;
     }
     if (!user) {

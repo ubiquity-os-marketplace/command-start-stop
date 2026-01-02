@@ -42,7 +42,8 @@ export async function getUserRoleAndTaskLimit(context: Context & { installOctoki
   try {
     // Validate the organization login
     if (typeof orgLogin !== "string" || orgLogin.trim() === "") {
-      throw context.logger.warn("Invalid organization name");
+      context.logger.warn("Invalid organization name");
+      throw new Error("Invalid organization name");
     }
 
     let role;

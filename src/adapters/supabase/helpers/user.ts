@@ -17,7 +17,9 @@ export class User extends Super {
     if ((error && !data) || !data.wallets?.address) {
       this.context.logger.warn("No wallet address found", { userId, issueNumber });
       if (this.context.config.startRequiresWallet) {
-        throw this.context.logger.warn(this.context.config.emptyWalletText, { userId, issueNumber });
+        const message = this.context.config.emptyWalletText;
+        this.context.logger.error(message, { userId, issueNumber });
+        throw new Error(message);
       }
     } else {
       this.context.logger.ok("Successfully fetched wallet", { userId, address: data.wallets?.address });
