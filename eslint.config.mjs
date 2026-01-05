@@ -6,7 +6,16 @@ import checkFile from "eslint-plugin-check-file";
 import importPlugin from "eslint-plugin-import";
 
 export default tsEslint.config({
-  ignores: [".github/knip.ts", ".github/cspell.ts", ".wrangler/**/*.ts", ".wrangler/**/*.js", "dist/**", "eslint.config.mjs", ".husky/**"],
+  ignores: [
+    ".github/knip.ts",
+    ".github/cspell.ts",
+    ".wrangler/**/*.ts",
+    ".wrangler/**/*.js",
+    "dist/**",
+    "eslint.config.mjs",
+    ".husky/**",
+    "src/types/generated/**",
+  ],
   plugins: {
     "@typescript-eslint": tsEslint.plugin,
     "check-file": checkFile,
