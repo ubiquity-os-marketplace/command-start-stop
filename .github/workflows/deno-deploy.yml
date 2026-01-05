@@ -33,6 +33,7 @@ jobs:
         run: |
           rm *.lock
           deno install
+          deno run supabase:generate
       - uses: ubiquity-os/deno-deploy@main
         env:
           APP_ID: ${{ secrets.APP_ID }}
