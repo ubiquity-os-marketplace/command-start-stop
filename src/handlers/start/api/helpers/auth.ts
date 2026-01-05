@@ -3,6 +3,7 @@ import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
+import { Database } from "../../../../types/generated/database";
 import { isInstallationToken } from "../../../../utils/token";
 import { DatabaseUser } from "./types";
 
@@ -16,7 +17,7 @@ export async function verifyJwt({ env, jwt, logger }: { env: Env; jwt: string; l
     throw logger.error("Unauthorized: Empty JWT");
   }
 
-  const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
+  const supabase: SupabaseClient = createClient<Database>(env.SUPABASE_URL, env.SUPABASE_KEY);
   let user: DatabaseUser & { accessToken: string };
 
   function isValidGitAccessToken(token: string) {
@@ -39,7 +40,7 @@ async function verifyGitHubToken({
   token,
   logger,
 }: {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient<Database>;
   token: string;
   logger: Logs;
 }): Promise<DatabaseUser & { accessToken: string }> {
@@ -75,7 +76,7 @@ async function verifySupabaseToken({
   token,
   logger,
 }: {
-  supabase: SupabaseClient;
+  supabase: SupabaseClient<Database>;
   token: string;
   logger: Logs;
 }): Promise<DatabaseUser & { accessToken: string }> {
@@ -96,13 +97,16 @@ async function verifySupabaseToken({
     throw logger.error("Supabase authentication failed: User not found in database", { e: String(dbError) });
   }
 
-  // Handle case where Supabase returns an array instead of a single object (test mocks)
+  // Handle case where Supabase returns an array instead of a single object
   const userData = Array.isArray(dbUser) ? dbUser[0] : dbUser;
   if (!userData || !userData.id) {
     throw logger.error("Supabase authentication failed: Invalid user data");
   }
 
-  return { ...userData, accessToken: token } as DatabaseUser & { accessToken: string };
+  const supabaseSession = await supabase.auth.getSession();
+
+  const gitHubToken = supabaseSession.data.session?.provider_token;
+  return { ...userData, accessToken: gitHubToken } as DatabaseUser & { accessToken: string };
 }
 
 /**
