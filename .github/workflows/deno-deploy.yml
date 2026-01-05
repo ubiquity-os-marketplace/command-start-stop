@@ -30,9 +30,12 @@ jobs:
           pluginEntry: "./worker"
       - uses: denoland/setup-deno@v2
       - uses: oven-sh/setup-bun@v2
+      - name: Generate Supabase Types
+        run: |
+          bun install
+          bun run supabase:generate
       - name: Rebuild lock file
         run: |
-          bun run supabase:generate
           rm *.lock
           deno install
       - uses: ubiquity-os/deno-deploy@main
