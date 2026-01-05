@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+
 jobs:
   format-check:
     name: Check for formatting errors
