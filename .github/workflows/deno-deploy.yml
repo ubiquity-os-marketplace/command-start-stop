@@ -29,11 +29,12 @@ jobs:
         with:
           pluginEntry: "./worker"
       - uses: denoland/setup-deno@v2
+      - uses: oven-sh/setup-bun@v2
       - name: Rebuild lock file
         run: |
+          bun run supabase:generate
           rm *.lock
           deno install
-          deno run supabase:generate
       - uses: ubiquity-os/deno-deploy@main
         env:
           APP_ID: ${{ secrets.APP_ID }}
