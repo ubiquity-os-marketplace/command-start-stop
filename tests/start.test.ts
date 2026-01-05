@@ -1,13 +1,10 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
-import dotenv from "dotenv";
 import { Context } from "../src/types/context";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import { createContext } from "./utils";
-
-dotenv.config();
 
 const userLogin = "ubiquity-os-author";
 const TEST_USER_ID = 3;
