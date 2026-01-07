@@ -14,3 +14,5 @@ export type Context<TEvents extends SupportedEvents = SupportedEvents> = PluginC
   adapters: ReturnType<typeof createAdapters>;
   organizations: string[];
 };
+
+export type Logs = Context["logger"];
