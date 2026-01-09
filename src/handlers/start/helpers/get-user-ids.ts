@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 
 export async function getUserIds(context: Context, username: string[]) {
   const ids = [];

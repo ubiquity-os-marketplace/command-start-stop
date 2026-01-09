@@ -1,4 +1,5 @@
-import { Assignee, Context, Sender } from "../types/index";
+import { Context } from "../types/context";
+import { Assignee, Sender } from "../types/payload";
 import { HttpStatusCode, Result } from "../types/result-types";
 import { closePullRequestForAnIssue } from "../utils/issue";
 
@@ -17,7 +18,7 @@ export async function stop(
   const userToUnassign = assignees.find((assignee: Partial<Assignee>) => assignee?.login?.toLowerCase() === sender.login.toLowerCase());
 
   if (!userToUnassign) {
-    throw logger.error("You are not assigned to this task", { issueNumber, user: sender.login });
+    throw logger.warn("You are not assigned to this task", { issueNumber, user: sender.login });
   }
 
   // close PR

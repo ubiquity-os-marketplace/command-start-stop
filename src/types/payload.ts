@@ -14,6 +14,9 @@ export type Organization = Repository["organization"];
 export type AssignedIssue = {
   title: string;
   html_url: string;
+  assignee?: { login: string | null } | null;
+  assignees?: { login: string | null }[] | null;
+  pull_request?: unknown;
 };
 
 export type Sender = { login: string; id: number };

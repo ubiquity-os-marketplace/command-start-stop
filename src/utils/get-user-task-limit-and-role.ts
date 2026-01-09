@@ -1,4 +1,5 @@
-import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../types/index";
+import { Context } from "../types/context";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, PluginSettings } from "../types/plugin-input";
 
 interface MatchingUserProps {
   role: ReturnType<typeof getTransformedRole>;

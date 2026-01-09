@@ -1,5 +1,5 @@
 import ms from "ms";
-import { Context } from "../types/index";
+import { Context } from "../types/context";
 
 export function calculateDurations(labels: Context<"issue_comment.created">["payload"]["issue"]["labels"]): number[] {
   // from shortest to longest

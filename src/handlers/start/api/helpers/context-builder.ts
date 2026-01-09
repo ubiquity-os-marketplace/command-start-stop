@@ -4,7 +4,7 @@ import { LogLevel, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { createAdapters } from "../../../../adapters/index";
 import { Context } from "../../../../types/context";
 import { Env } from "../../../../types/env";
-import { Issue, Organization, Repository } from "../../../../types/index";
+import { Issue, Organization, Repository } from "../../../../types/payload";
 import { AssignedIssueScope, PluginSettings, Role } from "../../../../types/plugin-input";
 import { MAX_CONCURRENT_DEFAULTS } from "../../../../utils/constants";
 import { listOrganizations } from "../../../../utils/list-organizations";
@@ -29,19 +29,24 @@ export type ShallowContext = Omit<Context<"issue_comment.created">, "repository"
 export async function buildShallowContextObject({
   env,
   accessToken,
+  userId,
   logger,
 }: {
   env: Env;
   accessToken: string;
+  userId: number | string;
   logger: Context["logger"];
 }): Promise<ShallowContext> {
   const { octokit, supabase } = await initializeClients(env, accessToken);
-  const userData = await octokit.rest.users.getAuthenticated();
+
+  const userData =
+    typeof userId === "number" ? await octokit.rest.users.getById({ account_id: userId }) : await octokit.rest.users.getByUsername({ username: userId });
 
   const ctx: ShallowContext = {
     env,
     octokit,
     logger,
+    authToken: accessToken,
     config: getDefaultConfig(),
     command: createCommand([userData.data.login]),
     eventName: "issue_comment.created" as const,
@@ -115,28 +120,28 @@ export function getDefaultConfig(): PluginSettings {
       },
       {
         name: "Priority: 3 (High)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 4 (Urgent)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 5 (Emergency)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
     ],
     taskAccessControl: {
       usdPriceMax: {
-        collaborator: -1,
+        collaborator: 5000,
         contributor: -1,
       },
     },
   } as PluginSettings;
 }
 
-export function createLogger(env: Env | { LOG_LEVEL?: string }): Logs {
-  return new Logs((env.LOG_LEVEL as LogLevel) ?? "info");
+export function createLogger(env: Env | { LOG_LEVEL?: string }): Context["logger"] {
+  return new Logs((env.LOG_LEVEL as LogLevel) ?? "info") as unknown as Context["logger"];
 }
 
 async function initializeClients(env: Env, accessToken: string) {
