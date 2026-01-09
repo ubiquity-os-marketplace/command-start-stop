@@ -22,12 +22,12 @@ export async function getAssignedIssues(context: Context, username: string): Pro
   }
 
   try {
-    const issues = (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
+    const issues = await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
       q: `${repoOrgQuery} archived:false is:open is:issue assignee:${username}`,
       per_page: 100,
       order: "desc",
       sort: "created",
-    })) as AssignedIssue[];
+    });
     return issues.filter((issue) => {
       const repository = issue.repository;
       if (repository?.archived) return false;
