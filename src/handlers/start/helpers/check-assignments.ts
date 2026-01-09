@@ -28,17 +28,24 @@ export async function handleTaskLimitChecks({
   sender: string;
   roleAndLimit?: { role: string; limit: number };
 }) {
-  // Check for unassignment first - this should take precedence over task limit
-  if (await hasUserBeenUnassigned(context, username)) {
-    throw logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", username), { username });
-  }
-
   const openedPullRequests = (await getPendingOpenedPullRequests(context, username)) || [];
   const assignedIssues = (await getAssignedIssues(context, username)) || [];
 
   const { limit, role } = roleAndLimit || (await getUserRoleAndTaskLimit(context, username));
 
   const isWithinLimit = Math.abs(assignedIssues.length - openedPullRequests.length) < limit;
+
+  // Check for unassignment first - this should take precedence over task limit
+  if (await hasUserBeenUnassigned(context, username)) {
+    logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", username), { username });
+    return {
+      isUnassigned: true,
+      isWithinLimit,
+      assignedIssues,
+      openedPullRequests,
+      role,
+    };
+  }
 
   // check for max and enforce max
   if (!isWithinLimit) {
@@ -51,6 +58,7 @@ export async function handleTaskLimitChecks({
   }
 
   return {
+    isUnassigned: false,
     isWithinLimit,
     assignedIssues,
     openedPullRequests,

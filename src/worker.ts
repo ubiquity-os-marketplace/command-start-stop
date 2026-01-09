@@ -1,5 +1,4 @@
 import process from "node:process";
-import "@hono/standard-validator"; // Ensure Deno deploy includes optional peer for hono-openapi.
 import { swaggerUI } from "@hono/swagger-ui";
 import { createPlugin, Options } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
@@ -7,6 +6,7 @@ import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "hono";
 import { cors } from "hono/cors";
 import { describeRoute, openAPIRouteHandler, resolver, validator } from "hono-openapi";
+import "@hono/standard-validator"; // Ensure Deno deploy includes optional peer for hono-openapi.
 import manifest from "../manifest.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
 import { createAdapters } from "./adapters/index";
@@ -19,7 +19,7 @@ import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { PluginSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { validateReqEnv } from "./utils/validate-env";
-import { querySchema, responseSchemaGet, responseSchemaPost } from "./validators/start";
+import { querySchema, responseSchema } from "./validators/start";
 
 const START_API_PATH = "/start";
 
@@ -96,7 +96,7 @@ export default {
           200: {
             description: "Successful response",
             content: {
-              "application/json": { schema: resolver(responseSchemaGet) },
+              "application/json": { schema: resolver(responseSchema) },
             },
           },
         },
@@ -122,7 +122,7 @@ export default {
           200: {
             description: "Successful response",
             content: {
-              "application/json": { schema: resolver(responseSchemaPost) },
+              "application/json": { schema: resolver(responseSchema) },
             },
           },
         },
