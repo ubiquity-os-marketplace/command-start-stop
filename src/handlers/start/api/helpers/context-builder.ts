@@ -46,6 +46,7 @@ export async function buildShallowContextObject({
     env,
     octokit,
     logger,
+    authToken: accessToken,
     config: getDefaultConfig(),
     command: createCommand([userData.data.login]),
     eventName: "issue_comment.created" as const,

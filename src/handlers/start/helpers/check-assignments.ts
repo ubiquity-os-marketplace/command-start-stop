@@ -50,7 +50,7 @@ export async function handleTaskLimitChecks({
   // check for max and enforce max
   if (!isWithinLimit) {
     const errorMessage = username === sender ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${username} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
-    logger.error(errorMessage, {
+    logger.warn(errorMessage, {
       assignedIssues: assignedIssues.length,
       openedPullRequests: openedPullRequests.length,
       limit,

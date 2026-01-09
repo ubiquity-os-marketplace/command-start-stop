@@ -18,7 +18,7 @@ export async function stop(
   const userToUnassign = assignees.find((assignee: Partial<Assignee>) => assignee?.login?.toLowerCase() === sender.login.toLowerCase());
 
   if (!userToUnassign) {
-    throw logger.error("You are not assigned to this task", { issueNumber, user: sender.login });
+    throw logger.warn("You are not assigned to this task", { issueNumber, user: sender.login });
   }
 
   // close PR

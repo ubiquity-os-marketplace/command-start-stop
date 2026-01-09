@@ -6,6 +6,7 @@ import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { ExecutionContext } from "hono";
 import { cors } from "hono/cors";
 import { describeRoute, openAPIRouteHandler, resolver, validator } from "hono-openapi";
+import "@hono/standard-validator"; // Ensure Deno deploy includes optional peer for hono-openapi.
 import manifest from "../manifest.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
 import { createAdapters } from "./adapters/index";

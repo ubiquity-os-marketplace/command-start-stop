@@ -30,10 +30,17 @@ export async function getUserExperience(context: Context, baseUrl: string, user:
 
   const response = await fetch(url.toString());
   if (!response.ok) {
-    throw context.logger.error(`Failed to fetch XP for ${user}`, {
+    const payload = {
       statusNumber: response.status,
       statusText: response.statusText,
-    });
+    };
+    if (response.status >= 500) {
+      throw context.logger.error(`Failed to fetch XP for ${user}`, payload);
+    }
+    if (response.status >= 400) {
+      throw context.logger.warn(`Failed to fetch XP for ${user}`, payload);
+    }
+    throw context.logger.error(`Failed to fetch XP for ${user}`, payload);
   }
 
   let payload: unknown;
@@ -46,7 +53,7 @@ export async function getUserExperience(context: Context, baseUrl: string, user:
   const xpPayload = decodeXpPayload(context, user, payload);
   const xp = getXpFromPayload(xpPayload, user);
   if (xp === null || Number.isNaN(xp)) {
-    context.logger.info(`XP value missing for ${user}`, { payload: xpPayload });
+    context.logger.debug(`XP value missing for ${user}`, { payload: xpPayload });
     return 0;
   }
 

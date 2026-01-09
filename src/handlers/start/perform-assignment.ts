@@ -47,7 +47,7 @@ export async function performAssignment(
     senderId: sender.id,
     eligibility,
   });
-  const logMessage = logger.info(ERROR_MESSAGES.TASK_ASSIGNED, {
+  const logMessage = logger.ok(ERROR_MESSAGES.TASK_ASSIGNED, {
     taskDeadline: assignmentComment.deadline,
     taskAssignees: toAssignIds,
     priceLabel,

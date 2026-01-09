@@ -26,6 +26,7 @@ export const envSchema = T.Object({
       throw new Error(ERROR_MSG);
     }),
   KERNEL_PUBLIC_KEY: T.Optional(T.String()),
+  UOS_AI_TOKEN: T.Optional(T.String()),
   LOG_LEVEL: T.Optional(T.String()),
   XP_SERVICE_BASE_URL: T.Optional(T.String()),
   /**
