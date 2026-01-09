@@ -158,8 +158,12 @@ export async function evaluateStartEligibility(
       res.assignedIssues.forEach((issue) => {
         assignedIssues.push({ title: issue.title, html_url: issue.html_url });
       });
+      if (res.isUnassigned) {
+        errors.push(context.logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", user), { user }));
+        continue;
+      }
       // within limit?
-      if (!res.isWithinLimit) {
+      else if (!res.isWithinLimit) {
         const message = user === sender.login ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${user} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
         errors.push(
           context.logger.warn(message, {

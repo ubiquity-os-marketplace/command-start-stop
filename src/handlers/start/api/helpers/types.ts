@@ -9,7 +9,7 @@ export const startQueryParamSchema = T.Object(
       .Decode((val) => {
         if (typeof val === "number") return val;
         const parsed = parseInt(val, 10);
-        if (isNaN(parsed)) throw new Error("userId must be a number or numeric string");
+        if (!/^\d+$/.test(val) || isNaN(parsed)) return val;
         return parsed;
       })
       .Encode((val) => val.toString()),
@@ -30,7 +30,7 @@ export type IssueUrlParts = {
 };
 
 export type DatabaseUser = {
-  id: number;
+  id: number | string;
   wallet_id: number | null;
   location_id: number | null;
 };

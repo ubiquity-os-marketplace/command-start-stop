@@ -23,12 +23,14 @@ export async function getAssignedIssues(context: Context, username: string): Pro
 
   try {
     const issues = (await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
-      q: `${repoOrgQuery} is:open is:issue assignee:${username}`,
+      q: `${repoOrgQuery} archived:false is:open is:issue assignee:${username}`,
       per_page: 100,
       order: "desc",
       sort: "created",
     })) as AssignedIssue[];
     return issues.filter((issue) => {
+      const repository = issue.repository;
+      if (repository?.archived) return false;
       return (
         issue.assignee?.login?.toLowerCase() === username.toLowerCase() ||
         issue.assignees?.some((assignee) => assignee.login?.toLowerCase() === username.toLowerCase())
@@ -169,7 +171,7 @@ async function getAllPullRequests(context: Context, state = "open", username: st
   }
 
   const query: RestEndpointMethodTypes["search"]["issuesAndPullRequests"]["parameters"] = {
-    q: `${repoOrgQuery} author:${username} state:${state} is:pr`,
+    q: `${repoOrgQuery} author:${username} state:${state} is:pr archived:false`,
     per_page: 100,
     order: "desc",
     sort: "created",

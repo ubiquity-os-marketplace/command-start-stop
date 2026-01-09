@@ -29,7 +29,7 @@ async function getRepositories(context: Context) {
     });
   }
 
-  return repositories;
+  return repositories.filter((repo) => !repo.archived);
 }
 
 /**

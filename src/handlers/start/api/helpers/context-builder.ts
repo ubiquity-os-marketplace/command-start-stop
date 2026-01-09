@@ -29,14 +29,18 @@ export type ShallowContext = Omit<Context<"issue_comment.created">, "repository"
 export async function buildShallowContextObject({
   env,
   accessToken,
+  userId,
   logger,
 }: {
   env: Env;
   accessToken: string;
+  userId: number | string;
   logger: Context["logger"];
 }): Promise<ShallowContext> {
   const { octokit, supabase } = await initializeClients(env, accessToken);
-  const userData = await octokit.rest.users.getAuthenticated();
+
+  const userData =
+    typeof userId === "number" ? await octokit.rest.users.getById({ account_id: userId }) : await octokit.rest.users.getByUsername({ username: userId });
 
   const ctx: ShallowContext = {
     env,
@@ -116,20 +120,20 @@ export function getDefaultConfig(): PluginSettings {
       },
       {
         name: "Priority: 3 (High)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 4 (Urgent)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
       {
         name: "Priority: 5 (Emergency)",
-        allowedRoles: ["collaborator", "contributor"],
+        allowedRoles: ["collaborator"],
       },
     ],
     taskAccessControl: {
       usdPriceMax: {
-        collaborator: -1,
+        collaborator: 5000,
         contributor: -1,
       },
     },
