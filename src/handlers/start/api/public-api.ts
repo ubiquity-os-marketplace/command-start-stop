@@ -1,8 +1,8 @@
 import { Value } from "@sinclair/typebox/value";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { Context as HonoContext } from "hono";
+import { Logs } from "../../../types/context";
 import { Env } from "../../../types/env";
-import { extractJwtFromHeader, verifySupabaseJwt } from "./helpers/auth";
+import { extractJwtFromHeader, verifyJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
 import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
@@ -34,7 +34,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       return Response.json(
         {
           ok: false,
-          reasons: [logger.error("Missing Authorization header").logMessage.raw],
+          reasons: [logger.warn("Missing Authorization header").logMessage.raw],
         },
         { status: 401 }
       );
@@ -46,14 +46,14 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       jwt,
     });
     if (authError) {
-      logger.error(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
+      logger.warn(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
       return authError;
     }
     if (!user) {
       return Response.json(
         {
           ok: false,
-          reasons: [logger.error("Unauthorized: User authentication failed").logMessage.raw],
+          reasons: [logger.warn("Unauthorized: User authentication failed").logMessage.raw],
         },
         { status: 401 }
       );
@@ -62,12 +62,13 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
     // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { issueUrl } = params;
+    const { issueUrl, userId, environment } = params;
 
     // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
       env,
       accessToken: user.accessToken,
+      userId,
       logger,
     });
 
@@ -75,9 +76,11 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       env,
       issueUrl,
       logger,
+      environment,
+      jwt,
     });
 
-    return await handleValidateOrExecute({ context, mode, issueUrl });
+    return await handleValidateOrExecute({ context, mode, issueUrl, jwt });
   } catch (error) {
     return handleError(error, logger);
   }
@@ -89,7 +92,7 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
     try {
       params = await honoCtx.req.json();
     } catch (error) {
-      logger.error("Invalid JSON body", { e: error });
+      logger.warn("Invalid JSON body", { e: error });
       return Response.json(
         { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
         {
@@ -105,13 +108,13 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
     if (!Value.Check(startQueryParamSchema, params)) {
       const errors = [...Value.Errors(startQueryParamSchema, params)];
       const reasons = errors.map((e) => `JSON validation: ${e.path}: ${e.message}`);
-      logger.error("Request body validation failed", { reasons });
+      logger.warn("Request body validation failed", { reasons });
       return Response.json({ ok: false, reasons }, { status: 400 });
     }
 
     params = Value.Decode(startQueryParamSchema, Value.Default(startQueryParamSchema, params));
   } catch (error) {
-    logger.error("Invalid JSON body", { e: error });
+    logger.warn("Invalid JSON body", { e: error });
     return Response.json(
       { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
       {
@@ -127,14 +130,14 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
  */
 async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Logs; jwt: string }) {
   try {
-    const user = await verifySupabaseJwt({
+    const user = await verifyJwt({
       env,
       jwt,
       logger,
     });
 
     if (!user) {
-      throw logger.error("Unauthorized: User not found");
+      throw logger.warn("Unauthorized: User not found");
     }
 
     return { user };

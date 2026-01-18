@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { getAssignmentPeriods } from "../../../utils/get-assignment-periods";
 import { getUserRoleAndTaskLimit } from "../../../utils/get-user-task-limit-and-role";
 import { getAssignedIssues, getOwnerRepoFromHtmlUrl, getPendingOpenedPullRequests } from "../../../utils/issue";
@@ -28,11 +28,6 @@ export async function handleTaskLimitChecks({
   sender: string;
   roleAndLimit?: { role: string; limit: number };
 }) {
-  // Check for unassignment first - this should take precedence over task limit
-  if (await hasUserBeenUnassigned(context, username)) {
-    throw logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", username), { username });
-  }
-
   const openedPullRequests = (await getPendingOpenedPullRequests(context, username)) || [];
   const assignedIssues = (await getAssignedIssues(context, username)) || [];
 
@@ -40,10 +35,22 @@ export async function handleTaskLimitChecks({
 
   const isWithinLimit = Math.abs(assignedIssues.length - openedPullRequests.length) < limit;
 
+  // Check for unassignment first - this should take precedence over task limit
+  if (await hasUserBeenUnassigned(context, username)) {
+    logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", username), { username });
+    return {
+      isUnassigned: true,
+      isWithinLimit,
+      assignedIssues,
+      openedPullRequests,
+      role,
+    };
+  }
+
   // check for max and enforce max
   if (!isWithinLimit) {
     const errorMessage = username === sender ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${username} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
-    logger.error(errorMessage, {
+    logger.warn(errorMessage, {
       assignedIssues: assignedIssues.length,
       openedPullRequests: openedPullRequests.length,
       limit,
@@ -51,6 +58,7 @@ export async function handleTaskLimitChecks({
   }
 
   return {
+    isUnassigned: false,
     isWithinLimit,
     assignedIssues,
     openedPullRequests,

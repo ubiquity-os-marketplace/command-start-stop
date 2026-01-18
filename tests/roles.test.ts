@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-import { Context } from "../src/types/index";
+import { Context } from "../src/types/context";
 import { getUserRoleAndTaskLimit } from "../src/utils/get-user-task-limit-and-role";
 
 describe("Role tests", () => {

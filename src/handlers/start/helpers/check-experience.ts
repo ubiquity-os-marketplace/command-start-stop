@@ -1,4 +1,5 @@
-import { Context, Label } from "../../../types/index";
+import { Context } from "../../../types/context";
+import { Label } from "../../../types/payload";
 import { getUserExperience } from "../../../utils/get-user-experience";
 
 export type ExperienceResult = {
@@ -60,7 +61,7 @@ export async function checkExperience(
 
   for (const username of accessControlledParticipants) {
     try {
-      logger.debug(`Trying to fetch XP for the user ${username}`);
+      logger.info(`Trying to fetch XP for the user ${username}`);
       const xp = await getUserExperience(context, xpServiceBaseUrl, username);
       xpMetadata.push({ username, xp });
       if (xp < requiredExperience) {

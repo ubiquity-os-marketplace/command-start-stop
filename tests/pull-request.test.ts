@@ -1,9 +1,9 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { Repository } from "@octokit/graphql-schema";
 import dotenv from "dotenv";
 import { ERROR_MESSAGES } from "../src/handlers/start/helpers/error-messages";
-import { Context } from "../src/types/index";
+import { Context } from "../src/types/context";
 import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
@@ -67,8 +67,8 @@ describe("Pull-request tests", () => {
   beforeEach(async () => {
     drop(db);
     jest.clearAllMocks();
-    jest.resetModules();
     jest.resetAllMocks();
+    jest.resetModules();
     await setupTests();
   });
 
@@ -77,6 +77,22 @@ describe("Pull-request tests", () => {
     const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
     issue.labels = [];
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const missingPriceRepoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+        },
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
+        },
+        repos: {
+          get: jest.fn(() => Promise.resolve({ data: repo })),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+        },
+      },
+    } as const;
 
     const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
     context.eventName = "pull_request.opened";
@@ -125,49 +141,18 @@ describe("Pull-request tests", () => {
       createAdapters: jest.fn(),
     }));
     jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
-      customOctokit: jest.fn().mockReturnValue({
-        rest: {
-          apps: {
-            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-          },
-          issues: {
-            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
-          },
-          repos: {
-            get: jest.fn(() => Promise.resolve({ data: repo })),
-          },
-          orgs: {
-            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
-          },
-        },
-      }),
+      customOctokit: jest.fn().mockReturnValue(missingPriceRepoOctokit),
     }));
-    jest.mock("../src/handlers/start/api/helpers/octokit", () => {
-      const mockRepoOctokit = {
-        rest: {
-          apps: {
-            getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-          },
-          issues: {
-            get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
-          },
-          repos: {
-            get: jest.fn(() => Promise.resolve({ data: repo })),
-          },
-          orgs: {
-            get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
-          },
-        },
-      };
-      return {
-        createUserOctokit: jest.fn(() => mockRepoOctokit),
-        createAppOctokit: jest.fn(() => mockRepoOctokit),
-        createRepoOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
-      };
-    });
+    jest.mock("../src/handlers/start/api/helpers/octokit", () => ({
+      createUserOctokit: jest.fn(() => missingPriceRepoOctokit),
+      createAppOctokit: jest.fn(() => missingPriceRepoOctokit),
+      createRepoOctokit: jest.fn(() => Promise.resolve(missingPriceRepoOctokit)),
+    }));
     context.commentHandler = {
       postComment: jest.fn(async () => null),
     } as unknown as Context["commentHandler"];
+    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(missingPriceRepoOctokit as never);
     const { startStopTask } = await import("../src/plugin");
     const result = await startStopTask(context);
 
@@ -227,19 +212,7 @@ describe("Pull-request tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-    jest.mock("@supabase/supabase-js", () => ({
-      createClient: jest.fn(),
-    }));
-    jest.mock("../src/adapters", () => ({
-      createAdapters: jest.fn(() => ({
-        supabase: {
-          user: {
-            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
-          },
-        },
-      })),
-    }));
-    const mockRepoOctokit = {
+    const pricedRepoOctokit = {
       paginate: jest.fn(() => Promise.resolve([])),
       rest: {
         apps: {
@@ -285,14 +258,26 @@ describe("Pull-request tests", () => {
           }),
         },
       },
-    };
+    } as const;
+    jest.mock("@supabase/supabase-js", () => ({
+      createClient: jest.fn(),
+    }));
+    jest.mock("../src/adapters", () => ({
+      createAdapters: jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      })),
+    }));
     jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
-      customOctokit: jest.fn().mockReturnValue(mockRepoOctokit),
+      customOctokit: jest.fn().mockReturnValue(pricedRepoOctokit),
     }));
     jest.mock("../src/handlers/start/api/helpers/octokit", () => ({
-      createUserOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
-      createAppOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
-      createRepoOctokit: jest.fn(() => Promise.resolve(mockRepoOctokit)),
+      createUserOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
+      createAppOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
+      createRepoOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
     }));
     context.commentHandler = {
       postComment: jest.fn(async () => null),

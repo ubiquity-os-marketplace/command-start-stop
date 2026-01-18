@@ -1,4 +1,5 @@
-import { ADMIN_ROLES, COLLABORATOR_ROLES, Context, PluginSettings } from "../types/index";
+import { Context } from "../types/context";
+import { ADMIN_ROLES, COLLABORATOR_ROLES, PluginSettings } from "../types/plugin-input";
 
 interface MatchingUserProps {
   role: ReturnType<typeof getTransformedRole>;
@@ -41,7 +42,7 @@ export async function getUserRoleAndTaskLimit(context: Context & { installOctoki
   try {
     // Validate the organization login
     if (typeof orgLogin !== "string" || orgLogin.trim() === "") {
-      throw context.logger.error("Invalid organization name");
+      throw context.logger.warn("Invalid organization name");
     }
 
     let role;
