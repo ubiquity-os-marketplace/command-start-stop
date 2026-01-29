@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { calculateDurations } from "../../../utils/shared";
 import { options } from "./generate-assignment-comment";
 

@@ -1,8 +1,8 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import ms from "ms";
 import { Context } from "../types/context";
-import { AssignedIssueScope, PrState, Role } from "../types/index";
-import { GitHubIssueSearch, Review } from "../types/payload";
+import { AssignedIssue, GitHubIssueSearch, PrState, Review } from "../types/payload";
+import { AssignedIssueScope, Role } from "../types/plugin-input";
 import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 
@@ -11,7 +11,7 @@ export function isParentIssue(body: string) {
   return body.match(parentPattern);
 }
 
-export async function getAssignedIssues(context: Context, username: string) {
+export async function getAssignedIssues(context: Context, username: string): Promise<AssignedIssue[]> {
   let repoOrgQuery = "";
   if (context.config.assignedIssueScope === AssignedIssueScope.REPO) {
     repoOrgQuery = `repo:${context.payload.repository.full_name}`;
@@ -23,19 +23,21 @@ export async function getAssignedIssues(context: Context, username: string) {
 
   try {
     const issues = await context.octokit.paginate(context.octokit.rest.search.issuesAndPullRequests, {
-      q: `${repoOrgQuery} is:open is:issue assignee:${username}`,
+      q: `${repoOrgQuery} archived:false is:open is:issue assignee:${username}`,
       per_page: 100,
       order: "desc",
       sort: "created",
     });
     return issues.filter((issue) => {
+      const repository = issue.repository;
+      if (repository?.archived) return false;
       return (
-        issue.assignee?.login.toLowerCase() === username.toLowerCase() ||
-        issue.assignees?.some((assignee) => assignee.login.toLowerCase() === username.toLowerCase())
+        issue.assignee?.login?.toLowerCase() === username.toLowerCase() ||
+        issue.assignees?.some((assignee) => assignee.login?.toLowerCase() === username.toLowerCase())
       );
     });
   } catch (err) {
-    context.logger.info("Will try re-fetching assigned issues...", { error: err as Error });
+    context.logger.debug("Will try re-fetching assigned issues...", { error: err as Error });
     return getAssignedIssuesFallback(context, username);
   }
 }
@@ -76,7 +78,7 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
   });
 
   if (!linkedPullRequests.length) {
-    return logger.info(`No linked pull requests to close`);
+    return logger.debug(`No linked pull requests to close`);
   }
 
   logger.info(`Opened prs`, { author, linkedPullRequests });
@@ -96,7 +98,7 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
     } else {
       const isLinked = issueLinkedViaPrBody(pr.body, issueNumber);
       if (!isLinked) {
-        logger.info(`Issue is not linked to the PR`, { issueNumber, prNumber: pr.number });
+        logger.debug(`Issue is not linked to the PR`, { issueNumber, prNumber: pr.number });
         continue;
       }
       await closePullRequest(context, pr);
@@ -106,10 +108,10 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
   }
 
   if (!isClosed) {
-    return logger.info(`No PRs were closed`);
+    return logger.debug(`No PRs were closed`);
   }
 
-  return logger.info(comment);
+  return logger.ok(comment);
 }
 
 async function confirmMultiAssignment(context: Context, issueNumber: number, usernames: string[]) {
@@ -134,7 +136,7 @@ async function confirmMultiAssignment(context: Context, issueNumber: number, use
   }
 
   if (isPrivate && assignees?.length <= 1) {
-    const log = logger.info("This task belongs to a private repo and can only be assigned to one user without an official paid GitHub subscription.", {
+    const log = logger.warn("This task belongs to a private repo and can only be assigned to one user without an official paid GitHub subscription.", {
       issueNumber,
     });
     await context.commentHandler.postComment(context, log);
@@ -169,7 +171,7 @@ async function getAllPullRequests(context: Context, state = "open", username: st
   }
 
   const query: RestEndpointMethodTypes["search"]["issuesAndPullRequests"]["parameters"] = {
-    q: `${repoOrgQuery} author:${username} state:${state} is:pr`,
+    q: `${repoOrgQuery} author:${username} state:${state} is:pr archived:false`,
     per_page: 100,
     order: "desc",
     sort: "created",
@@ -186,7 +188,7 @@ export async function getAllPullRequestsWithRetry(context: Context, state: PrSta
   try {
     return await getAllPullRequests(context, state, username);
   } catch (error) {
-    context.logger.info("Will retry re-fetching all pull requests...", { error: error as Error });
+    context.logger.debug("Will retry re-fetching all pull requests...", { error: error as Error });
     return getAllPullRequestsFallback(context, state, username);
   }
 }

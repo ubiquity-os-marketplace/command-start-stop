@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { HttpStatusCode, Result } from "../../../types/result-types";
 import { StartEligibilityResult } from "../api/helpers/types";
 
@@ -58,7 +58,7 @@ export async function handleStartErrors(context: Context, eligibility: StartElig
 
   // Preserve original ordering: if pre-parent validations fail, do NOT post parent comment
   if (hasParentReason && !hasPreParentReason) {
-    const message = logger.error(ERROR_MESSAGES.PARENT_ISSUES);
+    const message = logger.warn(ERROR_MESSAGES.PARENT_ISSUES);
     await context.commentHandler.postComment(context, message);
     throw message;
   }

@@ -1,7 +1,7 @@
 import { Value } from "@sinclair/typebox/value";
 import { Context as HonoContext } from "hono";
 import { env as honoEnv } from "hono/adapter";
-import { envSchema } from "../types/index";
+import { envSchema } from "../types/env";
 
 export function validateReqEnv(c: HonoContext) {
   try {

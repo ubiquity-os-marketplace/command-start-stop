@@ -1,25 +1,19 @@
+import crypto from "node:crypto";
 import { Octokit } from "@octokit/rest";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+import { Logs } from "../../../../types/context";
 import { Env } from "../../../../types/env";
+import { isInstallationToken } from "../../../../utils/token";
 import { DatabaseUser } from "./types";
 
 /**
- * Verifies Supabase JWT token.
+ * Verifies JWT token, Supabase and GitHub are supported.
  */
-export async function verifySupabaseJwt({
-  env,
-  jwt,
-  logger,
-}: {
-  env: Env;
-  jwt: string;
-  logger: Logs;
-}): Promise<(DatabaseUser & { accessToken: string }) | null> {
+export async function verifyJwt({ env, jwt, logger }: { env: Env; jwt: string; logger: Logs }): Promise<(DatabaseUser & { accessToken: string }) | null> {
   const trimmedJwt = jwt.trim();
 
   if (!trimmedJwt) {
-    throw logger.error("Unauthorized: Empty JWT");
+    throw logger.warn("Unauthorized: Empty JWT");
   }
 
   const supabase: SupabaseClient = createClient(env.SUPABASE_URL, env.SUPABASE_KEY);
@@ -50,24 +44,29 @@ async function verifyGitHubToken({
   logger: Logs;
 }): Promise<DatabaseUser & { accessToken: string }> {
   try {
+    if (isInstallationToken(token)) {
+      logger.info("Received an installation token, will use as is");
+      return { accessToken: token, wallet_id: null, location_id: null, id: crypto.createHash("sha256").update(token).digest("hex").substring(0, 16) };
+    }
+
     const octokit = new Octokit({ auth: token });
     const { data: user } = await octokit.users.getAuthenticated();
 
     const { data: dbUser, error } = await supabase.from("users").select("*").eq("id", user.id).single();
 
     if (error || !dbUser) {
-      throw logger.error("GitHub token verification failed", { e: String(error) });
+      throw logger.warn("GitHub token verification failed", { e: String(error) });
     }
 
     // Handle case where Supabase returns an array instead of a single object (test mocks)
     const userData = Array.isArray(dbUser) ? dbUser[0] : dbUser;
     if (!userData || !userData.id) {
-      throw logger.error("GitHub token verification failed: Invalid user data");
+      throw logger.warn("GitHub token verification failed: Invalid user data");
     }
 
     return { ...userData, accessToken: token };
   } catch (error) {
-    throw logger.error("GitHub authentication failed", { e: String(error) });
+    throw logger.warn("GitHub authentication failed", { e: String(error) });
   }
 }
 
@@ -83,24 +82,24 @@ async function verifySupabaseToken({
   const { data: userOauthData, error } = await supabase.auth.getUser(token);
 
   if (error || !userOauthData?.user) {
-    throw logger.error("Supabase authentication failed: Invalid JWT, expired, or user not found", { e: String(error) });
+    throw logger.warn("Supabase authentication failed: Invalid JWT, expired, or user not found", { e: String(error) });
   }
 
   const userGithubId = userOauthData.user.user_metadata?.provider_id;
   if (!userGithubId) {
-    throw logger.error("Supabase authentication failed: User GitHub ID not found in OAuth metadata");
+    throw logger.warn("Supabase authentication failed: User GitHub ID not found in OAuth metadata");
   }
 
   const { data: dbUser, error: dbError } = await supabase.from("users").select("*").eq("id", userGithubId).single();
 
   if (dbError || !dbUser) {
-    throw logger.error("Supabase authentication failed: User not found in database", { e: String(dbError) });
+    throw logger.warn("Supabase authentication failed: User not found in database", { e: String(dbError) });
   }
 
   // Handle case where Supabase returns an array instead of a single object (test mocks)
   const userData = Array.isArray(dbUser) ? dbUser[0] : dbUser;
   if (!userData || !userData.id) {
-    throw logger.error("Supabase authentication failed: Invalid user data");
+    throw logger.warn("Supabase authentication failed: Invalid user data");
   }
 
   return { ...userData, accessToken: token } as DatabaseUser & { accessToken: string };
