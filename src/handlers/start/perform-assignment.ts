@@ -1,5 +1,4 @@
 import { Context } from "../../types/context";
-import { Label } from "../../types/payload";
 import { HttpStatusCode, Result } from "../../types/result-types";
 import { addAssignees, getTimeValue } from "../../utils/issue";
 import { StartEligibilityResult } from "./api/helpers/types";
@@ -8,7 +7,6 @@ import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { generateAssignmentComment } from "./helpers/generate-assignment-comment";
 import { assignTableComment } from "./helpers/generate-assignment-table";
 import structuredMetadata from "./helpers/generate-structured-metadata";
-import { getUserIds } from "./helpers/get-user-ids";
 
 export async function performAssignment(
   context: Context<"issue_comment.created"> & { installOctokit: Context["octokit"] },
@@ -34,12 +32,7 @@ export async function performAssignment(
   } catch (e) {
     logger.error("Error while getting commit hash", { error: e as Error });
   }
-  const labels = issue.labels ?? [];
-  const priceLabel = labels.find((label: Label) => {
-    return (typeof label === "string" ? label : label.name)?.startsWith("Price: ");
-  });
   const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
-  const toAssignIds = await getUserIds(context, toAssign);
   const assignmentComment = await generateAssignmentComment({
     context,
     issueCreatedAt: issue.created_at,
@@ -48,9 +41,6 @@ export async function performAssignment(
     eligibility,
   });
   const logMessage = logger.ok(ERROR_MESSAGES.TASK_ASSIGNED, {
-    taskDeadline: assignmentComment.deadline,
-    taskAssignees: toAssignIds,
-    priceLabel,
     revision: commitHash?.substring(0, 7),
   });
   const metadata = structuredMetadata.create("Assignment", logMessage);
