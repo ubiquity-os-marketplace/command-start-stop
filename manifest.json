@@ -317,5 +317,5 @@
     }
   },
   "homepage_url": "https://command-start-stop-fix-red.deno.dev",
-  "short_name": "ubiquity-os-marketplace/command-start-stop@fix/redundant-message"
+  "short_name": "ubiquity-os-marketplace/command-start-stop@development"
 }
