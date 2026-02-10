@@ -1,21 +1,11 @@
 import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
 
-export function assignTableComment({ taskDeadline, registeredWallet, isTaskStale, daysElapsedSinceTaskCreation, warnings }: AssignTableCommentParams) {
+export function assignTableComment({ taskDeadline, registeredWallet, warnings }: AssignTableCommentParams) {
   const elements: string[] = ["<samp>", "<table>"];
 
-  if (isTaskStale) {
-    elements.push(
-      "<tr>",
-      "<td>Warning!</td>",
-      `<td>This task was created over ${daysElapsedSinceTaskCreation} days ago. Please confirm that this issue specification is accurate before starting.</td>`,
-      "</tr>"
-    );
-  }
-
   if (warnings && warnings.length > 0) {
-    warnings.forEach((warning) => {
-      elements.push("<tr>", "<td>Warning!</td>", `<td>${warning.logMessage.raw}</td>`, "</tr>");
-    });
+    const warningMessages = warnings.map((warning) => warning.logMessage.raw);
+    elements.push("<tr>", "<td>Warning!</td>", `<td>${warningMessages.join("<br>")}</td>`, "</tr>");
   }
 
   if (taskDeadline) {
@@ -30,7 +20,5 @@ export function assignTableComment({ taskDeadline, registeredWallet, isTaskStale
 interface AssignTableCommentParams {
   taskDeadline: string | null;
   registeredWallet: string;
-  isTaskStale: boolean;
-  daysElapsedSinceTaskCreation: number;
   warnings?: LogReturn[];
 }

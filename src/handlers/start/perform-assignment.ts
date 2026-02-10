@@ -1,9 +1,8 @@
 import { Context } from "../../types/context";
 import { Label } from "../../types/payload";
 import { HttpStatusCode, Result } from "../../types/result-types";
-import { addAssignees, getTimeValue } from "../../utils/issue";
+import { addAssignees } from "../../utils/issue";
 import { StartEligibilityResult } from "./api/helpers/types";
-import { checkTaskStale } from "./helpers/check-task-stale";
 import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { generateAssignmentComment } from "./helpers/generate-assignment-comment";
 import { assignTableComment } from "./helpers/generate-assignment-table";
@@ -38,7 +37,6 @@ export async function performAssignment(
   const priceLabel = labels.find((label: Label) => {
     return (typeof label === "string" ? label : label.name)?.startsWith("Price: ");
   });
-  const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
   const toAssignIds = await getUserIds(context, toAssign);
   const assignmentComment = await generateAssignmentComment({
     context,
@@ -64,8 +62,6 @@ export async function performAssignment(
     logger.ok(
       [
         assignTableComment({
-          isTaskStale,
-          daysElapsedSinceTaskCreation: assignmentComment.daysElapsedSinceTaskCreation,
           taskDeadline: assignmentComment.deadline,
           registeredWallet: assignmentComment.registeredWallet,
           warnings: assignmentComment.warnings,
