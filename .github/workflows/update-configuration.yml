@@ -12,11 +12,12 @@ jobs:
 
     steps:
       - name: Update Manifest and Commit Changes
-        uses: ubiquity-os/action-deploy-plugin@main
+        uses: Meniole/action-deploy-plugin@feat/27-generate-manifest-metadata
         with:
           treatAsEsm: true
           sourcemap: false
           pluginEntry: ${{ github.workspace }}/src/worker.ts
+          excludeSupportedEvents: "issue_comment.created"
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
