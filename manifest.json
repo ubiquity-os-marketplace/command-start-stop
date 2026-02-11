@@ -1,20 +1,19 @@
 {
-  "name": "@ubiquity-os/command-start-stop",
-  "short_name": "ubiquity-os-marketplace/command-start-stop@codex/fix/manifest-build-command-start-stop-command-start-stop-u2",
-  "description": "Enables the assignment and graceful unassignment of tasks to contributors.",
+  "name": "Start | Stop",
+  "description": "Assign or un-assign yourself from an issue/task.",
+  "ubiquity:listeners": ["issues.unassigned", "pull_request.opened", "pull_request.edited"],
   "commands": {
     "start": {
-      "description": "Assign yourself and/or others to the issue/task.",
       "ubiquity:example": "/start",
+      "description": "Assign yourself and/or others to the issue/task.",
       "parameters": {
         "type": "object",
-        "required": ["teammates"],
         "properties": {
           "teammates": {
-            "description": "GitHub usernames to assign to the issue/task.",
-            "examples": [["@UbiquityOS"]],
+            "description": "Users other than yourself to assign to the issue",
             "type": "array",
             "items": {
+              "description": "Github username",
               "type": "string"
             }
           }
@@ -22,16 +21,14 @@
       }
     },
     "stop": {
-      "description": "Unassign yourself from the issue/task.",
       "ubiquity:example": "/stop",
+      "description": "Unassign yourself from the issue/task.",
       "parameters": {
         "type": "object",
         "properties": {}
       }
     }
   },
-  "ubiquity:listeners": ["pull_request.opened", "pull_request.edited", "issues.unassigned"],
-  "skipBotEvents": true,
   "configuration": {
     "default": {},
     "type": "object",
@@ -319,5 +316,6 @@
       }
     }
   },
-  "homepage_url": "https://command-start-stop-codex-f.deno.dev"
+  "homepage_url": "https://command-start-stop-codex-f.deno.dev",
+  "short_name": "ubiquity-os-marketplace/command-start-stop@development"
 }
