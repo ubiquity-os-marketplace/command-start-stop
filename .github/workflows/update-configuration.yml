@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Update Manifest and Commit Changes
-        uses: Meniole/action-deploy-plugin@feat/27-generate-manifest-metadata
+        uses: ubiquity-os/action-deploy-plugin@main
         with:
           treatAsEsm: true
           sourcemap: false
