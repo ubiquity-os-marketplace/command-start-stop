@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.13.1](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.13.0...v1.13.1) (2026-02-21)
+
+
+### Bug Fixes
+
+* align manifest workflow and command schema metadata ([02ff0b5](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/02ff0b52a0bb78c7c9a36665e62dca4dbb892c24))
+* parse flexible time labels for deadline calculation ([0c618d4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/0c618d478bc42a140bf190018eaab3b424899c26))
+* remove redundant metadata from assignment comment ([26828e9](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/26828e94230c057e77c7a3fda138ae2e3017c723))
+* standardize command schema descriptions and examples to use double quotes ([54d7c75](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/54d7c75e8bc199beac7e5a9f7cbc6abd57328452))
+* support flexible time labels in deadline parsing ([82c71e9](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/82c71e9a294696117b09f824f2428c0c664f59ca))
+* sync manifest workflow metadata for issue 27 ([c7f227d](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/c7f227d194b789e59311f51614a8bcfd08c12759))
+* sync workflow skipBotEvents and parameter metadata ([d97fbc3](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/d97fbc36877ce31453461a8973e9ba17fbd673b3))
+
 ## [1.13.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.12.0...v1.13.0) (2025-12-15)
 
 
