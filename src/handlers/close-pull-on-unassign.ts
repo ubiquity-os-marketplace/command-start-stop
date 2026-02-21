@@ -1,4 +1,4 @@
-import { Context } from "../types/index";
+import { Context } from "../types/context";
 import { HttpStatusCode, Result } from "../types/result-types";
 import { closePullRequestForAnIssue } from "../utils/issue";
 

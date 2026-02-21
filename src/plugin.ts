@@ -3,7 +3,7 @@ import { createAdapters } from "./adapters/index";
 import { closeUserUnassignedPr } from "./handlers/close-pull-on-unassign";
 import { commandHandler, userStartStop } from "./handlers/command-handler";
 import { newPullRequestOrEdit } from "./handlers/new-pull-request-or-edit";
-import { Context } from "./types/index";
+import { Context } from "./types/context";
 import { HttpStatusCode } from "./types/result-types";
 import { listOrganizations } from "./utils/list-organizations";
 
@@ -25,7 +25,7 @@ export async function startStopTask(context: Context) {
       case "issues.unassigned":
         return await closeUserUnassignedPr(context as Context<"issues.unassigned">);
       default:
-        context.logger.error(`Unsupported event: ${context.eventName}`);
+        context.logger.warn(`Unsupported event: ${context.eventName}`);
         return { status: HttpStatusCode.BAD_REQUEST };
     }
   } catch (error) {

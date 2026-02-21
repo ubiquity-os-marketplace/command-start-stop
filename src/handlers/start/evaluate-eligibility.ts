@@ -1,5 +1,6 @@
 import { LogReturn } from "@ubiquity-os/ubiquity-os-logger";
-import { AssignedIssue, Context, ISSUE_TYPE, Label } from "../../types/index";
+import { Context } from "../../types/context";
+import { AssignedIssue, ISSUE_TYPE, Label } from "../../types/payload";
 import { getTransformedRole, getUserRoleAndTaskLimit } from "../../utils/get-user-task-limit-and-role";
 import { getTimeValue, isParentIssue } from "../../utils/issue";
 import { DeepPartial, StartEligibilityResult } from "./api/helpers/types";
@@ -39,7 +40,7 @@ export async function evaluateStartEligibility(
   } = context;
 
   if ((typeof sender === "object" && !sender.login) || !sender) {
-    errors.push(context.logger.error(ERROR_MESSAGES.MISSING_SENDER));
+    errors.push(context.logger.warn(ERROR_MESSAGES.MISSING_SENDER));
     return unableToStartError({ override: { errors } });
   }
 
@@ -61,12 +62,12 @@ export async function evaluateStartEligibility(
   }
 
   if (issue.body && isParentIssue(issue.body)) {
-    errors.push(context.logger.error(ERROR_MESSAGES.PARENT_ISSUES));
+    errors.push(context.logger.warn(ERROR_MESSAGES.PARENT_ISSUES));
     return unableToStartError({ override: { errors } });
   }
 
   if (issue.state === ISSUE_TYPE.CLOSED) {
-    errors.push(context.logger.error(ERROR_MESSAGES.CLOSED));
+    errors.push(context.logger.warn(ERROR_MESSAGES.CLOSED));
     return unableToStartError({ override: { errors } });
   }
 
@@ -75,7 +76,7 @@ export async function evaluateStartEligibility(
     // Check if the sender is already assigned to this issue
     const isSenderAssigned = assignees.some((assignee) => assignee?.login?.toLowerCase() === sender.login.toLowerCase());
     const errorMessage = isSenderAssigned ? ERROR_MESSAGES.ALREADY_ASSIGNED : ERROR_MESSAGES.ISSUE_ALREADY_ASSIGNED;
-    errors.push(context.logger.error(errorMessage));
+    errors.push(context.logger.warn(errorMessage));
     return unableToStartError({ override: { errors } });
   }
 
@@ -157,11 +158,15 @@ export async function evaluateStartEligibility(
       res.assignedIssues.forEach((issue) => {
         assignedIssues.push({ title: issue.title, html_url: issue.html_url });
       });
+      if (res.isUnassigned) {
+        errors.push(context.logger.warn(ERROR_MESSAGES.UNASSIGNED.replace("{{username}}", user), { user }));
+        continue;
+      }
       // within limit?
-      if (!res.isWithinLimit) {
+      else if (!res.isWithinLimit) {
         const message = user === sender.login ? ERROR_MESSAGES.MAX_TASK_LIMIT_PREFIX : `${user} ${ERROR_MESSAGES.MAX_TASK_LIMIT_TEAMMATE_PREFIX}`;
         errors.push(
-          context.logger.error(message, {
+          context.logger.warn(message, {
             assignedIssues: res.assignedIssues.length,
             openedPullRequests: res.openedPullRequests.length,
             limit: 0,
@@ -194,7 +199,7 @@ export async function evaluateStartEligibility(
       const userAllowedMaxPrice = typeof allowed === "number" ? allowed : min;
       const match = priceLabel.name.match(/Price:\s*([\d.]+)/);
       if (!match || isNaN(parseFloat(match[1]))) {
-        errors.push(context.logger.error(ERROR_MESSAGES.PRICE_LABEL_FORMAT_ERROR, { priceLabel: priceLabel.name }));
+        errors.push(context.logger.warn(ERROR_MESSAGES.PRICE_LABEL_FORMAT_ERROR, { priceLabel: priceLabel.name }));
       } else {
         const price = parseFloat(match[1]);
         if (userAllowedMaxPrice < 0) {
@@ -225,7 +230,7 @@ export async function evaluateStartEligibility(
       );
     });
     if (!hasQuotaError) {
-      errors.push(context.logger.error(message));
+      errors.push(context.logger.warn(message));
     }
 
     return unableToStartError({ override: { errors } });
@@ -242,13 +247,14 @@ export async function evaluateStartEligibility(
      *
      * Returning this as a warning via the API makes more sense.
      */
-    warnings.push(context.logger.error(context.config.emptyWalletText));
+    warnings.push(context.logger.warn(context.config.emptyWalletText));
   }
 
   // Staleness & deadline
   const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
   if (isTaskStale) {
-    warnings.push(context.logger.warn(ERROR_MESSAGES.TASK_STALE));
+    const elapsedTime = Math.floor((new Date().getTime() - new Date(issue.created_at).getTime()) / 1000 / 60 / 60 / 24);
+    warnings.push(context.logger.warn(ERROR_MESSAGES.TASK_STALE.replace("{{daysElapsedSinceTaskCreation}}", elapsedTime.toString())));
   }
 
   const deadline = getDeadline(labels);

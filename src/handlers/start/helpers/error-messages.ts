@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { HttpStatusCode, Result } from "../../../types/result-types";
 import { StartEligibilityResult } from "../api/helpers/types";
 
@@ -16,7 +16,7 @@ export const ERROR_MESSAGES = {
   PRICE_LIMIT_EXCEEDED:
     "While we appreciate your enthusiasm @{{user}}, the price of this task exceeds your allowed limit. Please choose a task with a price of ${{userAllowedMaxPrice}} or less.",
   PRICE_LABEL_FORMAT_ERROR: "Price label is not in the correct format",
-  TASK_STALE: "Task appears stale; confirm specification before starting.",
+  TASK_STALE: "This task was created over {{daysElapsedSinceTaskCreation}} days ago. Please confirm that this issue specification is accurate before starting.",
   TASK_ASSIGNED: "Task assigned successfully",
   MISSING_SENDER: "Missing sender",
   NOT_BUSINESS_PRIORITY:
@@ -58,7 +58,7 @@ export async function handleStartErrors(context: Context, eligibility: StartElig
 
   // Preserve original ordering: if pre-parent validations fail, do NOT post parent comment
   if (hasParentReason && !hasPreParentReason) {
-    const message = logger.error(ERROR_MESSAGES.PARENT_ISSUES);
+    const message = logger.warn(ERROR_MESSAGES.PARENT_ISSUES);
     await context.commentHandler.postComment(context, message);
     throw message;
   }

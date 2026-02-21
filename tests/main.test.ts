@@ -1,21 +1,20 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, jest, test } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import { TransformDecodeError, Value } from "@sinclair/typebox/value";
 import { createClient } from "@supabase/supabase-js";
 import { cleanLogString, LogReturn } from "@ubiquity-os/ubiquity-os-logger";
-import dotenv from "dotenv";
 import { createAdapters } from "../src/adapters";
 import { closeUserUnassignedPr } from "../src/handlers/close-pull-on-unassign";
 import { userStartStop } from "../src/handlers/command-handler";
-import { Context, Env, envSchema, Sender } from "../src/types/index";
+import { Context } from "../src/types/context";
+import { Env, envSchema } from "../src/types/env";
+import { Sender } from "../src/types/payload";
 import { HttpStatusCode } from "../src/types/result-types";
 import { db } from "./__mocks__/db";
 import issueTemplate from "./__mocks__/issue-template";
 import { server } from "./__mocks__/node";
 import usersGet from "./__mocks__/users-get.json";
 import { createContext, MAX_CONCURRENT_DEFAULTS, priority3LabelName, priority4LabelName, priority5LabelName, PRIORITY_ONE } from "./utils";
-
-dotenv.config();
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
@@ -307,7 +306,9 @@ describe("User start/stop", () => {
     context.adapters = createAdapters(getSupabase(), context);
 
     await expect(userStartStop(context)).rejects.toMatchObject({
-      logMessage: { raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues." },
+      logMessage: {
+        raw: "Please select a child issue from the specification checklist to work on. The '/start' command is disabled on parent issues.",
+      },
     });
   });
 

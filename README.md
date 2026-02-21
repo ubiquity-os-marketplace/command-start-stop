@@ -255,7 +255,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 
 ### Environment Setup
 
-1. Node.js >=20.10.0 is required
+1. Node.js >=24.11.0 is required
 2. Copy `.dev.vars.example` to `.dev.vars` and configure environment variables
 3. Install dependencies with `bun install`
 
@@ -274,7 +274,7 @@ bun run worker
 Run the full test suite:
 
 ```bash
-bun run test
+bun run test:jest
 ```
 
 ### Code Quality

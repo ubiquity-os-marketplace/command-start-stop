@@ -1,19 +1,20 @@
 {
-  "name": "Start | Stop",
-  "description": "Assign or un-assign yourself from an issue/task.",
-  "ubiquity:listeners": ["issues.unassigned", "pull_request.opened", "pull_request.edited"],
+  "name": "@ubiquity-os/command-start-stop",
+  "short_name": "ubiquity-os-marketplace/command-start-stop@development",
+  "description": "Enables the assignment and graceful unassignment of tasks to contributors.",
   "commands": {
     "start": {
-      "ubiquity:example": "/start",
       "description": "Assign yourself and/or others to the issue/task.",
+      "ubiquity:example": "/start",
       "parameters": {
         "type": "object",
+        "required": ["teammates"],
         "properties": {
           "teammates": {
-            "description": "Users other than yourself to assign to the issue",
+            "description": "GitHub usernames to assign to the issue/task.",
+            "examples": [["@UbiquityOS"]],
             "type": "array",
             "items": {
-              "description": "Github username",
               "type": "string"
             }
           }
@@ -21,14 +22,16 @@
       }
     },
     "stop": {
-      "ubiquity:example": "/stop",
       "description": "Unassign yourself from the issue/task.",
+      "ubiquity:example": "/stop",
       "parameters": {
         "type": "object",
         "properties": {}
       }
     }
   },
+  "ubiquity:listeners": ["pull_request.opened", "pull_request.edited", "issues.unassigned"],
+  "skipBotEvents": true,
   "configuration": {
     "default": {},
     "type": "object",
@@ -132,6 +135,7 @@
         "type": "array",
         "items": {
           "type": "object",
+          "required": ["name"],
           "properties": {
             "name": {
               "description": "The name of the required labels to start the task.",
@@ -156,8 +160,7 @@
                 ]
               }
             }
-          },
-          "required": ["name"]
+          }
         }
       },
       "taskAccessControl": {
@@ -294,6 +297,7 @@
                 "type": "array",
                 "items": {
                   "type": "object",
+                  "required": ["label"],
                   "properties": {
                     "label": {
                       "description": "Issue label to match for experience gating.",
@@ -306,8 +310,7 @@
                       "examples": [-2000, 0, 3000],
                       "type": "number"
                     }
-                  },
-                  "required": ["label"]
+                  }
                 }
               }
             }
@@ -316,6 +319,5 @@
       }
     }
   },
-  "homepage_url": "https://command-start-stop-main.deno.dev",
-  "short_name": "ubiquity-os-marketplace/command-start-stop@development"
+  "homepage_url": "https://command-start-stop-main.deno.dev"
 }

@@ -1,9 +1,10 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { HttpStatusCode } from "../../../types/result-types";
+import { isInstallationToken } from "../../../utils/token";
 import { evaluateStartEligibility } from "../evaluate-eligibility";
 import { performAssignment } from "../perform-assignment";
 import { createCommand, createPayload, ShallowContext } from "./helpers/context-builder";
-import { createRepoOctokit } from "./helpers/octokit";
+import { createRepoOctokit, createUserOctokit } from "./helpers/octokit";
 import { parseIssueUrl } from "./helpers/parsers";
 
 /**
@@ -14,10 +15,12 @@ export async function handleValidateOrExecute({
   context,
   mode,
   issueUrl,
+  jwt,
 }: {
   context: ShallowContext;
   mode: "validate" | "execute";
   issueUrl: string;
+  jwt: string;
 }): Promise<Response> {
   const { owner, repo, issue_number: issueNumber } = parseIssueUrl(issueUrl, context.logger);
   let issue, repository, organization;
@@ -46,13 +49,14 @@ export async function handleValidateOrExecute({
       : context.organizations,
   };
 
-  ctx.installOctokit = await createRepoOctokit(context.env, ctx.payload.repository.owner.login, ctx.payload.repository.name);
+  ctx.installOctokit = isInstallationToken(jwt)
+    ? await createUserOctokit(jwt)
+    : await createRepoOctokit(context.env, ctx.payload.repository.owner.login, ctx.payload.repository.name);
 
   // Evaluate eligibility
   const preflight = await evaluateStartEligibility(ctx);
 
   if (mode === "validate") {
-    const status = preflight.ok ? 200 : 400;
     return Response.json(
       {
         ok: preflight.ok,
@@ -60,7 +64,7 @@ export async function handleValidateOrExecute({
         warnings: preflight.warnings ?? null,
         reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
-      { status }
+      { status: 200 }
     );
   }
 
@@ -73,7 +77,7 @@ export async function handleValidateOrExecute({
         warnings: preflight.warnings ?? null,
         reasons: preflight.errors?.map((e) => e.logMessage.raw) ?? null,
       },
-      { status: 400 }
+      { status: 200 }
     );
   }
 
@@ -90,6 +94,6 @@ export async function handleValidateOrExecute({
     );
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Start failed";
-    return Response.json({ ok: false, reasons: [reason] }, { status: 400 });
+    return Response.json({ ok: false, reasons: [reason] }, { status: 200 });
   }
 }

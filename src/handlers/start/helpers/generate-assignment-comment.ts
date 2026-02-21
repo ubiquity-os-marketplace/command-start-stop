@@ -1,4 +1,4 @@
-import { Context } from "../../../types/index";
+import { Context } from "../../../types/context";
 import { StartEligibilityResult } from "../api/helpers/types";
 
 export const options: Intl.DateTimeFormatOptions = {

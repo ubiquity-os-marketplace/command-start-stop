@@ -1,5 +1,7 @@
 import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
-import { Context, PrState } from "../types/index";
+import { Context } from "../types/context";
+import { PrState } from "../types/payload";
+import { AssignedIssue } from "../types/payload";
 
 function isHttpError(error: unknown): error is { status: number; message: string } {
   return typeof error === "object" && error !== null && "status" in error && "message" in error;
@@ -27,7 +29,7 @@ async function getRepositories(context: Context) {
     });
   }
 
-  return repositories;
+  return repositories.filter((repo) => !repo.archived);
 }
 
 /**
@@ -55,7 +57,7 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
         allPrs.push(...userPrs);
       } catch (error) {
         if (isHttpError(error) && (error.status === 404 || error.status === 403)) {
-          logger.error(`Could not find pull requests for repository ${repo.url}, skipping: ${error}`);
+          logger.warn(`Could not find pull requests for repository ${repo.url}, skipping: ${error}`);
           return;
         }
         throw logger.fatal("Failed to fetch pull requests for repository", { error: error as Error });
@@ -70,9 +72,9 @@ export async function getAllPullRequestsFallback(context: Context, state: PrStat
   }
 }
 
-export async function getAssignedIssuesFallback(context: Context, username: string) {
+export async function getAssignedIssuesFallback(context: Context, username: string): Promise<AssignedIssue[]> {
   const org = context.payload.repository.owner.login;
-  const assignedIssues = [];
+  const assignedIssues: AssignedIssue[] = [];
 
   try {
     const repositories = await getRepositories(context);
