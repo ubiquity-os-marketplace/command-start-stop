@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Update Manifest and Commit Changes
-        uses: ubiquity-os/action-deploy-plugin
+        uses: ubiquity-os/action-deploy-plugin@main
         with:
           action: ${{ github.event_name == 'delete' && 'delete' || 'publish' }}
           sourceRef: ${{ github.event.ref || github.event.workflow_run.head_branch || github.ref_name }}
