@@ -1,5 +1,102 @@
 # Changelog
 
+## [1.13.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.12.0...v1.13.0) (2025-12-15)
+
+
+### Features
+
+* add account age and experience checks to eligibility evaluation ([49f5b19](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/49f5b192ebc21ff944126a5eb30f477763c3194b))
+* add Azure Functions integration and deployment workflows ([6f62c13](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/6f62c130db7650edebf2a7d6243a37af62b3f267))
+* add configuration fetching, parsing, and validation for plugin settings ([19249d3](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/19249d372d566fafe7d0b012710d95ae43297d27))
+* add CORS support for public API and enhance environment variable handling ([2b290cd](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/2b290cd69446f24fb0b72166ced6609983c426e9))
+* add DENO_KV_ACCESS_TOKEN and DENO_KV_UUID to envSchema for Deno KV integration ([f388ea1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/f388ea1c99afacd1a189673c56a97a03174b51bc))
+* add mock handlers for Supabase authentication and public API tests ([619b2fb](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/619b2fb20b3eb2b0be1c83f94a4edf57227af569))
+* add task access control configuration with price limits and refactor context creation ([5e82f61](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/5e82f61be02dd189e008c07bb910aca530690daf))
+* add transformedRole for handling Infinity in collaborator and contributor roles ([737b578](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/737b578975cf9a2ebcb2f4c4146dbfb121feddee))
+* deno ([ffe0906](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ffe0906e16613260aaf8789ca1cfd9ea6f407715))
+* enhance context building and organization handling in public API flow ([ca05dc8](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ca05dc82179f848f6420dde8996a32450302d660))
+* enhance context handling by supporting ShallowContext in adapters for public API use ([4f7efbb](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/4f7efbbf74c03b1d99cf30bc6f8908fe115dc0b0))
+* enhance CORS handling and environment validation in public API ([68c8cdf](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/68c8cdf39f5cbd6554849befa492bfba49ff21f3))
+* enhance error handling and eligibility checks in task assignment ([46d8918](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/46d8918916a3b4f048c0771857403512acc75a41))
+* enhance fetchRawConfigWithOctokit and extractAndValidatePluginSettings for improved local development support and error handling ([a6c2d7a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/a6c2d7a28df0c08953b973d4b9097789e0f67b8b))
+* enhance JWT verification and authentication flow for Supabase and GitHub tokens ([3b46303](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/3b4630327d85a07939449889cdbe9c310ec41c6d))
+* enhance mock handlers and tests for public API; update context creation for async handling ([f40a4b6](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/f40a4b6ac42df4d6f570ae706fa7b843a8dd8d69))
+* enhance public API with environment validation and request body schema ([faab88e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/faab88e0a6f9e144a2d6b46849c7409dc74679d8))
+* ESLint import plugin, deno scripts, kv namespace ([fdca05d](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/fdca05ded447fe216e687382a59efb48cd8e3070))
+* gate task start by account age and xp ([70a12da](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/70a12da14fafb64d81470f40f4e8078bfd234feb))
+* gate task start by account age and xp ([68faa43](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/68faa4336f6a93fde6680e8685bc60083f5f68e1))
+* implement public API for task management and recommendations ([823f03e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/823f03ea70a4d6dde0ba1fa36b2b2b920a7f8a97))
+* implement rate limiting with Deno and Cloudflare KV support; remove isDevelopment utility ([667a34f](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/667a34f191c99fd9951a549f1b8b07eb83937242))
+* implement recommendation handling and validation execution for public API ([cb63eaa](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/cb63eaae3c502907a062d0ff1c8ca139f2509f6d))
+* implement task access control with price limits and add tests for default values ([6192aaf](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/6192aaf0ba0e8454c0a9ae38d1ee0dc109eb9b40))
+* integrate Octokit for repository interactions and enhance context handling in task management ([05ffa34](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/05ffa3409d672e06f1c8b8ee94a5cd1361a2ef62))
+* refactor authentication flow in public API to improve error handling and logging ([8c8a8c4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8c8a8c4fe3539e60e07df6e712e6d97775d5d301))
+* Task Access Control ([5c7da5b](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/5c7da5b0edef641037e045d37a5892c7059e9d6a))
+* update assignment period reasoning to include user-initiated unassignments ([fe44fc0](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/fe44fc08886e3ed6814ea82dbc1d1fbd913055c7))
+* update public API to use query parameters instead of request body; enhance plugin settings validation ([162d7d1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/162d7d1f3cc22f7c1b3f82919038d7fd6d02d7a0))
+* used ubiquity's knip-reporter ([30456d1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/30456d19d0f4a654dd54cd4e3f33b51927453b2b))
+* used ubiquity's knip-reporter ([ac5603c](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ac5603cba276f0bac040e7d16e54d8dc1ab2aa74))
+
+
+### Bug Fixes
+
+* added a default for transformedRole to enable empty configs ([d616699](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/d6166997265f2b3571cfed21593445a47bebb8f8))
+* added a default for transformedRole to enable empty configs ([8445aa3](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8445aa3db11fb2cee0d0b0b0e8cf6bd08b0f2f7f))
+* disable start command for contributors ([d8c522a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/d8c522aff2cd57e5ef34e679f3c04c1c612e2d7a))
+* disable start with different message on negative setting ([224611a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/224611a0bb95f5bb31a337c86baded8d9ee78523))
+* handle owner-type when fetching repositories ([811d3c4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/811d3c498a75cc6ea9239977620ecb4a379af37f))
+* handle owner-type when fetching repositories ([006c465](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/006c4655ebcdaa9a0df8df7ad110557a6b5a786a))
+* improve error handling for task assignment and enhance test coverage ([0c9d6b1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/0c9d6b1b09da94116a988cc216e06d8eb1d270aa))
+* improve error message for missing price label ([4c75365](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/4c75365b42edce3c286cfd47f13aa6deea92565f))
+* improve price label parsing and enhance task access control validation ([e5330ac](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e5330ac5b1923b84e3a5bbd1cd5ab18c4dc027cf))
+* messages telling the user it cannot be using `/start` are now displayed as `warnings` ([ea95869](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ea9586931d674685cf2b73c38ec1d7821d359e06))
+* normalize user role handling ([58727c5](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/58727c5cba8437dcd77848dffb4b55914831eea8))
+* normalize user role handling ([bef7733](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/bef77337b60ae71db0f4799de3ee63be269c7cf5))
+* release please issue permission ([cdb1011](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/cdb101185a5000ac7f6861a85dd4c8a9c4a03c62))
+* release please issue permission ([b468670](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/b468670eea5a5b77c342b9b36f42e8068c8e7b85))
+* update role transformation and logging for task limits ([e2a5da0](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/e2a5da08c3e389489da1e1395f70d10538a2048e))
+* when labels are missing, it shows a warning instead of an error ([2c15e19](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/2c15e197c23e53be37b8a4ad00f5db630b97b128))
+
+## [1.12.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.11.0...v1.12.0) (2025-12-08)
+
+
+### Features
+
+* add account age and experience checks to eligibility evaluation ([49f5b19](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/49f5b192ebc21ff944126a5eb30f477763c3194b))
+* add configuration fetching, parsing, and validation for plugin settings ([19249d3](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/19249d372d566fafe7d0b012710d95ae43297d27))
+* add CORS support for public API and enhance environment variable handling ([2b290cd](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/2b290cd69446f24fb0b72166ced6609983c426e9))
+* add DENO_KV_ACCESS_TOKEN and DENO_KV_UUID to envSchema for Deno KV integration ([f388ea1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/f388ea1c99afacd1a189673c56a97a03174b51bc))
+* add mock handlers for Supabase authentication and public API tests ([619b2fb](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/619b2fb20b3eb2b0be1c83f94a4edf57227af569))
+* enhance context building and organization handling in public API flow ([ca05dc8](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/ca05dc82179f848f6420dde8996a32450302d660))
+* enhance context handling by supporting ShallowContext in adapters for public API use ([4f7efbb](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/4f7efbbf74c03b1d99cf30bc6f8908fe115dc0b0))
+* enhance CORS handling and environment validation in public API ([68c8cdf](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/68c8cdf39f5cbd6554849befa492bfba49ff21f3))
+* enhance error handling and eligibility checks in task assignment ([46d8918](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/46d8918916a3b4f048c0771857403512acc75a41))
+* enhance fetchRawConfigWithOctokit and extractAndValidatePluginSettings for improved local development support and error handling ([a6c2d7a](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/a6c2d7a28df0c08953b973d4b9097789e0f67b8b))
+* enhance JWT verification and authentication flow for Supabase and GitHub tokens ([3b46303](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/3b4630327d85a07939449889cdbe9c310ec41c6d))
+* enhance mock handlers and tests for public API; update context creation for async handling ([f40a4b6](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/f40a4b6ac42df4d6f570ae706fa7b843a8dd8d69))
+* enhance public API with environment validation and request body schema ([faab88e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/faab88e0a6f9e144a2d6b46849c7409dc74679d8))
+* ESLint import plugin, deno scripts, kv namespace ([fdca05d](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/fdca05ded447fe216e687382a59efb48cd8e3070))
+* gate task start by account age and xp ([70a12da](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/70a12da14fafb64d81470f40f4e8078bfd234feb))
+* gate task start by account age and xp ([68faa43](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/68faa4336f6a93fde6680e8685bc60083f5f68e1))
+* implement public API for task management and recommendations ([823f03e](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/823f03ea70a4d6dde0ba1fa36b2b2b920a7f8a97))
+* implement rate limiting with Deno and Cloudflare KV support; remove isDevelopment utility ([667a34f](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/667a34f191c99fd9951a549f1b8b07eb83937242))
+* implement recommendation handling and validation execution for public API ([cb63eaa](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/cb63eaae3c502907a062d0ff1c8ca139f2509f6d))
+* integrate Octokit for repository interactions and enhance context handling in task management ([05ffa34](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/05ffa3409d672e06f1c8b8ee94a5cd1361a2ef62))
+* refactor authentication flow in public API to improve error handling and logging ([8c8a8c4](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/8c8a8c4fe3539e60e07df6e712e6d97775d5d301))
+* update assignment period reasoning to include user-initiated unassignments ([fe44fc0](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/fe44fc08886e3ed6814ea82dbc1d1fbd913055c7))
+* update public API to use query parameters instead of request body; enhance plugin settings validation ([162d7d1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/162d7d1f3cc22f7c1b3f82919038d7fd6d02d7a0))
+
+
+### Bug Fixes
+
+* improve error handling for task assignment and enhance test coverage ([0c9d6b1](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/0c9d6b1b09da94116a988cc216e06d8eb1d270aa))
+* improve error message for missing price label ([4c75365](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/4c75365b42edce3c286cfd47f13aa6deea92565f))
+* normalize user role handling ([58727c5](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/58727c5cba8437dcd77848dffb4b55914831eea8))
+* normalize user role handling ([bef7733](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/bef77337b60ae71db0f4799de3ee63be269c7cf5))
+* release please issue permission ([cdb1011](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/cdb101185a5000ac7f6861a85dd4c8a9c4a03c62))
+* release please issue permission ([b468670](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/b468670eea5a5b77c342b9b36f42e8068c8e7b85))
+* when labels are missing, it shows a warning instead of an error ([2c15e19](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/2c15e197c23e53be37b8a4ad00f5db630b97b128))
+
 ## [1.11.0](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.10.0...v1.11.0) (2025-07-12)
 
 

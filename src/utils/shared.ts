@@ -6,13 +6,20 @@ export function calculateDurations(labels: Context<"issue_comment.created">["pay
   const durations: number[] = [];
 
   labels.forEach((label) => {
-    const matches = label?.name.match(/<(\d+)\s*(\w+)/);
-    if (matches && matches.length >= 3) {
-      const number = parseInt(matches[1]);
-      const unit = matches[2];
-      const duration = ms(`${number} ${unit}`) / 1000;
-      durations.push(duration);
-    }
+    const labelName = (typeof label === "string" ? label : label?.name)?.trim();
+    if (!labelName || !labelName.toLowerCase().startsWith("time:")) return;
+
+    const normalizedEstimate = labelName
+      .replace(/^time:\s*/i, "")
+      .replace(/^<\s*/, "")
+      .trim();
+    const matches = normalizedEstimate.match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)/);
+    if (!matches || matches.length < 3) return;
+
+    const durationMs = ms(`${matches[1]} ${matches[2].toLowerCase()}`);
+    if (typeof durationMs !== "number" || !Number.isFinite(durationMs) || durationMs <= 0) return;
+
+    durations.push(durationMs / 1000);
   });
 
   return durations.sort((a, b) => a - b);

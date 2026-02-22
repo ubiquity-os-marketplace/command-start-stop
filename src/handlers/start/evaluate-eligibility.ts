@@ -253,7 +253,8 @@ export async function evaluateStartEligibility(
   // Staleness & deadline
   const isTaskStale = checkTaskStale(getTimeValue(context.config.taskStaleTimeoutDuration), issue.created_at);
   if (isTaskStale) {
-    warnings.push(context.logger.warn(ERROR_MESSAGES.TASK_STALE));
+    const elapsedTime = Math.floor((new Date().getTime() - new Date(issue.created_at).getTime()) / 1000 / 60 / 60 / 24);
+    warnings.push(context.logger.warn(ERROR_MESSAGES.TASK_STALE.replace("{{daysElapsedSinceTaskCreation}}", elapsedTime.toString())));
   }
 
   const deadline = getDeadline(labels);
