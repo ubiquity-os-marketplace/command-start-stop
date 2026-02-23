@@ -22,7 +22,7 @@
     "dev": "bun --watch --no-clear-screen --port 4000 src/worker.ts",
     "dev:deno": "deno serve -A --unstable-kv --watch --no-clear-screen --port 4000 src/worker.ts",
     "prebuild": "rimraf dist",
-    "prepare:manifest": "node ./scripts/prepare-manifest.mjs",
+    "prepare:manifest": "curl -fsSL https://raw.githubusercontent.com/ubiquity-os/action-deploy-plugin/main/.github/scripts/update-manifest.js | node - .",
     "predev": "bun run prepare:manifest"
   },
   "keywords": [
