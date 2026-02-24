@@ -22,7 +22,7 @@
     "dev": "bun --watch --no-clear-screen --port 4000 src/worker.ts",
     "dev:deno": "deno serve -A --unstable-kv --watch --no-clear-screen --port 4000 src/worker.ts",
     "prebuild": "rimraf dist",
-    "prepare:manifest": "bunx @ubiquity-os/plugin-manifest-tool@latest .",
+    "prepare:manifest": "MANIFEST_PATH=${MANIFEST_PATH:-manifest.json} GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-.} GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-local/${npm_package_name:-plugin}} GITHUB_REF_NAME=${GITHUB_REF_NAME:-local} bunx @ubiquity-os/plugin-manifest-tool@latest",
     "predev": "bun run prepare:manifest"
   },
   "keywords": [
