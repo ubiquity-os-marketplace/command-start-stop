@@ -23,7 +23,7 @@ jobs:
         id: adapter
         with:
           pluginEntry: "./worker"
-      - uses: ubiquity-os/deno-deploy@feat/320-artifact-manifest-branch
+      - uses: ubiquity-os/deno-deploy@main
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
