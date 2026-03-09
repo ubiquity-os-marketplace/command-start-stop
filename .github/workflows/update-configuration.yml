@@ -13,11 +13,9 @@ jobs:
 
     steps:
       - name: Update Manifest and Commit Changes
-        uses: ubiquity-os/action-deploy-plugin@feat/320-dist-artifact-branches
+        uses: ubiquity-os/action-deploy-plugin@main
         with:
           action: ${{ github.event_name == 'delete' && 'delete' || 'publish' }}
-          sourceRef: ${{ github.ref_name }}
-          artifactPrefix: dist/
           treatAsEsm: true
           sourcemap: false
           pluginEntry: ${{ github.workspace }}/src/worker.ts
