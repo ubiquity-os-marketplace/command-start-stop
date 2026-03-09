@@ -23,6 +23,7 @@ import { validateReqEnv } from "./utils/validate-env";
 import { querySchema, responseSchema } from "./validators/start";
 
 const START_API_PATH = "/start";
+const pluginManifest = manifest as Manifest & { homepage_url?: string };
 
 function computeAllowedOrigin(origin: string | null, env: Env): string | null {
   if (!origin) return null;
@@ -53,7 +54,7 @@ export default {
           organizations: [],
         });
       },
-      manifest as Manifest,
+      pluginManifest,
       {
         settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
         envSchema: envSchema as unknown as Options["envSchema"],
@@ -139,6 +140,11 @@ export default {
       }
     );
 
+    const openApiServers = [{ url: "http://localhost:4000", description: "Local Server" }];
+    if (typeof pluginManifest.homepage_url === "string" && pluginManifest.homepage_url.trim().length > 0) {
+      openApiServers.push({ url: pluginManifest.homepage_url, description: "Production Server" });
+    }
+
     honoApp.get(
       "/openapi",
       openAPIRouteHandler(honoApp, {
@@ -148,10 +154,7 @@ export default {
             version: pkg.version,
             description: pkg.description,
           },
-          servers: [
-            { url: "http://localhost:4000", description: "Local Server" },
-            { url: manifest.homepage_url, description: "Production Server" },
-          ],
+          servers: openApiServers,
           security: [{ Bearer: [] }],
           components: {
             securitySchemes: {

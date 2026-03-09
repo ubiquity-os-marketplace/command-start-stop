@@ -3,6 +3,7 @@ name: "Update Configuration and Build"
 on:
   workflow_dispatch:
   push:
+  delete:
 
 jobs:
   update-manifest:
@@ -14,6 +15,7 @@ jobs:
       - name: Update Manifest and Commit Changes
         uses: ubiquity-os/action-deploy-plugin@main
         with:
+          action: ${{ github.event_name == 'delete' && 'delete' || 'publish' }}
           treatAsEsm: true
           sourcemap: false
           pluginEntry: ${{ github.workspace }}/src/worker.ts
