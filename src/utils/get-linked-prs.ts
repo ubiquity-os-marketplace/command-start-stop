@@ -1,11 +1,11 @@
+import { Repository } from "@octokit/graphql-schema";
+import { QUERY_OPEN_LINKED_PULL_REQUESTS_FOR_ISSUE } from "../github-queries";
 import { Context } from "../types/context";
-import { Issue, TimelineEventResponse, TimelineEvents } from "../types/payload";
 
 interface GetLinkedParams {
   owner: string;
   repository: string;
   issue?: number;
-  pull?: number;
 }
 
 export interface GetLinkedResults {
@@ -14,33 +14,31 @@ export interface GetLinkedResults {
   number: number;
   href: string;
   author: string;
-  body: string | null;
 }
 
-export async function getLinkedPullRequests(context: Context, { owner, repository, issue }: GetLinkedParams): Promise<GetLinkedResults[]> {
+export async function getOpenLinkedPullRequestsForIssue(context: Context, { owner, repository, issue }: GetLinkedParams): Promise<GetLinkedResults[]> {
   if (!issue) {
     throw context.logger.error("Issue is not defined");
   }
 
-  const { data: timeline } = (await context.octokit.rest.issues.listEventsForTimeline({
+  const linkedPullRequests = await context.octokit.graphql.paginate<{ repository: Repository | null }>(QUERY_OPEN_LINKED_PULL_REQUESTS_FOR_ISSUE, {
     owner,
     repo: repository,
     issue_number: issue,
-  })) as TimelineEventResponse;
+  });
+  const pullRequests = linkedPullRequests.repository?.issue?.closedByPullRequestsReferences?.nodes;
 
-  const LINKED_PRS = timeline
-    .filter((event: TimelineEvents) => event.event === "cross-referenced" && "source" in event && !!event.source.issue && "pull_request" in event.source.issue)
-    .map((event: TimelineEvents) => (event as { source: { issue: Issue } }).source.issue) as Issue[];
+  if (!pullRequests) {
+    return [];
+  }
 
-  return LINKED_PRS.map((pr) => {
-    return {
-      organization: pr.repository?.full_name.split("/")[0] as string,
-      repository: pr.repository?.full_name.split("/")[1] as string,
-      number: pr.number,
-      href: pr.html_url,
-      author: pr.user?.login,
-      state: pr.state,
-      body: pr.body,
-    };
-  }).filter((pr) => pr !== null && pr.state === "open") as GetLinkedResults[];
+  return pullRequests
+    .filter((pullRequest): pullRequest is NonNullable<typeof pullRequest> => !!pullRequest)
+    .map((pullRequest) => ({
+      organization: pullRequest.repository.owner.login,
+      repository: pullRequest.repository.name,
+      number: pullRequest.number,
+      href: pullRequest.url,
+      author: pullRequest.author?.login ?? "",
+    }));
 }
