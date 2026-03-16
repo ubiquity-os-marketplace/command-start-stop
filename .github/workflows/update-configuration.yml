@@ -22,7 +22,7 @@ on:
       skip_bot_events:
         description: "manifest.skipBotEvents value for generated manifest."
         required: false
-        default: "true"
+        default: "false"
       exclude_supported_events:
         description: "Comma-separated supported events to exclude from manifest listeners."
         required: false
