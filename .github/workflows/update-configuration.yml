@@ -143,6 +143,7 @@ jobs:
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
