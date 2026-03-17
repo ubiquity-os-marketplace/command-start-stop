@@ -14,6 +14,12 @@ dotenv.config();
 
 const userLogin = "user2";
 const ONE_HOUR_TIME_LABEL = "Time: <1 Hour";
+const PULL_REQUEST_EVENT_NAME = "pull_request.opened";
+const PULL_REQUEST_HTML_URL = "https://github.com/ubiquity-os-marketplace/command-start-stop";
+const SUPABASE_MODULE_PATH = "@supabase/supabase-js";
+const ADAPTERS_MODULE_PATH = "../src/adapters";
+const SDK_OCTOKIT_MODULE_PATH = "@ubiquity-os/plugin-sdk/octokit";
+const OCTOKIT_HELPERS_MODULE_PATH = "../src/handlers/start/api/helpers/octokit";
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
@@ -63,6 +69,58 @@ async function setupTests() {
   });
 }
 
+function createLinkedIssueRepoOctokit(issue: Issue, repo: Repository, role = "contributor") {
+  return {
+    paginate: jest.fn(() => Promise.resolve([])),
+    rest: {
+      apps: {
+        getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+      },
+      issues: {
+        get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: issue.labels } })),
+        listEvents: jest.fn(() => Promise.resolve({ data: [] })),
+        listComments: jest.fn(() => Promise.resolve({ data: [] })),
+        listForRepo: jest.fn(() => Promise.resolve({ data: [] })),
+        addAssignees: jest.fn(() => Promise.resolve({ data: {} })),
+      },
+      search: {
+        issuesAndPullRequests: jest.fn(() => Promise.resolve({ data: { items: [] } })),
+      },
+      repos: {
+        get: jest.fn(() => Promise.resolve({ data: repo })),
+        getCollaboratorPermissionLevel: jest.fn(() => Promise.resolve({ data: { role_name: role } })),
+        getCommit: jest.fn(() => Promise.resolve({ data: { sha: "1234567890abcdef" } })),
+      },
+      orgs: {
+        get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+        getMembershipForUser: jest.fn(() => ({ data: { role } })),
+      },
+      users: {
+        getByUsername: jest.fn(({ username }) => {
+          const user = db.users.findFirst({ where: { login: { equals: username as string } } });
+          if (!user) {
+            return Promise.reject(new Error("User not found"));
+          }
+          return Promise.resolve({
+            data: {
+              login: user.login,
+              id: user.id,
+              created_at: user.created_at,
+              type: "User",
+              site_admin: false,
+              name: user.login,
+              avatar_url: `https://avatars.githubusercontent.com/u/${user.id}`,
+              html_url: `https://github.com/${user.login}`,
+              email: null,
+              bio: null,
+            },
+          });
+        }),
+      },
+    },
+  } as const;
+}
+
 describe("Pull-request tests", () => {
   beforeEach(async () => {
     drop(db);
@@ -95,9 +153,9 @@ describe("Pull-request tests", () => {
     } as const;
 
     const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
-    context.eventName = "pull_request.opened";
+    context.eventName = PULL_REQUEST_EVENT_NAME;
     context.payload.pull_request = {
-      html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
+      html_url: PULL_REQUEST_HTML_URL,
       number: 1,
       user: {
         id: 2,
@@ -134,16 +192,16 @@ describe("Pull-request tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-    jest.mock("@supabase/supabase-js", () => ({
+    jest.mock(SUPABASE_MODULE_PATH, () => ({
       createClient: jest.fn(),
     }));
-    jest.mock("../src/adapters", () => ({
+    jest.mock(ADAPTERS_MODULE_PATH, () => ({
       createAdapters: jest.fn(),
     }));
-    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock(SDK_OCTOKIT_MODULE_PATH, () => ({
       customOctokit: jest.fn().mockReturnValue(missingPriceRepoOctokit),
     }));
-    jest.mock("../src/handlers/start/api/helpers/octokit", () => ({
+    jest.mock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
       createUserOctokit: jest.fn(() => missingPriceRepoOctokit),
       createAppOctokit: jest.fn(() => missingPriceRepoOctokit),
       createRepoOctokit: jest.fn(() => Promise.resolve(missingPriceRepoOctokit)),
@@ -151,7 +209,7 @@ describe("Pull-request tests", () => {
     context.commentHandler = {
       postComment: jest.fn(async () => null),
     } as unknown as Context["commentHandler"];
-    const octokitHelpers = await import("../src/handlers/start/api/helpers/octokit");
+    const octokitHelpers = await import(OCTOKIT_HELPERS_MODULE_PATH);
     jest.spyOn(octokitHelpers, "createRepoOctokit").mockResolvedValue(missingPriceRepoOctokit as never);
     const { startStopTask } = await import("../src/plugin");
     const result = await startStopTask(context);
@@ -160,6 +218,7 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.BAD_REQUEST,
       content: expect.stringContaining("You may not start the task because the issue requires a price label. Please ask a maintainer to add pricing."),
     });
+    expect(context.octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
   });
 
   it("Should properly handle a pull-request with a price label", async () => {
@@ -173,9 +232,9 @@ describe("Pull-request tests", () => {
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
 
     const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
-    context.eventName = "pull_request.opened";
+    context.eventName = PULL_REQUEST_EVENT_NAME;
     context.payload.pull_request = {
-      html_url: "https://github.com/ubiquity-os-marketplace/command-start-stop",
+      html_url: PULL_REQUEST_HTML_URL,
       number: 1,
       user: {
         id: 2,
@@ -212,57 +271,11 @@ describe("Pull-request tests", () => {
         ),
       },
     } as unknown as Context<"pull_request.edited">["octokit"];
-    const pricedRepoOctokit = {
-      paginate: jest.fn(() => Promise.resolve([])),
-      rest: {
-        apps: {
-          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
-        },
-        issues: {
-          get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: issue.labels } })),
-          listEvents: jest.fn(() => Promise.resolve({ data: [] })),
-          listComments: jest.fn(() => Promise.resolve({ data: [] })),
-          listForRepo: jest.fn(() => Promise.resolve({ data: [] })),
-        },
-        search: {
-          issuesAndPullRequests: jest.fn(() => Promise.resolve({ data: { items: [] } })),
-        },
-        repos: {
-          get: jest.fn(() => Promise.resolve({ data: repo })),
-          getCollaboratorPermissionLevel: jest.fn(() => Promise.resolve({ data: { role_name: "contributor" } })),
-        },
-        orgs: {
-          get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
-          getMembershipForUser: jest.fn(() => ({ data: { role: "contributor" } })),
-        },
-        users: {
-          getByUsername: jest.fn(({ username }) => {
-            const user = db.users.findFirst({ where: { login: { equals: username as string } } });
-            if (!user) {
-              return Promise.reject(new Error("User not found"));
-            }
-            return Promise.resolve({
-              data: {
-                login: user.login,
-                id: user.id,
-                created_at: user.created_at,
-                type: "User",
-                site_admin: false,
-                name: user.login,
-                avatar_url: `https://avatars.githubusercontent.com/u/${user.id}`,
-                html_url: `https://github.com/${user.login}`,
-                email: null,
-                bio: null,
-              },
-            });
-          }),
-        },
-      },
-    } as const;
-    jest.mock("@supabase/supabase-js", () => ({
+    const pricedRepoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    jest.mock(SUPABASE_MODULE_PATH, () => ({
       createClient: jest.fn(),
     }));
-    jest.mock("../src/adapters", () => ({
+    jest.mock(ADAPTERS_MODULE_PATH, () => ({
       createAdapters: jest.fn(() => ({
         supabase: {
           user: {
@@ -271,10 +284,10 @@ describe("Pull-request tests", () => {
         },
       })),
     }));
-    jest.mock("@ubiquity-os/plugin-sdk/octokit", () => ({
+    jest.mock(SDK_OCTOKIT_MODULE_PATH, () => ({
       customOctokit: jest.fn().mockReturnValue(pricedRepoOctokit),
     }));
-    jest.mock("../src/handlers/start/api/helpers/octokit", () => ({
+    jest.mock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
       createUserOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
       createAppOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
       createRepoOctokit: jest.fn(() => Promise.resolve(pricedRepoOctokit)),
@@ -283,7 +296,6 @@ describe("Pull-request tests", () => {
       postComment: jest.fn(async () => null),
     } as unknown as Context["commentHandler"];
     const { startStopTask } = await import("../src/plugin");
-    expect.assertions(1);
 
     const result = await startStopTask(context);
 
@@ -296,5 +308,168 @@ describe("Pull-request tests", () => {
         )
       ),
     });
+    expect(context.octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should close the pull-request when start is rejected by preservation mode", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const preservedRepoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
+    context.eventName = PULL_REQUEST_EVENT_NAME;
+    context.config.taskAccessControl.usdPriceMax.contributor = -1;
+    context.payload.pull_request = {
+      html_url: PULL_REQUEST_HTML_URL,
+      number: 1,
+      user: {
+        id: 2,
+        login: userLogin,
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+    context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+        issues: {
+          createComment: jest.fn(),
+        },
+      },
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      repository: repo,
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+    jest.mock(SUPABASE_MODULE_PATH, () => ({
+      createClient: jest.fn(),
+    }));
+    jest.mock(ADAPTERS_MODULE_PATH, () => ({
+      createAdapters: jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      })),
+    }));
+    jest.mock(SDK_OCTOKIT_MODULE_PATH, () => ({
+      customOctokit: jest.fn().mockReturnValue(preservedRepoOctokit),
+    }));
+    jest.mock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
+      createUserOctokit: jest.fn(() => Promise.resolve(preservedRepoOctokit)),
+      createAppOctokit: jest.fn(() => Promise.resolve(preservedRepoOctokit)),
+      createRepoOctokit: jest.fn(() => Promise.resolve(preservedRepoOctokit)),
+    }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: ERROR_MESSAGES.PRESERVATION_MODE,
+    });
+    expect(context.octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should keep the pull-request open when the start succeeds", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const successfulRepoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
+    context.eventName = PULL_REQUEST_EVENT_NAME;
+    context.payload.pull_request = {
+      html_url: PULL_REQUEST_HTML_URL,
+      number: 1,
+      user: {
+        id: 2,
+        login: userLogin,
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+    context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+        issues: {
+          createComment: jest.fn(),
+        },
+      },
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      number: issue.number,
+                      repository: repo,
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+    jest.mock(SUPABASE_MODULE_PATH, () => ({
+      createClient: jest.fn(),
+    }));
+    jest.mock(ADAPTERS_MODULE_PATH, () => ({
+      createAdapters: jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      })),
+    }));
+    jest.mock(SDK_OCTOKIT_MODULE_PATH, () => ({
+      customOctokit: jest.fn().mockReturnValue(successfulRepoOctokit),
+    }));
+    jest.mock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
+      createUserOctokit: jest.fn(() => Promise.resolve(successfulRepoOctokit)),
+      createAppOctokit: jest.fn(() => Promise.resolve(successfulRepoOctokit)),
+      createRepoOctokit: jest.fn(() => Promise.resolve(successfulRepoOctokit)),
+    }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.OK,
+      content: "Task assigned successfully",
+    });
+    expect(context.octokit.rest.pulls.update).not.toHaveBeenCalled();
   });
 });

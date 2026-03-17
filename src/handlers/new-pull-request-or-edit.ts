@@ -9,6 +9,9 @@ import { startTask } from "./start-task";
 export async function newPullRequestOrEdit(context: Context<"pull_request.opened" | "pull_request.edited">): Promise<Result> {
   const { payload } = context;
   const { pull_request } = payload;
+  async function closeTriggeredPullRequest() {
+    await closePullRequest(context, { number: pull_request.number });
+  }
   const { owner, repo } = getOwnerRepoFromHtmlUrl(pull_request.html_url);
   const linkedIssues = await context.octokit.graphql.paginate<{ repository: Repository }>(QUERY_CLOSING_ISSUE_REFERENCES, {
     owner,
@@ -68,9 +71,13 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
       },
     } satisfies Context<"issue_comment.created">;
     try {
-      return await startTask(newContext);
+      const result = await startTask(newContext);
+      if (result.status !== HttpStatusCode.OK) {
+        await closeTriggeredPullRequest();
+      }
+      return result;
     } catch (error) {
-      await closePullRequest(context, { number: pull_request.number });
+      await closeTriggeredPullRequest();
       throw error;
     }
   }
