@@ -20,6 +20,7 @@ const SUPABASE_MODULE_PATH = "@supabase/supabase-js";
 const ADAPTERS_MODULE_PATH = "../src/adapters";
 const SDK_OCTOKIT_MODULE_PATH = "@ubiquity-os/plugin-sdk/octokit";
 const OCTOKIT_HELPERS_MODULE_PATH = "../src/handlers/start/api/helpers/octokit";
+const START_TASK_MODULE_PATH = "../src/handlers/start-task";
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
@@ -127,6 +128,7 @@ describe("Pull-request tests", () => {
     jest.clearAllMocks();
     jest.resetAllMocks();
     jest.resetModules();
+    jest.unmock(START_TASK_MODULE_PATH);
     await setupTests();
   });
 
@@ -389,6 +391,179 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.BAD_REQUEST,
       content: ERROR_MESSAGES.PRESERVATION_MODE,
     });
+    expect(context.octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should preserve the rejected start result when closing the pull-request fails", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    issue.labels = [];
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const missingPriceRepoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+        },
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: { ...issue, labels: [{ name: ONE_HOUR_TIME_LABEL }] } })),
+        },
+        repos: {
+          get: jest.fn(() => Promise.resolve({ data: repo })),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+        },
+      },
+    } as const;
+
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
+    context.eventName = PULL_REQUEST_EVENT_NAME;
+    context.payload.pull_request = {
+      html_url: PULL_REQUEST_HTML_URL,
+      number: 1,
+      user: {
+        id: 2,
+        login: userLogin,
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+    context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(() => Promise.reject(new Error("close failure"))),
+        },
+        issues: {
+          createComment: jest.fn(),
+        },
+      },
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      repository: repo,
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+    jest.mock(SUPABASE_MODULE_PATH, () => ({
+      createClient: jest.fn(),
+    }));
+    jest.mock(ADAPTERS_MODULE_PATH, () => ({
+      createAdapters: jest.fn(),
+    }));
+    jest.mock(SDK_OCTOKIT_MODULE_PATH, () => ({
+      customOctokit: jest.fn().mockReturnValue(missingPriceRepoOctokit),
+    }));
+    jest.mock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
+      createUserOctokit: jest.fn(() => missingPriceRepoOctokit),
+      createAppOctokit: jest.fn(() => missingPriceRepoOctokit),
+      createRepoOctokit: jest.fn(() => Promise.resolve(missingPriceRepoOctokit)),
+    }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: expect.stringContaining(ERROR_MESSAGES.PRICE_LABEL_REQUIRED),
+    });
+    expect(context.octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should preserve the original start error when closing the pull-request fails", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const thrownStartError = new Error("original start failure");
+    const repoOctokit = {
+      rest: {
+        apps: {
+          getRepoInstallation: jest.fn(() => Promise.resolve({ data: { id: 1 } })),
+        },
+        issues: {
+          get: jest.fn(() => Promise.resolve({ data: issue })),
+        },
+        repos: {
+          get: jest.fn(() => Promise.resolve({ data: repo })),
+        },
+        orgs: {
+          get: jest.fn(() => Promise.resolve({ data: repo?.owner })),
+        },
+      },
+    } as const;
+
+    const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
+    context.eventName = PULL_REQUEST_EVENT_NAME;
+    context.payload.pull_request = {
+      html_url: PULL_REQUEST_HTML_URL,
+      number: 1,
+      user: {
+        id: 2,
+        login: userLogin,
+      },
+    } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+    context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(() => Promise.reject(new Error("close failure"))),
+        },
+        issues: {
+          createComment: jest.fn(),
+        },
+      },
+      graphql: {
+        paginate: jest.fn(() =>
+          Promise.resolve({
+            repository: {
+              pullRequest: {
+                closingIssuesReferences: {
+                  nodes: [
+                    {
+                      assignees: {
+                        nodes: [],
+                      },
+                      repository: repo,
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        ),
+      },
+    } as unknown as Context<"pull_request.edited">["octokit"];
+    jest.mock(SUPABASE_MODULE_PATH, () => ({
+      createClient: jest.fn(),
+    }));
+    jest.mock(ADAPTERS_MODULE_PATH, () => ({
+      createAdapters: jest.fn(),
+    }));
+    jest.mock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
+      createRepoOctokit: jest.fn(() => Promise.resolve(repoOctokit)),
+    }));
+    jest.mock(START_TASK_MODULE_PATH, () => ({
+      startTask: jest.fn(() => Promise.reject(thrownStartError)),
+    }));
+    context.commentHandler = {
+      postComment: jest.fn(async () => null),
+    } as unknown as Context["commentHandler"];
+    const { startStopTask } = await import("../src/plugin");
+
+    await expect(startStopTask(context)).rejects.toThrow(thrownStartError.message);
     expect(context.octokit.rest.pulls.update).toHaveBeenCalledTimes(1);
   });
 

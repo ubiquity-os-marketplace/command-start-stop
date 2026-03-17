@@ -10,7 +10,14 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
   const { payload } = context;
   const { pull_request } = payload;
   async function closeTriggeredPullRequest() {
-    await closePullRequest(context, { number: pull_request.number });
+    try {
+      await closePullRequest(context, { number: pull_request.number });
+    } catch (closeError) {
+      context.logger.error("Failed to close triggering pull request.", {
+        error: closeError as Error,
+        pullRequestNumber: pull_request.number,
+      });
+    }
   }
   const { owner, repo } = getOwnerRepoFromHtmlUrl(pull_request.html_url);
   const linkedIssues = await context.octokit.graphql.paginate<{ repository: Repository }>(QUERY_CLOSING_ISSUE_REFERENCES, {
