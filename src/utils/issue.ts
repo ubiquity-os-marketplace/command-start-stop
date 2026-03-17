@@ -3,7 +3,7 @@ import ms from "ms";
 import { Context } from "../types/context";
 import { AssignedIssue, GitHubIssueSearch, PrState, Review } from "../types/payload";
 import { AssignedIssueScope, Role } from "../types/plugin-input";
-import { getLinkedPullRequests, GetLinkedResults } from "./get-linked-prs";
+import { getOpenLinkedPullRequestsForIssue, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 
 export function isParentIssue(body: string) {
@@ -71,7 +71,7 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
     });
   }
 
-  const linkedPullRequests = await getLinkedPullRequests(context, {
+  const linkedPullRequests = await getOpenLinkedPullRequestsForIssue(context, {
     owner: repository.owner.login,
     repository: repository.name,
     issue: issueNumber,
@@ -95,16 +95,10 @@ export async function closePullRequestForAnIssue(context: Context, issueNumber: 
      */
     if (pr.author !== author || pr.organization !== repository.owner.login) {
       continue;
-    } else {
-      const isLinked = issueLinkedViaPrBody(pr.body, issueNumber);
-      if (!isLinked) {
-        logger.debug(`Issue is not linked to the PR`, { issueNumber, prNumber: pr.number });
-        continue;
-      }
-      await closePullRequest(context, pr);
-      comment += ` ${pr.href} `;
-      isClosed = true;
     }
+    await closePullRequest(context, pr);
+    comment += ` ${pr.href} `;
+    isClosed = true;
   }
 
   if (!isClosed) {
@@ -320,45 +314,4 @@ export function getTimeValue(timeString: string): number {
 
 async function getOpenedPullRequestsForUser(context: Context, username: string): Promise<ReturnType<typeof getAllPullRequestsWithRetry>> {
   return getAllPullRequestsWithRetry(context, "open", username);
-}
-
-/**
- * Extracts the task id from the PR body. The format is:
- * `Resolves #123`
- * `Fixes https://github.com/.../issues/123`
- * `Closes #123`
- * `Depends on #123`
- * `Related to #123`
- */
-export function issueLinkedViaPrBody(prBody: string | null, issueNumber: number): boolean {
-  if (!prBody) {
-    return false;
-  }
-  const regex = // eslint-disable-next-line no-useless-escape
-    /(?:Resolves|Fixes|Closes|Depends on|Related to) #(\d+)|https:\/\/(?:www\.)?github.com\/([^\/]+)\/([^\/]+)\/(issue|issues)\/(\d+)|#(\d+)/gi;
-
-  const containsHtmlComment = /<!-*[\s\S]*?-*>/g;
-  prBody = prBody?.replace(containsHtmlComment, ""); // Remove HTML comments
-
-  const matches = prBody?.match(regex);
-
-  if (!matches) {
-    return false;
-  }
-
-  let issueId;
-
-  matches.map((match) => {
-    if (match.startsWith("http")) {
-      // Extract the issue number from the URL
-      const urlParts = match.split("/");
-      issueId = urlParts[urlParts.length - 1];
-    } else {
-      // Extract the issue number directly from the hashtag
-      const hashtagParts = match.split("#");
-      issueId = hashtagParts[hashtagParts.length - 1]; // The issue number follows the '#'
-    }
-  });
-
-  return issueId === issueNumber.toString();
 }
