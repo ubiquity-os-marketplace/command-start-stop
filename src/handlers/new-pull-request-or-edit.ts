@@ -14,7 +14,7 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
       await closePullRequest(context, { number: pull_request.number });
     } catch (err) {
       context.logger.error("Failed to close triggering pull request.", {
-        err: err as Error,
+        err,
         pullRequestNumber: pull_request.number,
       });
     }
