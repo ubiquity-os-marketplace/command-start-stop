@@ -1,0 +1,1 @@
+{"version":3,"file":"718.index.js","mappings":";;;;;;;;;;;AAAA;AACA;AACA;AACA;AACA","sources":[".././node_modules/@standard-community/standard-json/dist/typebox-Dei93FPO.js"],"sourcesContent":["function getToJsonSchemaFn() {\n  return (schema) => JSON.parse(JSON.stringify(schema.Type()));\n}\n\nexport { getToJsonSchemaFn as default };\n"],"names":[],"sourceRoot":""}
