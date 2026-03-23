@@ -18,3 +18,5 @@ script.ts
 test-dashboard.md
 *.env.json
 local.settings.json
+manifest.json
+dist/

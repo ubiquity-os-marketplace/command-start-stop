@@ -89,6 +89,11 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
     context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+      },
       graphql: {
         paginate: jest.fn(() =>
           Promise.resolve({
@@ -127,7 +132,7 @@ describe("Collaborator tests", () => {
     jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
-    const startTask = jest.fn();
+    const startTask = jest.fn().mockResolvedValue({ status: 200 });
     jest.mock(modulePath, () => ({
       startTask,
     }));
@@ -164,6 +169,7 @@ describe("Collaborator tests", () => {
         }),
       })
     );
+    expect(context.octokit.rest.pulls.update).not.toHaveBeenCalled();
     startTask.mockClear();
   });
 
@@ -198,6 +204,11 @@ describe("Collaborator tests", () => {
       },
     } as unknown as Context<"pull_request.edited">["payload"]["repository"];
     context.octokit = {
+      rest: {
+        pulls: {
+          update: jest.fn(),
+        },
+      },
       graphql: {
         paginate: jest.fn(() =>
           Promise.resolve({
@@ -229,7 +240,7 @@ describe("Collaborator tests", () => {
     jest.mock(adaptersModulePath, () => ({
       createAdapters: jest.fn(),
     }));
-    const startTask = jest.fn();
+    const startTask = jest.fn().mockResolvedValue({ status: 200 });
     jest.mock(modulePath, () => ({
       startTask,
     }));
@@ -282,6 +293,7 @@ describe("Collaborator tests", () => {
         }),
       })
     );
+    expect(context.octokit.rest.pulls.update).not.toHaveBeenCalled();
 
     startTask.mockReset();
   });

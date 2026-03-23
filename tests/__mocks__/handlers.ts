@@ -308,8 +308,80 @@ export const handlers = [
     }
   }),
   //POST https://api.github.com/graphql
-  http.post("https://api.github.com/graphql", async () => {
-    const responsePayload = {
+  http.post("https://api.github.com/graphql", async ({ request }) => {
+    const body = (await request.json()) as {
+      query?: string;
+      variables?: Record<string, string | number | null | undefined>;
+    };
+    const query = body.query ?? "";
+    const variables = body.variables ?? {};
+
+    if (query.includes("closedByPullRequestsReferences")) {
+      const issueNumber = Number(variables.issue_number);
+      const owner = String(variables.owner ?? "");
+      const repo = String(variables.repo ?? "");
+      const linkedPullRequestNumbers = db.event
+        .findMany({
+          where: {
+            issue_number: { equals: issueNumber },
+            owner: { equals: owner },
+            repo: { equals: repo },
+            event: { equals: "cross-referenced" },
+          },
+        })
+        .map((event) => event.source?.issue?.number)
+        .filter((prNumber): prNumber is number => typeof prNumber === "number");
+
+      const nodes = linkedPullRequestNumbers
+        .map((prNumber) =>
+          db.pull.findFirst({
+            where: {
+              number: { equals: prNumber },
+              owner: { equals: owner },
+              repo: { equals: repo },
+              state: { equals: "open" },
+            },
+          })
+        )
+        .filter((pullRequest) => !!pullRequest)
+        .map((pullRequest) => {
+          const userLogin =
+            (typeof pullRequest.user === "object" && pullRequest.user && "login" in pullRequest.user && pullRequest.user.login) ||
+            (typeof pullRequest.author === "object" && pullRequest.author && "login" in pullRequest.author && pullRequest.author.login) ||
+            (typeof pullRequest.author === "object" && pullRequest.author && "name" in pullRequest.author && pullRequest.author.name) ||
+            "";
+
+          return {
+            number: pullRequest.number,
+            url: pullRequest.html_url,
+            author: userLogin ? { login: userLogin } : null,
+            repository: {
+              name: pullRequest.repo,
+              owner: {
+                login: pullRequest.owner,
+              },
+            },
+          };
+        });
+
+      return HttpResponse.json({
+        data: {
+          repository: {
+            issue: {
+              closedByPullRequestsReferences: {
+                nodes,
+                pageInfo: {
+                  hasNextPage: false,
+                  endCursor: null,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    return HttpResponse.json({
       data: {
         repository: {
           pullRequest: {
@@ -335,8 +407,6 @@ export const handlers = [
           },
         },
       },
-    };
-
-    return HttpResponse.json(responsePayload);
+    });
   }),
 ];
