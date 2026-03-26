@@ -177,7 +177,7 @@ jobs:
         with:
           token: ${{ secrets.DENO_2_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'provision' }}
-          organization: ${{ secrets.DENO_ORG_NAME }}
+          organization: ${{ vars.DENO_ORG_NAME }}
           app: ${{ secrets.DENO_PROJECT_NAME }}
           entrypoint: src/worker.ts
 
@@ -196,4 +196,4 @@ jobs:
         with:
           token: ${{ secrets.DENO_2_DEPLOY_TOKEN }}
           action: publish-manifest
-          organization: ${{ secrets.DENO_ORG_NAME }}
+          organization: ${{ vars.DENO_ORG_NAME }}
