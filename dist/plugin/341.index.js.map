@@ -1,0 +1,1 @@
+{"version":3,"file":"341.index.js","mappings":";;;;;;;;;;;AAAA;AACA;AACA;AACA;AACA","sources":[".././node_modules/@standard-community/standard-json/dist/arktype-aI7TBD0R.js"],"sourcesContent":["function getToJsonSchemaFn() {\n  return (schema, options) => schema.toJsonSchema(options);\n}\n\nexport { getToJsonSchemaFn as default };\n"],"names":[],"sourceRoot":""}
