@@ -30,7 +30,7 @@
     "pull_request.edited",
     "issues.unassigned"
   ],
-  "skipBotEvents": true,
+  "skipBotEvents": false,
   "configuration": {
     "default": {},
     "type": "object",
