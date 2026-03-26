@@ -32,11 +32,15 @@ on:
       - "dist/**"
     tags-ignore:
       - "*"
+  repository_dispatch:
+    types:
+      - deno_deploy.build.routed
   delete:
 
 jobs:
   deploy:
     name: "Deploy (Action / Deno)"
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     permissions: write-all
     environment: ${{ (github.event.ref == 'refs/heads/main' || github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main' || github.event.ref == 'refs/heads/demo' || github.ref == 'refs/heads/demo' || github.event.workflow_run.head_branch == 'demo') && 'main' || 'development' }}
@@ -103,35 +107,7 @@ jobs:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Check out the repository
-        if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
-        uses: actions/checkout@v6
-
-      - name: Set up Deno
-        if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Install dependencies
-        if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' && github.event_name != 'delete' }}
-        run: deno install --node-modules-dir=auto --no-lock
-
-      - name: Generate manifest for deploy
-        if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' && github.event_name != 'delete' }}
-        run: deno x -A -y --no-lock npm:@ubiquity-os/plugin-manifest-tool@latest
-        env:
-          SKIP_BOT_EVENTS: ${{ env.SKIP_BOT_EVENTS }}
-          EXCLUDE_SUPPORTED_EVENTS: ${{ env.EXCLUDE_SUPPORTED_EVENTS }}
-          GITHUB_REF_NAME: ${{ steps.refs.outputs.source_ref }}
-
-      - uses: ubiquity-os/deno-plugin-adapter@main
-        if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' && github.event_name != 'delete' }}
-        id: adapter
-        with:
-          pluginEntry: "./worker"
-
-      - uses: ubiquity-os/deno-deploy@main
+      - uses: ubiquity-os/deno-deploy@issue-17-deno-deploy-app-migration
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -146,9 +122,24 @@ jobs:
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
+          action: ${{ github.event_name == 'delete' && 'delete' || 'provision' }}
           organization: ${{ secrets.DENO_ORG_NAME }}
-          entrypoint: ${{ github.event_name == 'delete' && 'src/deno.ts' || steps.adapter.outputs.entrypoint }}
-          project_name: ${{ secrets.DENO_PROJECT_NAME }}
-          sourceRef: ${{ steps.refs.outputs.source_ref }}
-          artifactPrefix: dist/
+          app: ${{ secrets.DENO_PROJECT_NAME }}
+          entrypoint: src/worker.ts
+
+  publish-manifest:
+    name: "Publish Deno Manifest"
+    if: ${{ github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - uses: ubiquity-os/deno-deploy@issue-17-deno-deploy-app-migration
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        with:
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
+          action: publish-manifest
+          organization: ${{ secrets.DENO_ORG_NAME }}
