@@ -32,9 +32,6 @@ on:
       - "dist/**"
     tags-ignore:
       - "*"
-  repository_dispatch:
-    types:
-      - deno_deploy.build.routed
   delete:
 
 jobs:
@@ -161,6 +158,9 @@ jobs:
           echo "IS_TAG_REF=${{ steps.refs.outputs.is_tag_ref }}"
           echo "ACTION_REF=${ACTION_REF}"
 
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'delete' && env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
+
       - uses: ubiquity-os/deno-deploy@issue-17-deno-deploy-app-migration
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
         env:
@@ -177,23 +177,5 @@ jobs:
         with:
           token: ${{ secrets.DENO_2_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'provision' }}
-          organization: ${{ vars.DENO_ORG_NAME }}
           app: ${{ secrets.DENO_PROJECT_NAME }}
           entrypoint: src/worker.ts
-
-  publish-manifest:
-    name: "Publish Deno Manifest"
-    if: ${{ github.event_name == 'repository_dispatch' }}
-    runs-on: ubuntu-latest
-    permissions: write-all
-
-    steps:
-      - uses: ubiquity-os/deno-deploy@issue-17-deno-deploy-app-migration
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APP_ID: ${{ secrets.APP_ID }}
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-        with:
-          token: ${{ secrets.DENO_2_DEPLOY_TOKEN }}
-          action: publish-manifest
-          organization: ${{ vars.DENO_ORG_NAME }}
