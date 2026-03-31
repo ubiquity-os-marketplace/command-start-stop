@@ -25,6 +25,69 @@ import { querySchema, responseSchema } from "./validators/start";
 const START_API_PATH = "/start";
 const pluginManifest = manifest as Manifest & { homepage_url?: string };
 
+function readRuntimeEnv(name: string): string {
+  const processValue = typeof process !== "undefined" ? process.env?.[name] : undefined;
+  if (typeof processValue === "string" && processValue.length > 0) {
+    return processValue;
+  }
+
+  if (typeof Deno !== "undefined") {
+    try {
+      return Deno.env.get(name) ?? "";
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+}
+
+function resolveManifestRepository(): string {
+  const shortName = typeof pluginManifest.short_name === "string" ? pluginManifest.short_name.trim() : "";
+  const atIndex = shortName.lastIndexOf("@");
+  if (atIndex > 0) {
+    return shortName.slice(0, atIndex);
+  }
+
+  return readRuntimeEnv("PLUGIN_MANIFEST_REPOSITORY") || "local/command-start-stop";
+}
+
+function resolveRuntimeRefName(request: Request): string {
+  const timeline = readRuntimeEnv("DENO_TIMELINE");
+  if (timeline === "production") {
+    return "main";
+  }
+
+  if (timeline.startsWith("git-branch/")) {
+    return timeline.slice("git-branch/".length);
+  }
+
+  if (timeline.startsWith("preview/")) {
+    return timeline.slice("preview/".length);
+  }
+
+  const hostname = new URL(request.url).hostname;
+  const branchMatch = hostname.match(/--([^.]+)/);
+  if (branchMatch?.[1]) {
+    return branchMatch[1];
+  }
+
+  const deploymentId = readRuntimeEnv("DENO_DEPLOYMENT_ID");
+  if (deploymentId) {
+    return deploymentId;
+  }
+
+  return "local";
+}
+
+function buildRuntimeManifest(request: Request) {
+  return {
+    ...pluginManifest,
+    short_name: `${resolveManifestRepository()}@${resolveRuntimeRefName(request)}`,
+    homepage_url: new URL(request.url).origin,
+  };
+}
+
 function computeAllowedOrigin(origin: string | null, env: Env): string | null {
   if (!origin) return null;
   const configured = (env.PUBLIC_API_ALLOWED_ORIGINS || "")
@@ -46,6 +109,10 @@ function computeAllowedOrigin(origin: string | null, env: Env): string | null {
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
+    if (new URL(request.url).pathname === "/manifest.json") {
+      return Response.json(buildRuntimeManifest(request));
+    }
+
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
