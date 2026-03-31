@@ -32,6 +32,9 @@ on:
       - "dist/**"
     tags-ignore:
       - "*"
+  repository_dispatch:
+    types:
+      - deno_deploy.build.routed
   delete:
 
 jobs:
@@ -179,3 +182,19 @@ jobs:
           action: ${{ github.event_name == 'delete' && 'delete' || 'provision' }}
           app: ${{ secrets.DENO_PROJECT_NAME }}
           entrypoint: src/worker.ts
+
+  publish-deno-manifest:
+    name: "Publish Deno Manifest"
+    if: ${{ github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - uses: ubiquity-os/deno-deploy@issue-17-deno-deploy-app-migration
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        with:
+          token: ${{ secrets.DENO_2_DEPLOY_TOKEN }}
+          action: publish-manifest
