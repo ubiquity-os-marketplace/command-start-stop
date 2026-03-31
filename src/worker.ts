@@ -52,24 +52,58 @@ function resolveManifestRepository(): string {
   return readRuntimeEnv("PLUGIN_MANIFEST_REPOSITORY") || "local/command-start-stop";
 }
 
+function sanitizeBranchRefName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
+function resolveBranchHostnameSlug(request: Request): string {
+  const hostname = new URL(request.url).hostname;
+  const branchMatch = hostname.match(/--([^.]+)/);
+  return branchMatch?.[1] || "";
+}
+
+function resolveRuntimeRefOverride(request: Request): string {
+  const explicitRef = readRuntimeEnv("PLUGIN_MANIFEST_REF_NAME") || readRuntimeEnv("REF_NAME");
+  if (!explicitRef) {
+    return "";
+  }
+
+  const hostnameBranchSlug = resolveBranchHostnameSlug(request);
+  if (!hostnameBranchSlug) {
+    return explicitRef;
+  }
+
+  const explicitBranchSlug = sanitizeBranchRefName(explicitRef);
+  if (explicitBranchSlug === hostnameBranchSlug || explicitBranchSlug.startsWith(hostnameBranchSlug)) {
+    return explicitRef;
+  }
+
+  return "";
+}
+
 function resolveRuntimeRefName(request: Request): string {
+  const runtimeRefOverride = resolveRuntimeRefOverride(request);
   const timeline = readRuntimeEnv("DENO_TIMELINE");
   if (timeline === "production") {
     return "main";
   }
 
   if (timeline.startsWith("git-branch/")) {
-    return timeline.slice("git-branch/".length);
+    return runtimeRefOverride || timeline.slice("git-branch/".length);
   }
 
   if (timeline.startsWith("preview/")) {
     return timeline.slice("preview/".length);
   }
 
-  const hostname = new URL(request.url).hostname;
-  const branchMatch = hostname.match(/--([^.]+)/);
-  if (branchMatch?.[1]) {
-    return branchMatch[1];
+  const hostnameBranchSlug = resolveBranchHostnameSlug(request);
+  if (hostnameBranchSlug) {
+    return runtimeRefOverride || hostnameBranchSlug;
   }
 
   const deploymentId = readRuntimeEnv("DENO_DEPLOYMENT_ID");
