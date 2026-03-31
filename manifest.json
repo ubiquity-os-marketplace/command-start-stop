@@ -1,6 +1,6 @@
 {
   "name": "@ubiquity-os/command-start-stop",
-  "short_name": "meniole/command-start-stop@test-deno-deploy-app-migration",
+  "short_name": "ubiquity-os-marketplace/command-start-stop@test-deno-deploy-app-migration",
   "description": "Enables the assignment and graceful unassignment of tasks to contributors.",
   "commands": {
     "start": {
@@ -26,7 +26,6 @@
     }
   },
   "ubiquity:listeners": [
-    "issue_comment.created",
     "pull_request.opened",
     "pull_request.edited",
     "issues.unassigned"
@@ -366,6 +365,5 @@
         }
       }
     }
-  },
-  "homepage_url": "https://comic-bee-miserably.ngrok-free.app"
+  }
 }
