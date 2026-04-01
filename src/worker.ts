@@ -25,6 +25,103 @@ import { querySchema, responseSchema } from "./validators/start";
 const START_API_PATH = "/start";
 const pluginManifest = manifest as Manifest & { homepage_url?: string };
 
+function readRuntimeEnv(name: string): string {
+  const processValue = typeof process !== "undefined" ? process.env?.[name] : undefined;
+  if (typeof processValue === "string" && processValue.length > 0) {
+    return processValue;
+  }
+
+  if (typeof Deno !== "undefined") {
+    try {
+      return Deno.env.get(name) ?? "";
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+}
+
+function resolveManifestRepository(): string {
+  const shortName = typeof pluginManifest.short_name === "string" ? pluginManifest.short_name.trim() : "";
+  const atIndex = shortName.lastIndexOf("@");
+  if (atIndex > 0) {
+    return shortName.slice(0, atIndex);
+  }
+
+  return readRuntimeEnv("PLUGIN_MANIFEST_REPOSITORY") || "local/command-start-stop";
+}
+
+function sanitizeBranchRefName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
+function resolveBranchHostnameSlug(request: Request): string {
+  const hostname = new URL(request.url).hostname;
+  const branchMatch = hostname.match(/--([^.]+)/);
+  return branchMatch?.[1] || "";
+}
+
+function resolveRuntimeRefOverride(request: Request): string {
+  const explicitRef = readRuntimeEnv("PLUGIN_MANIFEST_REF_NAME") || readRuntimeEnv("REF_NAME");
+  if (!explicitRef) {
+    return "";
+  }
+
+  const hostnameBranchSlug = resolveBranchHostnameSlug(request);
+  if (!hostnameBranchSlug) {
+    return explicitRef;
+  }
+
+  const explicitBranchSlug = sanitizeBranchRefName(explicitRef);
+  if (explicitBranchSlug === hostnameBranchSlug || explicitBranchSlug.startsWith(hostnameBranchSlug)) {
+    return explicitRef;
+  }
+
+  return "";
+}
+
+function resolveRuntimeRefName(request: Request): string {
+  const runtimeRefOverride = resolveRuntimeRefOverride(request);
+  const timeline = readRuntimeEnv("DENO_TIMELINE");
+  if (timeline === "production") {
+    return "main";
+  }
+
+  if (timeline.startsWith("git-branch/")) {
+    return runtimeRefOverride || timeline.slice("git-branch/".length);
+  }
+
+  if (timeline.startsWith("preview/")) {
+    return timeline.slice("preview/".length);
+  }
+
+  const hostnameBranchSlug = resolveBranchHostnameSlug(request);
+  if (hostnameBranchSlug) {
+    return runtimeRefOverride || hostnameBranchSlug;
+  }
+
+  const deploymentId = readRuntimeEnv("DENO_DEPLOYMENT_ID");
+  if (deploymentId) {
+    return deploymentId;
+  }
+
+  return "local";
+}
+
+function buildRuntimeManifest(request: Request) {
+  return {
+    ...pluginManifest,
+    short_name: `${resolveManifestRepository()}@${resolveRuntimeRefName(request)}`,
+    homepage_url: new URL(request.url).origin,
+  };
+}
+
 function computeAllowedOrigin(origin: string | null, env: Env): string | null {
   if (!origin) return null;
   const configured = (env.PUBLIC_API_ALLOWED_ORIGINS || "")
@@ -46,6 +143,10 @@ function computeAllowedOrigin(origin: string | null, env: Env): string | null {
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
+    if (new URL(request.url).pathname === "/manifest.json") {
+      return Response.json(buildRuntimeManifest(request));
+    }
+
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
