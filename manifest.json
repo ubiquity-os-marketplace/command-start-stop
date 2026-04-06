@@ -30,7 +30,7 @@
     "pull_request.edited",
     "issues.unassigned"
   ],
-  "skipBotEvents": true,
+  "skipBotEvents": false,
   "configuration": {
     "default": {},
     "type": "object",
@@ -365,6 +365,5 @@
         }
       }
     }
-  },
-  "homepage_url": "https://command-start-stop--development.ubiquity-os.deno.net"
+  }
 }
