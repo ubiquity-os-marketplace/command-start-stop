@@ -92,12 +92,9 @@ jobs:
           IS_DIST_REF: ${{ steps.refs.outputs.is_dist_ref }}
         run: |
           artifact_environment="development"
+          deno_environment="development"
           if [[ "$SOURCE_REF" == "main" || "$SOURCE_REF" == "demo" ]]; then
             artifact_environment="main"
-          fi
-
-          deno_environment="development"
-          if [[ "$SOURCE_REF" == "main" ]]; then
             deno_environment="main"
           fi
 
@@ -175,7 +172,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           BOT_USER_ID: ${{ secrets.BOT_USER_ID }}
         with:
-          token: ${{ secrets.DENO_2_DEPLOY_TOKEN }}
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: ${{ needs.resolve-context.outputs.deno_action }}
           app: ${{ secrets.DENO_PROJECT_NAME }}
           entrypoint: src/worker.ts
