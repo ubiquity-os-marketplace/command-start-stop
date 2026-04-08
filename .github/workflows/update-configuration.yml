@@ -160,7 +160,7 @@ jobs:
     environment: ${{ needs.resolve-context.outputs.deno_environment }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: ${{ needs.resolve-context.outputs.deno_action != 'delete' }}
 
       - uses: ubiquity-os/deno-deploy@issue-17-deno-deploy-app-migration
