@@ -1,13 +1,13 @@
+import "@hono/standard-validator"; // Ensure Deno deploy includes optional peer for hono-openapi.
 import process from "node:process";
 import { swaggerUI } from "@hono/swagger-ui";
 import { createPlugin, Options } from "@ubiquity-os/plugin-sdk";
-import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
+import { Manifest, resolveRuntimeManifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
+import "@valibot/to-json-schema"; // Same here
 import { ExecutionContext } from "hono";
 import { cors } from "hono/cors";
 import { describeRoute, openAPIRouteHandler, resolver, validator } from "hono-openapi";
-import "@hono/standard-validator"; // Ensure Deno deploy includes optional peer for hono-openapi.
-import "@valibot/to-json-schema"; // Same here
 import manifest from "../manifest.json" with { type: "json" };
 import pkg from "../package.json" with { type: "json" };
 import { createAdapters } from "./adapters/index";
@@ -24,6 +24,14 @@ import { querySchema, responseSchema } from "./validators/start";
 
 const START_API_PATH = "/start";
 const pluginManifest = manifest as Manifest & { homepage_url?: string };
+
+function buildRuntimeManifest(request: Request) {
+  const runtimeManifest = resolveRuntimeManifest(pluginManifest);
+  return {
+    ...runtimeManifest,
+    homepage_url: new URL(request.url).origin,
+  };
+}
 
 function computeAllowedOrigin(origin: string | null, env: Env): string | null {
   if (!origin) return null;
@@ -46,6 +54,11 @@ function computeAllowedOrigin(origin: string | null, env: Env): string | null {
 
 export default {
   async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
+    const runtimeManifest = buildRuntimeManifest(request);
+    if (new URL(request.url).pathname === "/manifest.json") {
+      return Response.json(runtimeManifest);
+    }
+
     const honoApp = createPlugin<PluginSettings, Env, Command, SupportedEvents>(
       (context) => {
         return startStopTask({
@@ -54,7 +67,7 @@ export default {
           organizations: [],
         });
       },
-      pluginManifest,
+      runtimeManifest,
       {
         settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
         envSchema: envSchema as unknown as Options["envSchema"],
@@ -141,8 +154,8 @@ export default {
     );
 
     const openApiServers = [{ url: "http://localhost:4000", description: "Local Server" }];
-    if (typeof pluginManifest.homepage_url === "string" && pluginManifest.homepage_url.trim().length > 0) {
-      openApiServers.push({ url: pluginManifest.homepage_url, description: "Production Server" });
+    if (typeof runtimeManifest.homepage_url === "string" && runtimeManifest.homepage_url.trim().length > 0) {
+      openApiServers.push({ url: runtimeManifest.homepage_url, description: "Production Server" });
     }
 
     honoApp.get(
