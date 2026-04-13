@@ -91,8 +91,8 @@ jobs:
           IS_TAG_REF: ${{ steps.refs.outputs.is_tag_ref }}
           IS_DIST_REF: ${{ steps.refs.outputs.is_dist_ref }}
         run: |
-          artifact_environment="development"
-          deno_environment="development"
+          artifact_environment="main"
+          deno_environment="main"
           if [[ "$SOURCE_REF" == "main" || "$SOURCE_REF" == "demo" ]]; then
             artifact_environment="main"
             deno_environment="main"
