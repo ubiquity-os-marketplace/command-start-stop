@@ -84,7 +84,7 @@ export default {
       START_API_PATH,
       cors({
         origin: (origin) => {
-          const allowed = computeAllowedOrigin(origin, env);
+          const allowed = computeAllowedOrigin(origin, environment);
           return allowed ? origin : null;
         },
         allowMethods: ["GET", "POST", "OPTIONS"],
@@ -151,7 +151,7 @@ export default {
           return validatedEnv;
         }
 
-        return await handlePublicStart(c, validatedEnv, createLogger(env));
+        return await handlePublicStart(c, validatedEnv, createLogger(environment));
       }
     );
 
