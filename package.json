@@ -18,8 +18,6 @@
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "bun run prepare:manifest && node .husky/install.mjs",
     "test:jest": "jest --setupFiles dotenv/config --coverage",
-    "worker": "wrangler dev --env dev --port 4000",
-    "dev": "bun --watch --no-clear-screen --port 4000 src/worker.ts",
     "dev:deno": "deno serve -A --unstable-kv --watch --no-clear-screen --env-file=.env --port 4000 src/worker.ts",
     "prebuild": "rimraf dist",
     "prepare:manifest": "bun x @ubiquity-os/plugin-manifest-tool@latest",

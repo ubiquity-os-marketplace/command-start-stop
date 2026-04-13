@@ -6,6 +6,7 @@ import { Manifest, resolveRuntimeManifest } from "@ubiquity-os/plugin-sdk/manife
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import "@valibot/to-json-schema"; // Same here
 import { ExecutionContext } from "hono";
+import { env } from "hono/adapter";
 import { cors } from "hono/cors";
 import { describeRoute, openAPIRouteHandler, resolver, validator } from "hono-openapi";
 import manifest from "../manifest.json" with { type: "json" };
@@ -53,8 +54,9 @@ function computeAllowedOrigin(origin: string | null, env: Env): string | null {
 }
 
 export default {
-  async fetch(request: Request, env: Env, executionCtx?: ExecutionContext) {
+  async fetch(request: Request, serverInfo: Deno.ServeHandlerInfo, executionCtx?: ExecutionContext) {
     const runtimeManifest = buildRuntimeManifest(request);
+    const environment = env<Env>(request as never);
     if (new URL(request.url).pathname === "/manifest.json") {
       return Response.json(runtimeManifest);
     }
@@ -72,9 +74,9 @@ export default {
         settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
         envSchema: envSchema as unknown as Options["envSchema"],
         postCommentOnError: true,
-        logLevel: (env.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
-        kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
-        bypassSignatureVerification: process.env.NODE_ENV === "local",
+        logLevel: (environment.LOG_LEVEL as LogLevel) ?? LOG_LEVEL.INFO,
+        kernelPublicKey: environment.KERNEL_PUBLIC_KEY as string,
+        bypassSignatureVerification: environment.NODE_ENV === "local",
       }
     );
 
@@ -123,7 +125,7 @@ export default {
           return validatedEnv;
         }
 
-        return await handlePublicStart(c, validatedEnv, createLogger(env));
+        return await handlePublicStart(c, validatedEnv, createLogger(environment));
       }
     );
 
@@ -183,6 +185,6 @@ export default {
     );
     honoApp.get("/docs", swaggerUI({ url: "/openapi" }));
 
-    return honoApp.fetch(request, env, executionCtx);
+    return honoApp.fetch(request, serverInfo, executionCtx);
   },
 };
