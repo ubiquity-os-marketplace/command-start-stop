@@ -14,7 +14,9 @@ const QUERY_REVIEW_THREADS = /* GraphQL */ `
             resolved
             comments(first: 1, orderBy: { field: UPDATED_AT, direction: DESC }) {
               nodes {
-                author { login }
+                author {
+                  login
+                }
                 updatedAt
               }
             }
@@ -42,11 +44,11 @@ async function isReviewerLagged(
   prNumber: number
 ): Promise<boolean> {
   try {
-    const result = await context.installOctokit.graphql(QUERY_REVIEW_THREADS, {
+    const result = (await context.installOctokit.graphql(QUERY_REVIEW_THREADS, {
       owner: prOwner,
       repo: prRepo,
       prNumber,
-    }) as any;
+    })) as any;
 
     const threads = result?.repository?.pullRequest?.reviewThreads?.nodes || [];
     // Filter to unresolved threads only
