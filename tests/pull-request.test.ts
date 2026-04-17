@@ -14,6 +14,8 @@ dotenv.config();
 
 const userLogin = "user2";
 const ONE_HOUR_TIME_LABEL = "Time: <1 Hour";
+const CLOSE_FAILURE = "close failure";
+const SUCCESS_MESSAGE = ERROR_MESSAGES.TASK_ASSIGNED;
 const PULL_REQUEST_EVENT_NAME = "pull_request.opened";
 const PULL_REQUEST_HTML_URL = "https://github.com/ubiquity-os-marketplace/command-start-stop";
 const SUPABASE_MODULE_PATH = "@supabase/supabase-js";
@@ -120,6 +122,91 @@ function createLinkedIssueRepoOctokit(issue: Issue, repo: Repository, role = "co
       },
     },
   } as const;
+}
+
+async function createPullRequestEventContext(issue: Issue, sender: PayloadSender) {
+  const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
+  context.eventName = PULL_REQUEST_EVENT_NAME;
+  context.payload.pull_request = {
+    html_url: PULL_REQUEST_HTML_URL,
+    number: 1,
+    user: {
+      id: 2,
+      login: userLogin,
+    },
+  } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
+  context.commentHandler = {
+    postComment: jest.fn(async () => null),
+  } as unknown as Context["commentHandler"];
+  return context;
+}
+
+function createClosingIssueNode(
+  repo: Repository,
+  { assignees = [], number = 1, state = "OPEN" }: { assignees?: string[]; number?: number; state?: string } = {}
+) {
+  return {
+    assignees: {
+      nodes: assignees.map((login) => ({ login })),
+    },
+    number,
+    repository: repo,
+    state,
+  };
+}
+
+function setPullRequestOctokit(
+  context: Context<"pull_request.opened">,
+  {
+    nodes = null,
+    commentMock = jest.fn(),
+    updateMock = jest.fn(),
+  }: {
+    nodes?: unknown[] | null;
+    commentMock?: ReturnType<typeof jest.fn>;
+    updateMock?: ReturnType<typeof jest.fn>;
+  } = {}
+) {
+  context.octokit = {
+    rest: {
+      pulls: {
+        update: updateMock,
+      },
+      issues: {
+        createComment: commentMock,
+      },
+    },
+    graphql: {
+      paginate: jest.fn(() =>
+        Promise.resolve({
+          repository: {
+            pullRequest: {
+              closingIssuesReferences: nodes === null ? null : { nodes },
+            },
+          },
+        })
+      ),
+    },
+  } as unknown as Context<"pull_request.edited">["octokit"];
+
+  return { commentMock, updateMock };
+}
+
+async function mockRepoOctokitModules(repoOctokit: unknown, createAdaptersMock: ReturnType<typeof jest.fn> = jest.fn()) {
+  jest.doMock(SUPABASE_MODULE_PATH, () => ({
+    createClient: jest.fn(),
+  }));
+  jest.doMock(ADAPTERS_MODULE_PATH, () => ({
+    createAdapters: createAdaptersMock,
+  }));
+  jest.doMock(SDK_OCTOKIT_MODULE_PATH, () => ({
+    customOctokit: jest.fn().mockReturnValue(repoOctokit),
+  }));
+  jest.doMock(OCTOKIT_HELPERS_MODULE_PATH, () => ({
+    createUserOctokit: jest.fn(() => Promise.resolve(repoOctokit)),
+    createAppOctokit: jest.fn(() => Promise.resolve(repoOctokit)),
+    createRepoOctokit: jest.fn(() => Promise.resolve(repoOctokit)),
+  }));
 }
 
 describe("Pull-request tests", () => {
@@ -429,7 +516,7 @@ describe("Pull-request tests", () => {
     context.octokit = {
       rest: {
         pulls: {
-          update: jest.fn(() => Promise.reject(new Error("close failure"))),
+          update: jest.fn(() => Promise.reject(new Error(CLOSE_FAILURE))),
         },
         issues: {
           createComment: jest.fn(),
@@ -519,7 +606,7 @@ describe("Pull-request tests", () => {
     context.octokit = {
       rest: {
         pulls: {
-          update: jest.fn(() => Promise.reject(new Error("close failure"))),
+          update: jest.fn(() => Promise.reject(new Error(CLOSE_FAILURE))),
         },
         issues: {
           createComment: jest.fn(),
@@ -643,8 +730,237 @@ describe("Pull-request tests", () => {
 
     expect(result).toMatchObject({
       status: HttpStatusCode.OK,
-      content: "Task assigned successfully",
+      content: ERROR_MESSAGES.TASK_ASSIGNED,
     });
     expect(context.octokit.rest.pulls.update).not.toHaveBeenCalled();
+  });
+
+  it("Should comment on and close a contributor pull-request when no linked issue is found", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, { nodes: null });
+    const message = ERROR_MESSAGES.INVALID_PULL_REQUEST_LINK.replace("{{user}}", userLogin);
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: message,
+    });
+    expect(commentMock).toHaveBeenCalledWith({
+      body: message,
+      issue_number: 1,
+      owner: "ubiquity",
+      repo: "test-repo",
+    });
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should comment on and close a contributor pull-request linked only to closed issues", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: [createClosingIssueNode(repo, { number: issue.number, state: "CLOSED" })],
+    });
+    const message = ERROR_MESSAGES.INVALID_PULL_REQUEST_LINK.replace("{{user}}", userLogin);
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: message,
+    });
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should comment on and close a contributor pull-request linked to another user's issue", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: [createClosingIssueNode(repo, { number: issue.number, assignees: ["someone-else"] })],
+    });
+    const message = ERROR_MESSAGES.PULL_REQUEST_LINKED_TO_OTHER_ASSIGNEE.replace("{{user}}", userLogin);
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: message,
+    });
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should keep the pull-request open when it is linked to an issue already assigned to the author", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: [createClosingIssueNode(repo, { number: issue.number, assignees: [userLogin] })],
+    });
+    const startTask = jest.fn().mockResolvedValue({ status: HttpStatusCode.OK, content: SUCCESS_MESSAGE });
+
+    await mockRepoOctokitModules(repoOctokit);
+    jest.doMock(START_TASK_MODULE_PATH, () => ({
+      startTask,
+    }));
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.NOT_MODIFIED,
+    });
+    expect(startTask).not.toHaveBeenCalled();
+    expect(commentMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should keep the pull-request open when at least one valid open linked issue exists", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const successfulRepoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: [
+        createClosingIssueNode(repo, { number: issue.number + 1, state: "CLOSED" }),
+        createClosingIssueNode(repo, { number: issue.number + 2, assignees: ["someone-else"] }),
+        createClosingIssueNode(repo, { number: issue.number }),
+      ],
+    });
+
+    await mockRepoOctokitModules(
+      successfulRepoOctokit,
+      jest.fn(() => ({
+        supabase: {
+          user: {
+            getWalletByUserId: jest.fn(() => Promise.resolve(null)),
+          },
+        },
+      }))
+    );
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.OK,
+      content: SUCCESS_MESSAGE,
+    });
+    expect(commentMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should treat a contributor pull-request linked only to another pull-request as invalid", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, { nodes: [] });
+    const message = ERROR_MESSAGES.INVALID_PULL_REQUEST_LINK.replace("{{user}}", userLogin);
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: message,
+    });
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should leave non-contributor pull-requests open when no valid linked issue is found", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const adminRepoOctokit = createLinkedIssueRepoOctokit(issue, repo, "admin");
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, { nodes: null });
+
+    await mockRepoOctokitModules(adminRepoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.NOT_MODIFIED,
+    });
+    expect(commentMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should still close an invalid pull-request when commenting fails", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { updateMock } = setPullRequestOctokit(context, {
+      nodes: null,
+      commentMock: jest.fn(() => Promise.reject(new Error("comment failure"))),
+    });
+    const message = ERROR_MESSAGES.INVALID_PULL_REQUEST_LINK.replace("{{user}}", userLogin);
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: message,
+    });
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("Should return the invalid result even when closing the pull-request fails", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: null,
+      updateMock: jest.fn(() => Promise.reject(new Error(CLOSE_FAILURE))),
+    });
+    const message = ERROR_MESSAGES.INVALID_PULL_REQUEST_LINK.replace("{{user}}", userLogin);
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.BAD_REQUEST,
+      content: message,
+    });
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(updateMock).toHaveBeenCalledTimes(1);
   });
 });

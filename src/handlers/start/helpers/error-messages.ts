@@ -16,6 +16,10 @@ export const ERROR_MESSAGES = {
   PRICE_LIMIT_EXCEEDED:
     "While we appreciate your enthusiasm @{{user}}, the price of this task exceeds your allowed limit. Please choose a task with a price of ${{userAllowedMaxPrice}} or less.",
   PRICE_LABEL_FORMAT_ERROR: "Price label is not in the correct format",
+  INVALID_PULL_REQUEST_LINK:
+    "@{{user}} this pull request must be linked to an open issue. Pull requests linked only to closed issues or to other pull requests are automatically closed.",
+  PULL_REQUEST_LINKED_TO_OTHER_ASSIGNEE:
+    "@{{user}} this pull request is linked to an issue that is already assigned to another user. Please link it to an open issue assigned to you or to an unassigned open issue.",
   TASK_STALE: "This task was created over {{daysElapsedSinceTaskCreation}} days ago. Please confirm that this issue specification is accurate before starting.",
   TASK_ASSIGNED: "Task assigned successfully",
   MISSING_SENDER: "Missing sender",
