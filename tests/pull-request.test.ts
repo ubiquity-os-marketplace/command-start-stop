@@ -141,6 +141,13 @@ async function createPullRequestEventContext(issue: Issue, sender: PayloadSender
   return context;
 }
 
+function expectWarnFormattedPullRequestComment(commentMock: ReturnType<typeof jest.fn>, message: string) {
+  expect(commentMock).toHaveBeenCalledTimes(1);
+
+  const [{ body }] = commentMock.mock.calls[0] as [{ body: string }];
+  expect(body).toBe(`> [!WARNING]\n> ${message}`);
+}
+
 function createClosingIssueNode(
   repo: Repository,
   { assignees = [], number = 1, state = "OPEN" }: { assignees?: string[]; number?: number; state?: string } = {}
@@ -754,11 +761,12 @@ describe("Pull-request tests", () => {
       content: message,
     });
     expect(commentMock).toHaveBeenCalledWith({
-      body: message,
+      body: expect.any(String),
       issue_number: 1,
       owner: "ubiquity",
       repo: "test-repo",
     });
+    expectWarnFormattedPullRequestComment(commentMock, message);
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
@@ -782,7 +790,8 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.BAD_REQUEST,
       content: message,
     });
-    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: expect.any(String) }));
+    expectWarnFormattedPullRequestComment(commentMock, message);
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
@@ -806,7 +815,8 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.BAD_REQUEST,
       content: message,
     });
-    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: expect.any(String) }));
+    expectWarnFormattedPullRequestComment(commentMock, message);
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
@@ -891,7 +901,8 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.BAD_REQUEST,
       content: message,
     });
-    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: expect.any(String) }));
+    expectWarnFormattedPullRequestComment(commentMock, message);
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
@@ -960,7 +971,8 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.BAD_REQUEST,
       content: message,
     });
-    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: message }));
+    expect(commentMock).toHaveBeenCalledWith(expect.objectContaining({ body: expect.any(String) }));
+    expectWarnFormattedPullRequestComment(commentMock, message);
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 });

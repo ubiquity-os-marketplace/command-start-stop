@@ -34,11 +34,12 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
 
   async function commentOnTriggeredPullRequest(body: string) {
     try {
+      const warningCommentBody = context.logger.warn(body).logMessage.diff;
       await context.octokit.rest.issues.createComment({
         owner: payload.repository.owner.login,
         repo: payload.repository.name,
         issue_number: pull_request.number,
-        body,
+        body: warningCommentBody,
       });
     } catch (err) {
       context.logger.warn("Failed to comment on triggering pull request.", {
