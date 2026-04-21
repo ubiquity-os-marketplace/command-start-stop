@@ -8,7 +8,7 @@ import { HttpStatusCode } from "./types/result-types";
 import { listOrganizations } from "./utils/list-organizations";
 
 export async function startStopTask(context: Context) {
-  context.adapters = createAdapters(createClient(context.env.SUPABASE_URL, context.env.SUPABASE_KEY), context as Context);
+  context.adapters = createAdapters(createClient(context.env.SUPABASE_URL, context.env.SUPABASE_KEY), context);
   context.organizations = await listOrganizations(context);
 
   try {
