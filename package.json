@@ -18,11 +18,9 @@
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "bun run prepare:manifest && node .husky/install.mjs",
     "test:jest": "jest --setupFiles dotenv/config --coverage",
-    "worker": "wrangler dev --env dev --port 4000",
-    "dev": "bun --watch --no-clear-screen --port 4000 src/worker.ts",
-    "dev:deno": "deno serve -A --unstable-kv --watch --no-clear-screen --port 4000 src/worker.ts",
+    "dev:deno": "deno serve -A --unstable-kv --watch --no-clear-screen --env-file=.env --port 4000 src/worker.ts",
     "prebuild": "rimraf dist",
-    "prepare:manifest": "bunx @ubiquity-os/plugin-manifest-tool@latest",
+    "prepare:manifest": "bun x @ubiquity-os/plugin-manifest-tool@latest",
     "predev": "bun run prepare:manifest"
   },
   "keywords": [
@@ -42,7 +40,7 @@
     "@sinclair/typebox": "^0.34.41",
     "@standard-community/standard-json": "^0.3.5",
     "@supabase/supabase-js": "2.87.1",
-    "@ubiquity-os/plugin-sdk": "^3.8.1",
+    "@ubiquity-os/plugin-sdk": "3.12.8",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "@valibot/to-json-schema": "^1.5.0",
     "hono": "^4.11.1",
@@ -89,8 +87,7 @@
     "ts-node": "^10.9.2",
     "tsup": "^8.5.1",
     "typescript": "5.9.3",
-    "typescript-eslint": "^8.49.0",
-    "wrangler": "^3.97.0"
+    "typescript-eslint": "^8.49.0"
   },
   "lint-staged": {
     "*.ts": [
