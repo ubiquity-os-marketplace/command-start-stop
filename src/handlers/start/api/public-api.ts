@@ -6,17 +6,14 @@ import { extractJwtFromHeader, verifyJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
 import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
-import { handleValidateOrExecute } from "./validate-or-execute";
+import { handleValidateOrExecute, handleBatchValidateOrExecute } from "./validate-or-execute";
 
 /**
  * Main handler for the public start API endpoint.
  * Supports two modes:
- * 1. Validate: validates eligibility without performing assignment
- * 2. Execute: validates and performs assignment
- *
- * @param request - HTTP request object
- * @param env - Environment variables
- * @returns HTTP response with appropriate status and body
+ * 1. Validate: validates eligibility without performing assignment (GET)
+ * 2. Execute: validates and performs assignment (POST)
+ * Supports single issueUrl or multiple issueUrls (batch mode).
  */
 export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: Logs): Promise<Response> {
   const request = honoCtx.req.raw as Request;
@@ -28,7 +25,6 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
   const mode = request.method === "POST" ? "execute" : "validate";
 
   try {
-    // Check for JWT token first before parsing body
     const jwt = extractJwtFromHeader(request);
     if (!jwt) {
       return Response.json(
@@ -40,11 +36,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       );
     }
 
-    const { user, error: authError } = await authenticateRequest({
-      env,
-      logger,
-      jwt,
-    });
+    const { user, error: authError } = await authenticateRequest({ env, logger, jwt });
     if (authError) {
       logger.warn(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
       return authError;
@@ -59,24 +51,56 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
       );
     }
 
-    // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { issueUrl, userId, environment } = params;
 
-    // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
       env,
       accessToken: user.accessToken,
-      userId,
+      userId: params.userId,
       logger,
     });
 
+    // Normalize issueUrls: params.issueUrl is decoded as string[] by the Transform
+    const issueUrls: string[] = params.issueUrl as unknown as string[];
+
+    // Batch mode: more than 1 URL
+    if (issueUrls.length > 1) {
+      const firstUrl = issueUrls[0];
+      context.config = await fetchMergedPluginSettings({
+        env,
+        issueUrl: firstUrl,
+        logger,
+        environment: params.environment,
+        jwt,
+      });
+
+      const results = await handleBatchValidateOrExecute({ context, mode, issueUrls, jwt });
+
+      const successful = results.filter((r) => r.ok).length;
+      const failed = results.filter((r) => !r.ok).length;
+
+      return Response.json(
+        {
+          ok: failed === 0,
+          results,
+          summary: {
+            total: issueUrls.length,
+            successful,
+            failed,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // Single URL mode (backward compatible)
+    const issueUrl = issueUrls[0];
     context.config = await fetchMergedPluginSettings({
       env,
       issueUrl,
       logger,
-      environment,
+      environment: params.environment,
       jwt,
     });
 
@@ -86,7 +110,7 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
   }
 }
 
-async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
+async function validateQueryParams(honoCtx: HonoContext, logger: Logs): Promise<StartQueryParams | Response> {
   let params: StartQueryParams;
   if (honoCtx.req.raw.method === "POST") {
     try {
@@ -95,13 +119,22 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
       logger.warn("Invalid JSON body", { e: error });
       return Response.json(
         { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
   } else {
-    params = Object.fromEntries(new URL(honoCtx.req.raw.url).searchParams.entries()) as unknown as StartQueryParams;
+    // GET: parse query params, handle repeated issueUrl params
+    const raw: Record<string, unknown> = {};
+    const url = new URL(honoCtx.req.raw.url);
+    for (const [key, value] of url.searchParams.entries()) {
+      if (key === "issueUrl") {
+        const allValues = url.searchParams.getAll("issueUrl");
+        raw[key] = allValues.length > 1 ? allValues : value;
+      } else {
+        raw[key] = value;
+      }
+    }
+    params = raw as unknown as StartQueryParams;
   }
 
   try {
@@ -117,49 +150,28 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
     logger.warn("Invalid JSON body", { e: error });
     return Response.json(
       { ok: false, reasons: [error instanceof Error ? error.message : String(error)] },
-      {
-        status: 400,
-      }
+      { status: 400 }
     );
   }
   return params;
 }
 
-/**
- * Authenticates the request and returns the user if successful.
- */
 async function authenticateRequest({ env, logger, jwt }: { env: Env; logger: Logs; jwt: string }) {
   try {
-    const user = await verifyJwt({
-      env,
-      jwt,
-      logger,
-    });
-
+    const user = await verifyJwt({ env, jwt, logger });
     if (!user) {
       throw logger.warn("Unauthorized: User not found");
     }
-
     return { user };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unauthorized: Invalid JWT, expired, or user not found";
     return {
       user: null,
-      accessToken: null,
-      error: Response.json(
-        {
-          ok: false,
-          reasons: [message],
-        },
-        { status: 401 }
-      ),
+      error: Response.json({ ok: false, reasons: [message] }, { status: 401 }),
     };
   }
 }
 
-/**
- * Handles errors and returns an appropriate response.
- */
 function handleError(error: unknown, logger: Logs): Response {
   const message = error instanceof Error ? error.message : "Internal error";
   const isUnauthorized = error instanceof Error && error.message.toLowerCase().includes("unauthorized");

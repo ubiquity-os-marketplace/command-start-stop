@@ -13,7 +13,15 @@ export const startQueryParamSchema = T.Object(
         return parsed;
       })
       .Encode((val) => val.toString()),
-    issueUrl: T.String({ minLength: 1 }),
+    // Support single URL (backward compatible) OR array of URLs (max 100)
+    issueUrl: T.Transform(
+      T.Union([
+        T.String({ minLength: 1 }),
+        T.Array(T.String({ minLength: 1 }), { minItems: 1, maxItems: 100 }),
+      ])
+    )
+      .Decode((val) => (Array.isArray(val) ? val : [val]))
+      .Encode((val) => (val.length === 1 ? val[0] : val)),
     environment: T.Optional(T.Union([T.Literal("development"), T.Literal("production")])),
   },
   {
@@ -22,6 +30,22 @@ export const startQueryParamSchema = T.Object(
 );
 
 export type StartQueryParams = StaticDecode<typeof startQueryParamSchema>;
+
+// Single URL result
+export type SingleIssueResult = {
+  issueUrl: string;
+  ok: boolean;
+  computed: StartEligibilityResult["computed"] | null;
+  warnings: LogReturn[] | null;
+  reasons: string[] | null;
+};
+
+// Batch response
+export type BatchStartResponse = {
+  ok: boolean;
+  results: SingleIssueResult[];
+  summary: { total: number; successful: number; failed: number };
+};
 
 export type IssueUrlParts = {
   owner: string;
