@@ -580,6 +580,70 @@ describe("handlePublicStart - Error Handling", () => {
   });
 });
 
+describe("handlePublicStart - Multi-URL Batch Requests", () => {
+  it("should accept array of issueUrls in POST body", async () => {
+    const env = createMockEnv();
+    const request = createMockRequest(
+      {
+        userId: 123,
+        issueUrl: [ISSUE_ONE_URL, ISSUE_ONE_URL],
+      },
+      "POST",
+      GITHUB_VALID_TOKEN
+    );
+
+    mockOctokit.rest.issues.get.mockResolvedValue({
+      data: { number: 1, title: TEST_ISSUE_TITLE, state: "open", assignees: [], labels: [] },
+    } as never);
+    mockOctokit.rest.repos.get.mockResolvedValue({
+      data: { id: 1, name: "repo", owner: { login: "owner" } },
+    } as never);
+
+    const response = await handlePublicStart(request, env, createLogger(env));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.count).toBe(2);
+    expect(data.results).toHaveProperty(ISSUE_ONE_URL);
+  });
+
+  it("should handle single URL with backward compatibility", async () => {
+    const request = createMockRequest({ userId: 123, issueUrl: ISSUE_ONE_URL }, "GET", GITHUB_VALID_TOKEN);
+    const env = createMockEnv();
+
+    mockOctokit.rest.issues.get.mockResolvedValueOnce({
+      data: { number: 1, title: TEST_ISSUE_TITLE, state: "open", assignees: [], labels: [] },
+    } as never);
+    mockOctokit.rest.repos.get.mockResolvedValueOnce({
+      data: { id: 1, name: "repo", owner: { login: "owner" } },
+    } as never);
+
+    const response = await handlePublicStart(request, env, createLogger(env));
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.ok).toBeDefined();
+    expect(data.count).toBeUndefined(); // single URL returns direct response, not batch
+  });
+
+  it("should reject empty issueUrl array", async () => {
+    const request = createMockRequest(
+      {
+        userId: 123,
+        issueUrl: [],
+      },
+      "POST",
+      GITHUB_VALID_TOKEN
+    );
+    const env = createMockEnv();
+
+    const response = await handlePublicStart(request, env, createLogger(env));
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+  });
+});
+
 describe("handlePublicStart - Assigned issue filtering", () => {
   it(`omits archived assigned issues for ${USER_WHILEFOO}`, async () => {
     const env = createMockEnv();

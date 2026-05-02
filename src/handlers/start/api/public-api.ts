@@ -5,19 +5,11 @@ import { Env } from "../../../types/env";
 import { extractJwtFromHeader, verifyJwt } from "./helpers/auth";
 import { buildShallowContextObject } from "./helpers/context-builder";
 import { fetchMergedPluginSettings } from "./helpers/get-plugin-config";
-import { StartQueryParams, startQueryParamSchema } from "./helpers/types";
+import { StartQueryParams, startQueryParamSchema, SingleIssueResult, BatchStartResponse } from "./helpers/types";
 import { handleValidateOrExecute } from "./validate-or-execute";
 
-/**
- * Main handler for the public start API endpoint.
- * Supports two modes:
- * 1. Validate: validates eligibility without performing assignment
- * 2. Execute: validates and performs assignment
- *
- * @param request - HTTP request object
- * @param env - Environment variables
- * @returns HTTP response with appropriate status and body
- */
+const MAX_CONCURRENCY = 10;
+
 export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: Logs): Promise<Response> {
   const request = honoCtx.req.raw as Request;
 
@@ -28,59 +20,99 @@ export async function handlePublicStart(honoCtx: HonoContext, env: Env, logger: 
   const mode = request.method === "POST" ? "execute" : "validate";
 
   try {
-    // Check for JWT token first before parsing body
     const jwt = extractJwtFromHeader(request);
     if (!jwt) {
       return Response.json(
-        {
-          ok: false,
-          reasons: [logger.warn("Missing Authorization header").logMessage.raw],
-        },
+        { ok: false, reasons: [logger.warn("Missing Authorization header").logMessage.raw] },
         { status: 401 }
       );
     }
 
-    const { user, error: authError } = await authenticateRequest({
-      env,
-      logger,
-      jwt,
-    });
+    const { user, error: authError } = await authenticateRequest({ env, logger, jwt });
     if (authError) {
       logger.warn(authError.body ? JSON.stringify(await authError.clone().json()) : "Authentication error without body");
       return authError;
     }
     if (!user) {
       return Response.json(
-        {
-          ok: false,
-          reasons: [logger.warn("Unauthorized: User authentication failed").logMessage.raw],
-        },
+        { ok: false, reasons: [logger.warn("Unauthorized: User authentication failed").logMessage.raw] },
         { status: 401 }
       );
     }
 
-    // Validate environment and parse request query params
     const params = await validateQueryParams(honoCtx, logger);
     if (params instanceof Response) return params;
-    const { issueUrl, userId, environment } = params;
 
-    // Build context and load merged plugin settings from org/repo config
     const context = await buildShallowContextObject({
       env,
       accessToken: user.accessToken,
-      userId,
+      userId: params.userId,
       logger,
     });
 
-    context.config = await fetchMergedPluginSettings({
-      env,
-      issueUrl,
-      logger,
-      environment,
-      jwt,
-    });
+    // Normalize issueUrl to array
+    const issueUrls: string[] = Array.isArray(params.issueUrl) ? params.issueUrl : [params.issueUrl];
 
-    return await handleValidateOrExecute({ context, mode, issueUrl, jwt });
+    // Single URL: backward-compatible path
+    if (issueUrls.length === 1) {
+      context.config = await fetchMergedPluginSettings({
+        env,
+        issueUrl: issueUrls[0],
+        logger,
+        environment: params.environment,
+        jwt,
+      });
+      return await handleValidateOrExecute({ context, mode, issueUrl: issueUrls[0], jwt });
+    }
+
+    // Multiple URLs: batch processing
+    const results: SingleIssueResult[] = [];
+    let successful = 0;
+    let failed = 0;
+
+    // Process in batches of MAX_CONCURRENCY using Promise.allSettled
+    for (let i = 0; i < issueUrls.length; i += MAX_CONCURRENCY) {
+      const batch = issueUrls.slice(i, i + MAX_CONCURRENCY);
+      const settled = await Promise.allSettled(
+        batch.map(async (issueUrl) => {
+          const urlContext = await buildShallowContextObject({
+            env,
+            accessToken: user.accessToken,
+            userId: params.userId,
+            logger,
+          });
+          urlContext.config = await fetchMergedPluginSettings({
+            env,
+            issueUrl,
+            logger,
+            environment: params.environment,
+            jwt,
+          });
+          const resp = await handleValidateOrExecute({ context: urlContext, mode, issueUrl, jwt });
+          const data = await resp.json();
+          return { issueUrl, ok: data.ok, computed: data.computed ?? null, warnings: data.warnings ?? null, reasons: data.reasons ?? null };
+        })
+      );
+
+      for (const r of settled) {
+        if (r.status === "fulfilled") {
+          const result = r.value as SingleIssueResult;
+          results.push(result);
+          if (result.ok) successful++;
+          else failed++;
+        } else {
+          results.push({ issueUrl: "unknown", ok: false, computed: null, warnings: null, reasons: [r.reason?.message ?? "Unknown error"] });
+          failed++;
+        }
+      }
+    }
+
+    const response: BatchStartResponse = {
+      ok: failed === 0,
+      results,
+      summary: { total: issueUrls.length, successful, failed },
+    };
+    return Response.json(response, { status: 200 });
   } catch (error) {
     return handleError(error, logger);
   }
@@ -101,7 +133,19 @@ async function validateQueryParams(honoCtx: HonoContext, logger: Logs) {
       );
     }
   } else {
-    params = Object.fromEntries(new URL(honoCtx.req.raw.url).searchParams.entries()) as unknown as StartQueryParams;
+    // For GET requests, extract params manually to support multi-value issueUrl
+    const url = new URL(honoCtx.req.raw.url);
+    const searchParams = url.searchParams;
+    const entries: Array<[string, string]> = [];
+    searchParams.forEach((value, key) => {
+      entries.push([key, value]);
+    });
+    const rawParams = Object.fromEntries(entries) as Record<string, string | string[]>;
+    // If issueUrl appears multiple times, convert to array
+    if (searchParams.getAll("issueUrl").length > 1) {
+      rawParams.issueUrl = searchParams.getAll("issueUrl");
+    }
+    params = rawParams as unknown as StartQueryParams;
   }
 
   try {
