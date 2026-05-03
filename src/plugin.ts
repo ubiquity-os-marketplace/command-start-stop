@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { createAdapters } from "./adapters/index";
 import { closeUserUnassignedPr } from "./handlers/close-pull-on-unassign";
+import { reopenPrOnReassign } from "./handlers/reopen-pr-on-reassign";
 import { commandHandler, userStartStop } from "./handlers/command-handler";
 import { newPullRequestOrEdit } from "./handlers/new-pull-request-or-edit";
 import { Context } from "./types/context";
@@ -24,6 +25,8 @@ export async function startStopTask(context: Context) {
         return await newPullRequestOrEdit(context as Context<"pull_request.edited">);
       case "issues.unassigned":
         return await closeUserUnassignedPr(context as Context<"issues.unassigned">);
+      case "issues.assigned":
+        return await reopenPrOnReassign(context as Context<"issues.assigned">);
       default:
         context.logger.warn(`Unsupported event: ${context.eventName}`);
         return { status: HttpStatusCode.BAD_REQUEST };
