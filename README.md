@@ -80,6 +80,7 @@ To start a task, a hunter should use the `/start` command. This will assign them
 - Price labels are set on the issue
 - The issue is not already assigned
 - The hunter has not reached the maximum number of concurrent tasks
+  - Open pull requests waiting on reviewers can stop counting against this limit after `reviewDelayTolerance`, including when the hunter is the last commenter on every unresolved review thread.
 - The command is not disabled at the repository or organization level
 - The contributor's GitHub account meets the minimum age requirement (default: 365.25 days)
 - The contributor has sufficient XP for the task's priority level (if configured)
@@ -217,7 +218,7 @@ To configure your Ubiquity Kernel to run this plugin, add the following to the `
 - plugin: http://localhost:4000 # or the URL where the plugin is hosted
   id: start-stop-command
   with:
-    reviewDelayTolerance: "3 Days"
+    reviewDelayTolerance: "3 Days" # Delay before reviewer-lagged pull requests stop counting against task limits.
     taskStaleTimeoutDuration: "30 Days"
     maxConcurrentTasks: # Default concurrent task limits per role.
       collaborator: 5
