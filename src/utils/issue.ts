@@ -6,6 +6,13 @@ import { AssignedIssueScope, Role } from "../types/plugin-input";
 import { getOpenLinkedPullRequestsForIssue, GetLinkedResults } from "./get-linked-prs";
 import { getAllPullRequestsFallback, getAssignedIssuesFallback } from "./get-pull-requests-fallback";
 
+const REVIEWER_LAG_TIMEOUT = "24 Hours";
+
+type ReviewThreadLastComment = {
+  authorLogin: string | null;
+  createdAt: string | null;
+};
+
 export function isParentIssue(body: string) {
   const parentPattern = /-\s+\[( |x)\]\s+#\d+/;
   return body.match(parentPattern);
@@ -240,8 +247,99 @@ async function getReviewByUser(context: Context, pullRequest: Awaited<ReturnType
   return latestReviewsByUser;
 }
 
+async function getUnresolvedReviewThreadLastComments(
+  context: Context,
+  pullRequest: Awaited<ReturnType<typeof getOpenedPullRequestsForUser>>[0],
+  owner: string,
+  repo: string
+): Promise<ReviewThreadLastComment[]> {
+  if (!("graphql" in context.octokit) || typeof context.octokit.graphql !== "function") {
+    return [];
+  }
+
+  try {
+    const response = (await context.octokit.graphql(
+      `
+        query PullRequestReviewThreads($owner: String!, $repo: String!, $pullNumber: Int!) {
+          repository(owner: $owner, name: $repo) {
+            pullRequest(number: $pullNumber) {
+              reviewThreads(first: 100) {
+                nodes {
+                  isResolved
+                  comments(last: 1) {
+                    nodes {
+                      author {
+                        login
+                      }
+                      createdAt
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      {
+        owner,
+        repo,
+        pullNumber: pullRequest.number,
+      }
+    )) as {
+      repository?: {
+        pullRequest?: {
+          reviewThreads?: {
+            nodes?: {
+              isResolved?: boolean;
+              comments?: {
+                nodes?: {
+                  author?: {
+                    login?: string;
+                  } | null;
+                  createdAt?: string;
+                }[];
+              };
+            }[];
+          };
+        };
+      };
+    };
+
+    return (
+      response.repository?.pullRequest?.reviewThreads?.nodes
+        ?.filter((thread) => !thread.isResolved)
+        .map((thread) => {
+          const lastComment = thread.comments?.nodes?.at(-1);
+          return {
+            authorLogin: lastComment?.author?.login ?? null,
+            createdAt: lastComment?.createdAt ?? null,
+          };
+        }) ?? []
+    );
+  } catch (err) {
+    context.logger.debug("Fetching pull request review threads failed", { error: err as Error, owner, repo, pullRequest: pullRequest.number });
+    return [];
+  }
+}
+
+function isReviewerLagged(username: string, unresolvedThreads: ReviewThreadLastComment[]) {
+  if (!unresolvedThreads.length) {
+    return false;
+  }
+
+  const timeout = getTimeValue(REVIEWER_LAG_TIMEOUT);
+  return unresolvedThreads.every((thread) => {
+    if (!thread.authorLogin || !thread.createdAt || thread.authorLogin.toLowerCase() !== username.toLowerCase()) {
+      return false;
+    }
+
+    return new Date().getTime() - new Date(thread.createdAt).getTime() >= timeout;
+  });
+}
+
 async function shouldSkipPullRequest(
   context: Context,
+  username: string,
   pullRequest: Awaited<ReturnType<typeof getOpenedPullRequestsForUser>>[0],
   reviews: Awaited<ReturnType<typeof getReviewByUser>>,
   { owner, repo, issueNumber }: { owner: string; repo: string; issueNumber: number },
@@ -262,7 +360,8 @@ async function shouldSkipPullRequest(
 
   // If changes are requested, do not skip
   if (Array.from(reviews.values()).some((review) => review.state === "CHANGES_REQUESTED")) {
-    return true;
+    const unresolvedThreads = await getUnresolvedReviewThreadLastComments(context, pullRequest, owner, repo);
+    return isReviewerLagged(username, unresolvedThreads);
   }
 
   // If no approvals exist or time reference has exceeded review delay tolerance
@@ -289,6 +388,7 @@ export async function getPendingOpenedPullRequests(context: Context, username: s
     const latestReviewsByUser = await getReviewByUser(context, openedPullRequest);
     const shouldSkipPr = await shouldSkipPullRequest(
       context,
+      username,
       openedPullRequest,
       latestReviewsByUser,
       { owner, repo, issueNumber: openedPullRequest.number },
