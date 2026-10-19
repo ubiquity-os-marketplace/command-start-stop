@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.2](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.13.1...v1.13.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* record pull request ownership decisions ([1babe0c](https://github.com/ubiquity-os-marketplace/command-start-stop/commit/1babe0cbdba25bcc0082c7bb3c161cc6f7e3ac24))
+
 ## [1.13.1](https://github.com/ubiquity-os-marketplace/command-start-stop/compare/v1.13.0...v1.13.1) (2026-04-22)
 
 
