@@ -95,12 +95,73 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
     return assignees.length > 0 && !assignees.includes(pull_request.user.login.toLowerCase());
   });
 
+  async function publishLeaveOpenReceipt(reason: "author_assigned" | "non_contributor_no_eligible_issue") {
+    try {
+      const appId = Number(context.env.APP_ID);
+      const botUserId = Number(context.env.BOT_USER_ID);
+      const updatedAt = Date.parse(pull_request.updated_at);
+      if (!Number.isSafeInteger(appId) || appId <= 0 || !Number.isSafeInteger(botUserId) || botUserId <= 0 || !Number.isFinite(updatedAt)) {
+        throw new Error("Ownership receipt identity or event timestamp is unavailable.");
+      }
+      const receipt = {
+        eventName: context.eventName,
+        action: payload.action,
+        repository: `${payload.repository.owner.login}/${payload.repository.name}`,
+        pullRequest: pull_request.number,
+        author: pull_request.user?.login,
+        head: { sha: pull_request.head.sha, ref: pull_request.head.ref },
+        base: { sha: pull_request.base.sha, ref: pull_request.base.ref },
+        updatedAt: pull_request.updated_at,
+        role,
+        reason,
+        result: "leave_open",
+      };
+      const prefix = "<!-- uos-command-start-stop:ownership-receipt:v1\n";
+      const metadata = JSON.stringify(receipt).replace(/[<>&`@]/g, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`);
+      const locator = { owner: payload.repository.owner.login, repo: payload.repository.name };
+      const comments = await context.octokit.paginate(context.octokit.rest.issues.listComments, {
+        ...locator,
+        issue_number: pull_request.number,
+        per_page: 100,
+      });
+      const ownedComments = comments.filter(
+        (comment) =>
+          comment.user?.type === "Bot" && comment.user.id === botUserId && comment.performed_via_github_app?.id === appId && comment.body?.startsWith(prefix)
+      );
+      for (const comment of ownedComments) {
+        const previousMetadata = comment.body?.slice(prefix.length, comment.body.indexOf("\n-->", prefix.length)) ?? "";
+        const previous = JSON.parse(previousMetadata) as { updatedAt?: unknown; repository?: unknown; pullRequest?: unknown };
+        if (
+          typeof previous?.updatedAt !== "string" ||
+          !Number.isFinite(Date.parse(previous.updatedAt)) ||
+          previous.repository !== receipt.repository ||
+          previous.pullRequest !== receipt.pullRequest
+        ) {
+          throw new Error("Ownership receipt metadata is unavailable.");
+        }
+        if (Date.parse(previous.updatedAt) > updatedAt || previousMetadata === metadata) return;
+      }
+      const message = context.logger.debug("Ownership check: this pull request is left open.");
+      const body = `${prefix}${metadata}\n-->\n${context.commentHandler.createCommentBody(context, message)}`;
+      const previousComment = ownedComments[0];
+      if (previousComment) {
+        await context.octokit.rest.issues.updateComment({ ...locator, comment_id: previousComment.id, body });
+      } else {
+        // The API has no atomic create-if-absent operation; concurrent first invocations can both publish.
+        await context.octokit.rest.issues.createComment({ ...locator, issue_number: pull_request.number, body });
+      }
+    } catch {
+      context.logger.warn("Failed to publish pull request ownership receipt.");
+    }
+  }
+
   const eligibleIssue = openUnassignedIssues[0];
   if (!eligibleIssue) {
     if (openIssuesAssignedToAuthor.length > 0) {
       context.logger.debug("Pull request is linked to an open issue already assigned to the author, leaving it open.", {
         pullRequestNumber: pull_request.number,
       });
+      await publishLeaveOpenReceipt("author_assigned");
       return { status: HttpStatusCode.NOT_MODIFIED };
     }
 
@@ -109,6 +170,7 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
         pullRequestNumber: pull_request.number,
         role,
       });
+      await publishLeaveOpenReceipt("non_contributor_no_eligible_issue");
       return { status: HttpStatusCode.NOT_MODIFIED };
     }
 
