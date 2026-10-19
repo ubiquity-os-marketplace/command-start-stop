@@ -26,7 +26,6 @@
     }
   },
   "ubiquity:listeners": [
-    "issue_comment.created",
     "pull_request.opened",
     "pull_request.edited",
     "issues.unassigned"
@@ -366,6 +365,5 @@
         }
       }
     }
-  },
-  "homepage_url": "https://command-start-stop.ubiquity-os.deno.net"
+  }
 }
