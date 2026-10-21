@@ -11,6 +11,8 @@ import { checkRequirements } from "./helpers/check-requirements";
 import { checkTaskStale } from "./helpers/check-task-stale";
 import { ERROR_MESSAGES } from "./helpers/error-messages";
 import { getDeadline } from "./helpers/get-deadline";
+import { getOpenLinkedPullRequestsForIssue } from "../../../utils/get-linked-prs";
+import { getOpenLinkedPullRequestsForIssue } from "../../../utils/get-linked-prs";
 
 function unableToStartError({ override }: { override?: DeepPartial<StartEligibilityResult> }): StartEligibilityResult {
   return {
@@ -149,11 +151,24 @@ export async function evaluateStartEligibility(
     }
   }
 
+  // Look up the PR linked to this issue for reviewer-lag check
+  let prForReviewerLag: number | undefined;
+  try {
+    const linkedPrs = await getOpenLinkedPullRequestsForIssue(context, {
+      owner: context.payload.repository.owner.login,
+      repository: context.payload.repository.name,
+      issue: context.payload.issue.number,
+    });
+    prForReviewerLag = linkedPrs?.[0]?.number;
+  } catch {
+    // Non-critical: don't block task start if this lookup fails
+  }
+
   const toAssign: string[] = [];
   for (const user of allUsers) {
     const roleAndLimit = participantRoleAndLimits.get(user.toLowerCase());
     try {
-      const res = await handleTaskLimitChecks({ context, logger: context.logger, sender: sender.login, username: user, roleAndLimit });
+      const res = await handleTaskLimitChecks({ context, logger: context.logger, sender: sender.login, username: user, roleAndLimit, prForReviewerLag });
       // capture issues for later comment and API response
       res.assignedIssues.forEach((issue) => {
         assignedIssues.push({ title: issue.title, html_url: issue.html_url });
