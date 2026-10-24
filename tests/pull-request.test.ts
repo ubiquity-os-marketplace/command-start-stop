@@ -17,15 +17,24 @@ const ONE_HOUR_TIME_LABEL = "Time: <1 Hour";
 const CLOSE_FAILURE = "close failure";
 const SUCCESS_MESSAGE = ERROR_MESSAGES.TASK_ASSIGNED;
 const PULL_REQUEST_EVENT_NAME = "pull_request.opened";
+const PULL_REQUEST_EDITED_EVENT_NAME = "pull_request.edited";
 const PULL_REQUEST_HTML_URL = "https://github.com/ubiquity-os-marketplace/command-start-stop";
 const SUPABASE_MODULE_PATH = "@supabase/supabase-js";
 const ADAPTERS_MODULE_PATH = "../src/adapters";
 const SDK_OCTOKIT_MODULE_PATH = "@ubiquity-os/plugin-sdk/octokit";
 const OCTOKIT_HELPERS_MODULE_PATH = "../src/handlers/start/api/helpers/octokit";
 const START_TASK_MODULE_PATH = "../src/handlers/start-task";
+const OWNERSHIP_RECEIPT_PREFIX = "<!-- uos-command-start-stop:ownership-receipt:v1\n";
+const LATER_PULL_REQUEST_UPDATE = "2026-10-18T20:01:00Z";
 
 type Issue = Context<"issue_comment.created">["payload"]["issue"];
 type PayloadSender = Context["payload"]["sender"];
+type OwnershipComment = {
+  id: number;
+  body: string;
+  user: { id: number; type: string };
+  performed_via_github_app: { id: number };
+};
 
 beforeAll(() => {
   server.listen();
@@ -124,9 +133,15 @@ function createLinkedIssueRepoOctokit(issue: Issue, repo: Repository, role = "co
   } as const;
 }
 
-async function createPullRequestEventContext(issue: Issue, sender: PayloadSender) {
-  const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened">;
-  context.eventName = PULL_REQUEST_EVENT_NAME;
+async function createPullRequestEventContext(
+  issue: Issue,
+  sender: PayloadSender,
+  eventName: "pull_request.opened" | "pull_request.edited" = PULL_REQUEST_EVENT_NAME
+) {
+  const context = (await createContext(issue, sender, "")) as Context<"pull_request.opened" | "pull_request.edited">;
+  context.eventName = eventName;
+  context.payload.action = eventName === PULL_REQUEST_EDITED_EVENT_NAME ? "edited" : "opened";
+  context.env.APP_ID = "1";
   context.payload.pull_request = {
     html_url: PULL_REQUEST_HTML_URL,
     number: 1,
@@ -134,9 +149,13 @@ async function createPullRequestEventContext(issue: Issue, sender: PayloadSender
       id: 2,
       login: userLogin,
     },
+    head: { sha: "a".repeat(40), ref: "ownership-receipt" },
+    base: { sha: "b".repeat(40), ref: "main" },
+    updated_at: "2026-10-18T20:00:00Z",
   } as unknown as Context<"pull_request.edited">["payload"]["pull_request"];
   context.commentHandler = {
     postComment: jest.fn(async () => null),
+    createCommentBody: jest.fn((commentContext: Context, message: { logMessage: { diff: string } }) => message.logMessage.diff),
   } as unknown as Context["commentHandler"];
   return context;
 }
@@ -146,6 +165,11 @@ function expectWarnFormattedPullRequestComment(commentMock: ReturnType<typeof je
 
   const [{ body }] = commentMock.mock.calls[0] as [{ body: string }];
   expect(body).toBe(`> [!WARNING]\n> ${message}`);
+}
+
+function readOwnershipReceipt(body: string) {
+  expect(body.startsWith(OWNERSHIP_RECEIPT_PREFIX)).toBe(true);
+  return JSON.parse(body.slice(OWNERSHIP_RECEIPT_PREFIX.length, body.indexOf("\n-->", OWNERSHIP_RECEIPT_PREFIX.length))) as Record<string, unknown>;
 }
 
 function createClosingIssueNode(
@@ -163,15 +187,19 @@ function createClosingIssueNode(
 }
 
 function setPullRequestOctokit(
-  context: Context<"pull_request.opened">,
+  context: Context<"pull_request.opened" | "pull_request.edited">,
   {
     nodes = null,
     commentMock = jest.fn(),
     updateMock = jest.fn(),
+    comments = [],
+    receiptUpdateMock = jest.fn(),
   }: {
     nodes?: unknown[] | null;
     commentMock?: ReturnType<typeof jest.fn>;
     updateMock?: ReturnType<typeof jest.fn>;
+    comments?: OwnershipComment[];
+    receiptUpdateMock?: ReturnType<typeof jest.fn>;
   } = {}
 ) {
   context.octokit = {
@@ -181,8 +209,11 @@ function setPullRequestOctokit(
       },
       issues: {
         createComment: commentMock,
+        listComments: jest.fn(),
+        updateComment: receiptUpdateMock,
       },
     },
+    paginate: jest.fn(() => Promise.resolve(comments)),
     graphql: {
       paginate: jest.fn(() =>
         Promise.resolve({
@@ -196,7 +227,7 @@ function setPullRequestOctokit(
     },
   } as unknown as Context<"pull_request.edited">["octokit"];
 
-  return { commentMock, updateMock };
+  return { commentMock, updateMock, receiptUpdateMock };
 }
 
 async function mockRepoOctokitModules(repoOctokit: unknown, createAdaptersMock: ReturnType<typeof jest.fn> = jest.fn()) {
@@ -214,6 +245,37 @@ async function mockRepoOctokitModules(repoOctokit: unknown, createAdaptersMock: 
     createAppOctokit: jest.fn(() => Promise.resolve(repoOctokit)),
     createRepoOctokit: jest.fn(() => Promise.resolve(repoOctokit)),
   }));
+}
+
+async function setupOwnershipReceipt() {
+  const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+  const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+  const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+  const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+  const context = await createPullRequestEventContext(issue, sender, PULL_REQUEST_EDITED_EVENT_NAME);
+  const comments: OwnershipComment[] = [];
+  const commentMock = jest.fn(async ({ body }: { body: string }) => {
+    const comment = { id: comments.length + 1, body, user: { id: 1, type: "Bot" }, performed_via_github_app: { id: 1 } };
+    comments.push(comment);
+    return { data: comment };
+  });
+  const receiptUpdateMock = jest.fn(async ({ body, comment_id: commentId }: { body: string; comment_id: number }) => {
+    const comment = comments.find((candidate) => candidate.id === commentId);
+    if (!comment) throw new Error("Synthetic comment not found");
+    comment.body = body;
+    return { data: comment };
+  });
+  const { updateMock } = setPullRequestOctokit(context, {
+    nodes: [createClosingIssueNode(repo, { number: issue.number, assignees: [userLogin] })],
+    comments,
+    commentMock,
+    receiptUpdateMock,
+  });
+  await mockRepoOctokitModules(repoOctokit);
+  const startTask = jest.fn().mockResolvedValue({ status: HttpStatusCode.OK });
+  jest.doMock(START_TASK_MODULE_PATH, () => ({ startTask }));
+  const { startStopTask } = await import("../src/plugin");
+  return { context, comments, commentMock, receiptUpdateMock, updateMock, startTask, repoOctokit, run: () => startStopTask(context) };
 }
 
 describe("Pull-request tests", () => {
@@ -820,7 +882,7 @@ describe("Pull-request tests", () => {
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("Should keep the pull-request open when it is linked to an issue already assigned to the author", async () => {
+  it("Should publish an ownership receipt when an open linked issue is already assigned to the author", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
@@ -843,7 +905,21 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.NOT_MODIFIED,
     });
     expect(startTask).not.toHaveBeenCalled();
-    expect(commentMock).not.toHaveBeenCalled();
+    expect(commentMock).toHaveBeenCalledTimes(1);
+    const [{ body }] = commentMock.mock.calls[0] as [{ body: string }];
+    expect(readOwnershipReceipt(body)).toEqual({
+      eventName: PULL_REQUEST_EVENT_NAME,
+      action: "opened",
+      repository: "ubiquity/test-repo",
+      pullRequest: 1,
+      author: userLogin,
+      head: context.payload.pull_request.head,
+      base: context.payload.pull_request.base,
+      updatedAt: context.payload.pull_request.updated_at,
+      role: "contributor",
+      reason: "author_assigned",
+      result: "leave_open",
+    });
     expect(updateMock).not.toHaveBeenCalled();
   });
 
@@ -906,12 +982,12 @@ describe("Pull-request tests", () => {
     expect(updateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("Should leave non-contributor pull-requests open when no valid linked issue is found", async () => {
+  it("Should publish an ownership receipt for a non-contributor edited pull-request with no eligible linked issue", async () => {
     const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
     const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
     const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
     const adminRepoOctokit = createLinkedIssueRepoOctokit(issue, repo, "admin");
-    const context = await createPullRequestEventContext(issue, sender);
+    const context = await createPullRequestEventContext(issue, sender, PULL_REQUEST_EDITED_EVENT_NAME);
     const { commentMock, updateMock } = setPullRequestOctokit(context, { nodes: null });
 
     await mockRepoOctokitModules(adminRepoOctokit);
@@ -922,8 +998,123 @@ describe("Pull-request tests", () => {
     expect(result).toMatchObject({
       status: HttpStatusCode.NOT_MODIFIED,
     });
-    expect(commentMock).not.toHaveBeenCalled();
+    expect(commentMock).toHaveBeenCalledTimes(1);
+    const [{ body }] = commentMock.mock.calls[0] as [{ body: string }];
+    expect(readOwnershipReceipt(body)).toMatchObject({
+      eventName: PULL_REQUEST_EDITED_EVENT_NAME,
+      action: "edited",
+      repository: "ubiquity/test-repo",
+      pullRequest: 1,
+      author: userLogin,
+      head: context.payload.pull_request.head,
+      base: context.payload.pull_request.base,
+      updatedAt: context.payload.pull_request.updated_at,
+      role: "admin",
+      reason: "non_contributor_no_eligible_issue",
+      result: "leave_open",
+    });
     expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should refresh one ownership receipt for a later edited snapshot and ignore identical or older redelivery", async () => {
+    const fixture = await setupOwnershipReceipt();
+    const originalUpdatedAt = fixture.context.payload.pull_request.updated_at;
+    const hostileRef = "feature/`-->@someone<&";
+    fixture.context.payload.pull_request.head.ref = hostileRef;
+
+    await expect(fixture.run()).resolves.toEqual({ status: HttpStatusCode.NOT_MODIFIED });
+    const originalBody = fixture.comments[0].body;
+    expect(readOwnershipReceipt(originalBody).head).toEqual({ sha: "a".repeat(40), ref: hostileRef });
+    expect(originalBody).not.toContain(hostileRef);
+    expect(originalBody).not.toContain("@someone");
+    await fixture.run();
+    expect(fixture.commentMock).toHaveBeenCalledTimes(1);
+    expect(fixture.receiptUpdateMock).not.toHaveBeenCalled();
+
+    fixture.context.payload.pull_request.updated_at = LATER_PULL_REQUEST_UPDATE;
+    await fixture.run();
+    const refreshedBody = fixture.comments[0].body;
+    expect(readOwnershipReceipt(refreshedBody).updatedAt).toBe(LATER_PULL_REQUEST_UPDATE);
+    expect(fixture.receiptUpdateMock).toHaveBeenCalledTimes(1);
+    expect(fixture.receiptUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 1 }));
+
+    fixture.context.payload.pull_request.updated_at = originalUpdatedAt;
+    await fixture.run();
+    expect(fixture.comments).toHaveLength(1);
+    expect(fixture.comments[0].body).toBe(refreshedBody);
+    expect(fixture.commentMock).toHaveBeenCalledTimes(1);
+    expect(fixture.receiptUpdateMock).toHaveBeenCalledTimes(1);
+    expect(fixture.startTask).not.toHaveBeenCalled();
+    expect(fixture.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should never update an ownership receipt marker copied by another actor or an unrelated App comment", async () => {
+    const fixture = await setupOwnershipReceipt();
+    const forgedBody = `${OWNERSHIP_RECEIPT_PREFIX}{"updatedAt":"2099-01-01T00:00:00Z"}\n-->`;
+    fixture.comments.push(
+      { id: 10, body: forgedBody, user: { id: 1, type: "User" }, performed_via_github_app: { id: 1 } },
+      { id: 11, body: forgedBody, user: { id: 2, type: "Bot" }, performed_via_github_app: { id: 1 } },
+      { id: 12, body: forgedBody, user: { id: 1, type: "Bot" }, performed_via_github_app: { id: 2 } },
+      { id: 13, body: "An unrelated App comment", user: { id: 1, type: "Bot" }, performed_via_github_app: { id: 1 } }
+    );
+
+    await fixture.run();
+
+    expect(fixture.commentMock).toHaveBeenCalledTimes(1);
+    expect(fixture.receiptUpdateMock).not.toHaveBeenCalled();
+    expect(fixture.comments.slice(0, 3).map((comment) => comment.body)).toEqual([forgedBody, forgedBody, forgedBody]);
+    expect(fixture.comments[3].body).toBe("An unrelated App comment");
+    expect(fixture.startTask).not.toHaveBeenCalled();
+    expect(fixture.updateMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["list", "create", "update"] as const)("Should preserve leave-open and retry an ownership receipt after a %s failure", async (operation) => {
+    const fixture = await setupOwnershipReceipt();
+    if (operation === "update") {
+      await fixture.run();
+      fixture.context.payload.pull_request.updated_at = LATER_PULL_REQUEST_UPDATE;
+    }
+    const warning = jest.spyOn(fixture.context.logger, "warn");
+    const error = new Error("Synthetic receipt publication failure");
+    if (operation === "list") jest.spyOn(fixture.context.octokit, "paginate").mockRejectedValueOnce(error);
+    if (operation === "create") fixture.commentMock.mockRejectedValueOnce(error);
+    if (operation === "update") fixture.receiptUpdateMock.mockRejectedValueOnce(error);
+
+    await expect(fixture.run()).resolves.toEqual({ status: HttpStatusCode.NOT_MODIFIED });
+    expect(warning).toHaveBeenLastCalledWith("Failed to publish pull request ownership receipt.");
+    expect(fixture.startTask).not.toHaveBeenCalled();
+    expect(fixture.updateMock).not.toHaveBeenCalled();
+    await expect(fixture.run()).resolves.toEqual({ status: HttpStatusCode.NOT_MODIFIED });
+    expect(fixture.comments).toHaveLength(1);
+    expect(readOwnershipReceipt(fixture.comments[0].body).updatedAt).toBe(fixture.context.payload.pull_request.updated_at);
+    expect(fixture.startTask).not.toHaveBeenCalled();
+    expect(fixture.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should preserve leave-open without an ownership receipt when App identity or event time is unavailable", async () => {
+    const fixture = await setupOwnershipReceipt();
+    fixture.context.env.APP_ID = "invalid";
+    await expect(fixture.run()).resolves.toEqual({ status: HttpStatusCode.NOT_MODIFIED });
+    fixture.context.env.APP_ID = "1";
+    fixture.context.payload.pull_request.updated_at = "invalid";
+    await expect(fixture.run()).resolves.toEqual({ status: HttpStatusCode.NOT_MODIFIED });
+    expect(fixture.commentMock).not.toHaveBeenCalled();
+    expect(fixture.receiptUpdateMock).not.toHaveBeenCalled();
+    expect(fixture.startTask).not.toHaveBeenCalled();
+    expect(fixture.updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should preserve contributor role-lookup fallback without an ownership receipt on the close path", async () => {
+    const fixture = await setupOwnershipReceipt();
+    jest.spyOn(fixture.repoOctokit.rest.orgs, "getMembershipForUser").mockRejectedValueOnce(new Error("Synthetic membership failure"));
+    jest.spyOn(fixture.repoOctokit.rest.repos, "getCollaboratorPermissionLevel").mockRejectedValueOnce(new Error("Synthetic permission failure"));
+    jest.spyOn(fixture.context.octokit.graphql, "paginate").mockResolvedValueOnce({ repository: { pullRequest: { closingIssuesReferences: { nodes: [] } } } });
+
+    await expect(fixture.run()).resolves.toMatchObject({ status: HttpStatusCode.BAD_REQUEST });
+    expect(fixture.commentMock).toHaveBeenCalledTimes(1);
+    expect(fixture.comments[0].body).not.toContain(OWNERSHIP_RECEIPT_PREFIX);
+    expect(fixture.updateMock).toHaveBeenCalledTimes(1);
+    expect(fixture.startTask).not.toHaveBeenCalled();
   });
 
   it("Should still close an invalid pull-request when commenting fails", async () => {
