@@ -1,5 +1,6 @@
 {
   "name": "@ubiquity-os/command-start-stop",
+  "homepage_url": "https://ubiquity-os-command-start-stop-main.ubiquity.workers.dev",
   "short_name": "ubiquity-os-marketplace/command-start-stop@main",
   "description": "Enables the assignment and graceful unassignment of tasks to contributors.",
   "commands": {
