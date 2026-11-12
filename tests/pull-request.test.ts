@@ -168,10 +168,12 @@ function setPullRequestOctokit(
     nodes = null,
     commentMock = jest.fn(),
     updateMock = jest.fn(),
+    listCommentsMock = jest.fn(() => Promise.resolve({ data: [] })),
   }: {
     nodes?: unknown[] | null;
     commentMock?: ReturnType<typeof jest.fn>;
     updateMock?: ReturnType<typeof jest.fn>;
+    listCommentsMock?: ReturnType<typeof jest.fn>;
   } = {}
 ) {
   context.octokit = {
@@ -181,6 +183,7 @@ function setPullRequestOctokit(
       },
       issues: {
         createComment: commentMock,
+        listComments: listCommentsMock,
       },
     },
     graphql: {
@@ -196,7 +199,7 @@ function setPullRequestOctokit(
     },
   } as unknown as Context<"pull_request.edited">["octokit"];
 
-  return { commentMock, updateMock };
+  return { commentMock, updateMock, listCommentsMock };
 }
 
 async function mockRepoOctokitModules(repoOctokit: unknown, createAdaptersMock: ReturnType<typeof jest.fn> = jest.fn()) {
@@ -843,6 +846,38 @@ describe("Pull-request tests", () => {
       status: HttpStatusCode.NOT_MODIFIED,
     });
     expect(startTask).not.toHaveBeenCalled();
+    // Receipt comment should be posted to make the leave-open decision observable
+    expect(commentMock).toHaveBeenCalled();
+    const commentCall = commentMock.mock.calls[0]?.[0];
+    expect(commentCall?.body).toContain("PR Ownership Decision: Leave Open");
+    expect(commentCall?.body).toContain("assigned to the PR author");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should not duplicate the leave-open receipt when an equivalent one already exists", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    // Simulate an existing receipt with the same head SHA
+    const existingReceiptBody = "<!-- pr-ownership-receipt -->\n**PR Ownership Decision: Leave Open**\n- **Head SHA:** `abc123def456`";
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: [createClosingIssueNode(repo, { number: issue.number, assignees: [userLogin] })],
+      listCommentsMock: jest.fn(() => Promise.resolve({ data: [{ body: existingReceiptBody }] })),
+    });
+    // Set the head SHA to match the existing receipt
+    (context.payload.pull_request as any).head = { sha: "abc123def456789" };
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    expect(result).toMatchObject({
+      status: HttpStatusCode.NOT_MODIFIED,
+    });
+    // No new comment should be posted (idempotent)
     expect(commentMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
   });
@@ -922,7 +957,34 @@ describe("Pull-request tests", () => {
     expect(result).toMatchObject({
       status: HttpStatusCode.NOT_MODIFIED,
     });
-    expect(commentMock).not.toHaveBeenCalled();
+    // Receipt comment should be posted for non-contributor leave-open decision
+    expect(commentMock).toHaveBeenCalled();
+    const commentCall = commentMock.mock.calls[0]?.[0];
+    expect(commentCall?.body).toContain("PR Ownership Decision: Leave Open");
+    expect(commentCall?.body).toContain("non-contributor with no eligible linked issue");
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("Should preserve the leave-open decision when the receipt comment fails", async () => {
+    const issue = db.issue.findFirst({ where: { id: { equals: 1 } } }) as unknown as Issue;
+    const repo = db.repo.findFirst({ where: { id: { equals: 1 } } }) as unknown as Repository;
+    const sender = db.users.findFirst({ where: { id: { equals: 2 } } }) as unknown as PayloadSender;
+    const repoOctokit = createLinkedIssueRepoOctokit(issue, repo);
+    const context = await createPullRequestEventContext(issue, sender);
+    const { commentMock, updateMock } = setPullRequestOctokit(context, {
+      nodes: [createClosingIssueNode(repo, { number: issue.number, assignees: [userLogin] })],
+      listCommentsMock: jest.fn(() => Promise.reject(new Error("listComments failure"))),
+    });
+
+    await mockRepoOctokitModules(repoOctokit);
+    const { startStopTask } = await import("../src/plugin");
+
+    const result = await startStopTask(context);
+
+    // The decision is preserved even though the receipt failed
+    expect(result).toMatchObject({
+      status: HttpStatusCode.NOT_MODIFIED,
+    });
     expect(updateMock).not.toHaveBeenCalled();
   });
 

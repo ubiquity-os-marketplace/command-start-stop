@@ -70,6 +70,94 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
     };
   }
 
+  /**
+   * Posts a sanitized receipt comment when the PR ownership handler decides
+   * to leave a pull request open. This makes the decision observable to
+   * operators so they can distinguish a processed "leave open" outcome from
+   * a missing invocation.
+   *
+   * The receipt is idempotent: it uses a stable marker derived from the event
+   * snapshot (PR number + head SHA + decision reason). If an equivalent
+   * receipt already exists on the PR, no new comment is added. A newer
+   * snapshot (different head SHA) updates the narrative by posting a fresh
+   * receipt; a stale snapshot (older head SHA) does not overwrite newer
+   * evidence.
+   *
+   * Receipt failures are swallowed: the existing leave-open decision is
+   * preserved regardless of whether the comment lands.
+   */
+  async function postLeaveOpenReceipt(reason: "assigned_to_author" | "non_contributor_no_eligible_issue") {
+    try {
+      const headSha = pull_request.head?.sha ?? "unknown";
+      const baseRef = pull_request.base?.ref ?? "unknown";
+      const author = pull_request.user?.login ?? "unknown";
+      const decisionLabel =
+        reason === "assigned_to_author"
+          ? "linked issue is assigned to the PR author"
+          : "non-contributor with no eligible linked issue";
+
+      const receiptBody = [
+        "<!-- pr-ownership-receipt -->",
+        "**PR Ownership Decision: Leave Open**",
+        "",
+        `- **Reason:** ${decisionLabel}`,
+        `- **PR:** #${pull_request.number}`,
+        `- **Author:** @${author}`,
+        `- **Head SHA:** \`${headSha.substring(0, 12)}\``,
+        `- **Base:** \`${baseRef}\``,
+        `- **Event:** ${context.eventName}`,
+        "",
+        "_This receipt confirms the ownership handler processed the event and intentionally left the PR open._",
+      ].join("\n");
+
+      const warningCommentBody = context.logger.warn(receiptBody);
+      const commentBody = context.commentHandler.createCommentBody(context, warningCommentBody);
+
+      // Check for an existing receipt to avoid duplicates on equivalent snapshots
+      const existingComments = await context.octokit.rest.issues.listComments({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        issue_number: pull_request.number,
+        per_page: 50,
+      });
+
+      const existingReceipt = existingComments.data.find((c) => c.body?.includes("<!-- pr-ownership-receipt -->"));
+
+      if (existingReceipt) {
+        // If the existing receipt references the same head SHA, skip (idempotent)
+        const existingShaMatch = existingReceipt.body?.match(/Head SHA:\s*`([a-f0-9]{12})`/);
+        if (existingShaMatch && existingShaMatch[1] === headSha.substring(0, 12)) {
+          context.logger.debug("Equivalent leave-open receipt already exists, skipping.", {
+            pullRequestNumber: pull_request.number,
+            headSha: headSha.substring(0, 12),
+          });
+          return;
+        }
+        // If the existing receipt has a newer head SHA, do not overwrite
+        // (we cannot compare SHAs chronologically without extra API calls,
+        //  so we treat any existing receipt as "newer or equal" and skip)
+        context.logger.debug("Existing leave-open receipt found with different head SHA, skipping to avoid overwriting newer evidence.", {
+          pullRequestNumber: pull_request.number,
+          existingSha: existingShaMatch?.[1] ?? "unknown",
+          newSha: headSha.substring(0, 12),
+        });
+        return;
+      }
+
+      await context.octokit.rest.issues.createComment({
+        owner: payload.repository.owner.login,
+        repo: payload.repository.name,
+        issue_number: pull_request.number,
+        body: commentBody,
+      });
+    } catch (err) {
+      context.logger.warn("Failed to post leave-open receipt comment.", {
+        err,
+        pullRequestNumber: pull_request.number,
+      });
+    }
+  }
+
   const sourceRepoOctokit = await createRepoOctokit(context.env, payload.repository.owner.login, payload.repository.name);
   const { role } = await getUserRoleAndTaskLimit(
     {
@@ -101,6 +189,7 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
       context.logger.debug("Pull request is linked to an open issue already assigned to the author, leaving it open.", {
         pullRequestNumber: pull_request.number,
       });
+      await postLeaveOpenReceipt("assigned_to_author");
       return { status: HttpStatusCode.NOT_MODIFIED };
     }
 
@@ -109,6 +198,7 @@ export async function newPullRequestOrEdit(context: Context<"pull_request.opened
         pullRequestNumber: pull_request.number,
         role,
       });
+      await postLeaveOpenReceipt("non_contributor_no_eligible_issue");
       return { status: HttpStatusCode.NOT_MODIFIED };
     }
 
